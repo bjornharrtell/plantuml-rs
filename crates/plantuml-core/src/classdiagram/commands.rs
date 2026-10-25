@@ -468,6 +468,159 @@ fn type_keyword_gender(word: &str) -> Option<EntityGender> {
     Some(EntityGender::by_entity_type(t))
 }
 
+const QUOTED_DISPLAY: &str = "[%g][^%g]+[%g]";
+
+fn package_and_namespace_tail(parts: &mut Vec<IRegex>) {
+    parts.push(IRegex::space_zero_or_more());
+    parts.push(IRegex::named("TAGS1", &format!("{}?", tags_pattern())));
+    parts.push(crate::stereo::optional_pattern("STEREO"));
+    parts.push(IRegex::named("TAGS2", &format!("{}?", tags_pattern())));
+    parts.push(IRegex::space_zero_or_more());
+    parts.push(crate::url::optional());
+    parts.push(IRegex::space_zero_or_more());
+    parts.push(back_color().regex());
+    parts.push(IRegex::space_zero_or_more());
+    parts.push(IRegex::leaf(r"\{"));
+    parts.push(IRegex::end());
+}
+
+/// `package [visibility] code [as "display"] [tags] [<<stereo>>] [#color] {` (`CommandPackage`).
+fn create_package() -> Cmd {
+    let code_bareword = "[%pLN_.$]*";
+    let mut parts = vec![
+        IRegex::start(),
+        IRegex::named(
+            "VISIBILITY",
+            &format!(
+                "({})?",
+                VisibilityModifier::regex_for_visibility_character()
+            ),
+        ),
+        IRegex::space_zero_or_more(),
+        IRegex::named("TYPE", "(package)"),
+        IRegex::space_one_or_more(),
+        IRegex::or(vec![
+            IRegex::group(vec![
+                IRegex::named("CODE1", &format!("({code_bareword}|{QUOTED_DISPLAY})")),
+                IRegex::optional(IRegex::group(vec![
+                    IRegex::space_one_or_more(),
+                    IRegex::leaf("as"),
+                    IRegex::space_one_or_more(),
+                    IRegex::named("DISPLAY1", &format!("({QUOTED_DISPLAY})")),
+                ])),
+            ]),
+            IRegex::group(vec![
+                IRegex::named("DISPLAY2", &format!("({QUOTED_DISPLAY})")),
+                IRegex::space_one_or_more(),
+                IRegex::leaf("as"),
+                IRegex::space_one_or_more(),
+                IRegex::named("CODE2", "([%pLN_.]+)"),
+            ]),
+        ]),
+    ];
+    package_and_namespace_tail(&mut parts);
+    Box::new(SingleLineCommand::new(
+        IRegex::concat(parts),
+        |d: &mut ClassDiagram, loc, arg, _| open_group(d, loc, arg),
+    ))
+}
+
+/// `namespace name {` and `namespace "display" as name {` (`CommandNamespace`).
+fn create_namespace() -> Cmd {
+    let code = code();
+    let mut parts = vec![
+        IRegex::start(),
+        IRegex::leaf("namespace"),
+        IRegex::space_one_or_more(),
+        IRegex::or(vec![
+            IRegex::group(vec![
+                IRegex::named("DISPLAY1", &format!("({QUOTED_DISPLAY})")),
+                IRegex::space_one_or_more(),
+                IRegex::leaf("as"),
+                IRegex::space_one_or_more(),
+                IRegex::named("CODE2", &format!("({code})")),
+            ]),
+            IRegex::named("CODE1", &format!("({code})")),
+        ]),
+    ];
+    package_and_namespace_tail(&mut parts);
+    Box::new(SingleLineCommand::new(
+        IRegex::concat(parts),
+        |d: &mut ClassDiagram, loc, arg, _| open_group(d, loc, arg),
+    ))
+}
+
+fn open_group(
+    d: &mut ClassDiagram,
+    loc: Option<LineLocation>,
+    arg: &RegexResult,
+) -> CommandExecutionResult {
+    let id_raw = unquote(arg.get_lazzy("CODE", 0).unwrap_or(""));
+    if id_raw.is_empty() {
+        return CommandExecutionResult::error("Error in name");
+    }
+    let id = d.cuca.clean_id(Some(&id_raw)).unwrap_or_default();
+    let quark = match d.cuca.quark_in_context(false, &id) {
+        Ok(q) => q,
+        Err((m, s)) => return CommandExecutionResult::error_with_score(m, s),
+    };
+    let display = arg
+        .get_lazzy("DISPLAY", 0)
+        .map(|s| unquote(s).to_string())
+        .unwrap_or_else(|| quark.name().to_string());
+    let status = d.cuca.goto_group(
+        loc,
+        quark,
+        Display::with_newlines(Some(&display)),
+        crate::abel::GroupType::Package,
+    );
+    if !status.is_ok() {
+        return status;
+    }
+    let group = d.cuca.current_group();
+    if let Some(v) = arg.get("VISIBILITY", 0) {
+        group.set_visibility_modifier(VisibilityModifier::from_text(&format!("{v}FOO"), false));
+    }
+    if let Some(st) = arg.get("STEREO", 0) {
+        let radius = d.cuca.base.skin_param.circled_character_radius();
+        group.set_stereotype(Some(Stereotype::build_complex(st, radius)));
+        group.set_stereostyle(st);
+    }
+    add_tags(&group, arg.get_lazzy("TAGS", 0));
+    if let Some(u) = arg.get(crate::url::URL_KEY, 0) {
+        let top = d.cuca.base.skin_param.get_value("topurl");
+        if let Some(url) = UrlBuilder::new(top, UrlMode::Strict).url(u) {
+            group.add_url(url);
+        }
+    }
+    let Some(colors) = back_color().colors(arg) else {
+        return CommandExecutionResult::bad_color();
+    };
+    group.set_colors(colors);
+    CommandExecutionResult::ok()
+}
+
+/// `}` closes the current package, namespace or together block (`CommandEndPackage`).
+fn end_package() -> Cmd {
+    let r = IRegex::concat(vec![
+        IRegex::start(),
+        IRegex::space_zero_or_more(),
+        IRegex::leaf(r"\}"),
+        IRegex::space_zero_or_more(),
+        IRegex::end(),
+    ]);
+    Box::new(SingleLineCommand::new(
+        r,
+        |d: &mut ClassDiagram, _, _, _| {
+            if d.cuca.end_group() {
+                CommandExecutionResult::ok()
+            } else {
+                CommandExecutionResult::error("No package or namespace defined")
+            }
+        },
+    ))
+}
+
 /// `hide`/`show` of a portion, optionally filtered by kind, stereotype or name (`CommandHideShowByGender`).
 fn hide_show_by_gender() -> Cmd {
     const TYPE_KEYWORDS: &str = "class|object|interface|enum|annotation|dataclass|record|abstract|protocol|struct|exception|metaclass|stereotype";
@@ -1010,8 +1163,11 @@ pub fn commands() -> Vec<Cmd> {
     cmds.push(hide_show_by_visibility());
     cmds.push(hide_show_by_gender());
     cmds.push(hide_show2());
+    cmds.push(create_package());
+    cmds.push(create_namespace());
     cmds.push(create_class_multi());
     cmds.push(create_class_single());
+    cmds.push(end_package());
     cmds.push(link_class());
     cmds
 }
@@ -1078,6 +1234,26 @@ mod tests {
         assert_eq!(a.get().bodier.fields_to_display().len(), 1);
         let d = parse("@startuml\nhide empty members\nclass A\n@enduml");
         assert!(!d.cuca.show_portion(EntityPortion::Field, &entity(&d, "A")));
+    }
+
+    #[test]
+    fn packages_and_namespaces_open_groups() {
+        let d = parse("@startuml\npackage p {\nclass A\n}\n@enduml");
+        assert_eq!(entity(&d, "A").qualified_name(), "p.A");
+        let d = parse("@startuml\npackage \"Hello\" as uid {\nclass A\n}\n@enduml");
+        assert_eq!(entity(&d, "A").qualified_name(), "uid.A");
+        assert_eq!(d.cuca.groups().len(), 1);
+        assert_eq!(d.cuca.groups()[0].display().text_at(0), "Hello");
+        let d = parse("@startuml\nnamespace App.Entity {\nclass A\n}\n@enduml");
+        assert_eq!(entity(&d, "A").qualified_name(), "App.Entity.A");
+        let d = parse("@startuml\npackage a {\npackage b {\nclass C\n}\n}\n@enduml");
+        assert_eq!(entity(&d, "C").qualified_name(), "a.b.C");
+    }
+
+    #[test]
+    fn stray_closing_bracket_is_an_error() {
+        let source = UmlSource::from_text("@startuml\n}\n@enduml");
+        assert!(create_system(&commands(), ClassDiagram::new(source.clone()), &source).is_err());
     }
 
     #[test]

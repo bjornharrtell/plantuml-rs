@@ -339,7 +339,7 @@ impl CucaDiagram {
     }
 
     pub fn end_group(&mut self) -> bool {
-        if self.stacks.is_empty() {
+        if self.stacks.len() <= 1 {
             return false;
         }
         self.stacks.pop();

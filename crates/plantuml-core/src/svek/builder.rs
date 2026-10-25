@@ -302,6 +302,17 @@ pub fn build_image(
         if cuca.is_link_removed(link) {
             continue;
         }
+        let (e1, e2) = (link.entity1(), link.entity2());
+        // A leaf inside a package has no node yet (clusters are not laid out), so the link
+        // cannot be drawn; skipping it keeps the diagram renderable instead of panicking.
+        if !entity_has_node(&bib, &e1) || !entity_has_node(&bib, &e2) {
+            log::warn!(
+                "link skipped: {} or {} has no node (grouped entities are not laid out yet)",
+                e1.qualified_name(),
+                e2.qualified_name()
+            );
+            continue;
+        }
         let edge = SvekEdge::new(link.clone(), skin, sb.clone(), &bib);
         bib.add_line(edge);
     }
@@ -338,6 +349,11 @@ fn dot_strings(cuca: &CucaDiagram) -> Vec<String> {
         out.push(format!("ratio={r};"));
     }
     out
+}
+
+/// Whether `ent` takes part in the layout: a node, or a group drawn as a cluster.
+fn entity_has_node(bib: &Bibliotekon, ent: &Entity) -> bool {
+    bib.node(ent).is_some() || ent.is_group()
 }
 
 /// Links grouped by the entities they connect (`getOrderedLinks`).
