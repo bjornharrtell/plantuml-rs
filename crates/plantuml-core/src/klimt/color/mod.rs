@@ -261,6 +261,18 @@ impl HColor {
         }
     }
 
+    /// Attaches the dark-scheme color of a simple color (`withDark`).
+    pub fn with_dark(&self, dark: HColor) -> HColor {
+        match self {
+            HColor::Simple { color, fill, .. } => HColor::Simple {
+                color: *color,
+                dark: Some(Box::new(dark)),
+                fill: *fill,
+            },
+            _ => self.clone(),
+        }
+    }
+
     pub fn with_fill_behavior(&self, behavior: TransparentFillBehavior) -> HColor {
         match self {
             HColor::Simple { color, dark, .. } => HColor::Simple {

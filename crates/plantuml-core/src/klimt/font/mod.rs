@@ -29,6 +29,21 @@ impl FontFace {
         weight: 700,
     };
 
+    /// CSS keyword or number to a face (`UFontFace.fromCssWeight`).
+    pub fn from_css_weight(s: &str) -> Option<FontFace> {
+        let w = match s.trim().to_lowercase().as_str() {
+            "normal" => 400,
+            "bold" => 700,
+            "lighter" => 300,
+            "bolder" => 800,
+            n => n.parse().ok()?,
+        };
+        Some(FontFace {
+            italic: false,
+            weight: w,
+        })
+    }
+
     pub fn is_bold(self) -> bool {
         self.weight >= 700
     }

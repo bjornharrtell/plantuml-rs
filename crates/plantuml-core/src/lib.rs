@@ -1,6 +1,7 @@
 //! PlantUML rendering core. Pure library: no I/O, usable on `wasm32-unknown-unknown`.
 
 pub mod klimt;
+pub mod style;
 
 use std::fmt;
 

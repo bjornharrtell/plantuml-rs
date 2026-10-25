@@ -3,3 +3,4 @@
 pub mod color;
 pub mod drawing;
 pub mod font;
+pub mod geom;
