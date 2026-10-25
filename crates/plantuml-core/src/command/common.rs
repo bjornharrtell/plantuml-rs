@@ -527,6 +527,7 @@ pub fn common_commands<D: HasBase + 'static>() -> Vec<Cmd<D>> {
     ));
     cmds.push(nope());
     cmds.extend(simple_commands());
+    cmds.push(rankdir());
     cmds.push(pragma());
     cmds.push(skinparam_single());
     cmds.push(skinparam_block());
@@ -543,6 +544,26 @@ fn nope<D: 'static>() -> Cmd<D> {
         IRegex::end(),
     ]);
     Box::new(SingleLineCommand::new(r, |_: &mut D, _, _, _| {
+        CommandExecutionResult::ok()
+    }))
+}
+
+/// `left to right direction` and `top to bottom direction` (`CommandRankDir`).
+fn rankdir<D: HasBase + 'static>() -> Cmd<D> {
+    let r = IRegex::concat(vec![
+        IRegex::start(),
+        IRegex::named("DIRECTION", "(left[%s]to[%s]right|top[%s]to[%s]bottom)"),
+        IRegex::space_one_or_more(),
+        IRegex::leaf("direction"),
+        IRegex::end(),
+    ]);
+    Box::new(SingleLineCommand::new(r, |d: &mut D, _, arg, _| {
+        let direction = arg.get("DIRECTION", 0).unwrap_or("").to_uppercase();
+        d.base_mut().skin_param.rankdir = if direction == "LEFT TO RIGHT" {
+            crate::skin::Rankdir::LeftToRight
+        } else {
+            crate::skin::Rankdir::TopToBottom
+        };
         CommandExecutionResult::ok()
     }))
 }

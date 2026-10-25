@@ -1,12 +1,13 @@
 //! Commands of class diagrams (`classdiagram/command`).
 
 use super::ClassDiagram;
-use crate::abel::{LeafType, Link, LinkArg, LinkArrow, Stereotag};
+use crate::abel::gender::EntityGender;
+use crate::abel::{EntityPortion, LeafType, Link, LinkArg, LinkArrow, Stereotag};
 use crate::command::{
     Command, CommandExecutionResult, MultiLineCommand, ParserPass, SingleLineCommand, Trim,
 };
 use crate::decoration::link::{LinkDecor, LinkMiddleDecor, LinkType};
-use crate::klimt::color::colors::{ColorType, Colors};
+use crate::klimt::color::colors::ColorType;
 use crate::klimt::color::parser::ColorParser;
 use crate::klimt::color::HColor;
 use crate::klimt::creole::display::Display;
@@ -416,6 +417,232 @@ fn not_null(s: Option<&str>) -> &str {
     s.unwrap_or("")
 }
 
+// set / hide / show
+
+/// Portion named in a `hide`/`show` command (`getEntityPortion`).
+fn entity_portion(s: &str) -> Option<EntityPortion> {
+    let s = s.to_lowercase();
+    let sub = &s[..s.len().min(3)];
+    match sub {
+        "met" => Some(EntityPortion::Method),
+        "mem" => Some(EntityPortion::Member),
+        "att" | "fie" => Some(EntityPortion::Field),
+        "cir" => Some(EntityPortion::CircledCharacter),
+        "ste" => Some(EntityPortion::Stereotype),
+        _ => None,
+    }
+}
+
+fn namespace_separator() -> Cmd {
+    let r = IRegex::concat(vec![
+        IRegex::start(),
+        IRegex::leaf("set"),
+        IRegex::space_one_or_more(),
+        IRegex::or(vec![
+            IRegex::leaf("separator"),
+            IRegex::leaf("namespaceseparator"),
+        ]),
+        IRegex::space_one_or_more(),
+        IRegex::named(
+            "SEPARATOR",
+            r"((?:none|null)|[\\]{2}|::|[^%pLN%s_$#{}<>%g])",
+        ),
+        IRegex::end(),
+    ]);
+    Box::new(SingleLineCommand::new(
+        r,
+        |d: &mut ClassDiagram, _, arg, _| {
+            let s = arg.get("SEPARATOR", 0).unwrap_or("");
+            if s.eq_ignore_ascii_case("none") || s.eq_ignore_ascii_case("null") {
+                d.cuca.set_namespace_separator(None);
+            } else {
+                d.cuca.set_namespace_separator(Some(s));
+            }
+            CommandExecutionResult::ok()
+        },
+    ))
+}
+
+fn type_keyword_gender(word: &str) -> Option<EntityGender> {
+    let t = LeafType::from_keyword(word)?;
+    Some(EntityGender::by_entity_type(t))
+}
+
+/// `hide`/`show` of a portion, optionally filtered by kind, stereotype or name (`CommandHideShowByGender`).
+fn hide_show_by_gender() -> Cmd {
+    const TYPE_KEYWORDS: &str = "class|object|interface|enum|annotation|dataclass|record|abstract|protocol|struct|exception|metaclass|stereotype";
+    let r = IRegex::concat(vec![
+        IRegex::start(),
+        IRegex::named("COMMAND", "(hide|show)"),
+        IRegex::space_one_or_more(),
+        IRegex::named(
+            "GENDER",
+            &format!(r"(?:(?:{TYPE_KEYWORDS}|[%pLN_.]+|[%g][^%g]+[%g]|\<\<.*\>\>)[%s]+)*?"),
+        ),
+        IRegex::optional(IRegex::group(vec![
+            IRegex::named("EMPTY", "(empty)"),
+            IRegex::space_one_or_more(),
+        ])),
+        IRegex::named(
+            "PORTION",
+            "(members?|attributes?|fields?|methods?|circles?|circled?|stereotypes?)",
+        ),
+        IRegex::end(),
+    ]);
+    Box::new(SingleLineCommand::new(
+        r,
+        |d: &mut ClassDiagram, _, arg, _| {
+            let Some(portion) = arg.get("PORTION", 0).and_then(entity_portion) else {
+                return CommandExecutionResult::error("Unknown portion");
+            };
+            let show = arg
+                .get("COMMAND", 0)
+                .is_some_and(|c| c.eq_ignore_ascii_case("show"));
+            let empty = arg.get("EMPTY", 0).is_some();
+            let mut gender = match arg.get("GENDER", 0) {
+                None => EntityGender::all(),
+                Some(g) if g.starts_with("<<") => EntityGender::by_stereotype(g),
+                Some(g) => match type_keyword_gender(g) {
+                    Some(gender) => gender,
+                    None => {
+                        let name = unquote(g);
+                        let id = d.cuca.clean_id(Some(&name)).unwrap_or_default();
+                        let quark = match d.cuca.quark_in_context(true, &id) {
+                            Ok(q) => q,
+                            Err((m, s)) => return CommandExecutionResult::error_with_score(m, s),
+                        };
+                        if portion == EntityPortion::Method {
+                            EntityGender::by_class_name(&name)
+                        } else {
+                            match quark.data() {
+                                Some(e) => EntityGender::by_entity_alone(&e),
+                                None => {
+                                    return CommandExecutionResult::error(format!(
+                                        "No such element {}",
+                                        quark.name()
+                                    ))
+                                }
+                            }
+                        }
+                    }
+                },
+            };
+            let current = d.cuca.current_group();
+            if !current.is_root() {
+                gender = EntityGender::and(gender, EntityGender::by_package(&current));
+            }
+            let empty_by_gender = |p: EntityPortion| match p {
+                EntityPortion::Method => EntityGender::empty_methods(),
+                EntityPortion::Field => EntityGender::empty_fields(),
+                _ => EntityGender::all(),
+            };
+            let empty_members = empty && portion == EntityPortion::Member;
+            if empty && !empty_members {
+                gender = EntityGender::and(gender, empty_by_gender(portion));
+            }
+            if empty_members {
+                for p in [EntityPortion::Field, EntityPortion::Method] {
+                    d.cuca.hide_or_show(
+                        EntityGender::and(gender.clone(), empty_by_gender(p)),
+                        p,
+                        show,
+                    );
+                }
+            } else {
+                d.cuca.hide_or_show(gender, portion, show);
+            }
+            CommandExecutionResult::ok()
+        },
+    ))
+}
+
+/// `hide`/`show` of a portion filtered by visibility modifier (`CommandHideShowByVisibility`).
+fn hide_show_by_visibility() -> Cmd {
+    let r = IRegex::concat(vec![
+        IRegex::start(),
+        IRegex::named("COMMAND", "(hide|show)"),
+        IRegex::space_one_or_more(),
+        IRegex::named(
+            "VISIBILITY",
+            "((?:public|private|protected|package)?(?:[,%s]+(?:public|private|protected|package))*)",
+        ),
+        IRegex::space_one_or_more(),
+        IRegex::named("PORTION", "(members?|attributes?|fields?|methods?)"),
+        IRegex::end(),
+    ]);
+    Box::new(SingleLineCommand::new(
+        r,
+        |d: &mut ClassDiagram, _, arg, _| {
+            let Some(portion) = arg.get("PORTION", 0).and_then(entity_portion) else {
+                return CommandExecutionResult::error("Unknown portion");
+            };
+            let mut visibilities: Vec<VisibilityModifier> = Vec::new();
+            let text = arg.get("VISIBILITY", 0).unwrap_or("").to_lowercase();
+            for token in text.split([' ', ',']).filter(|t| !t.is_empty()) {
+                for (word, field, method) in [
+                    (
+                        "public",
+                        VisibilityModifier::PublicField,
+                        VisibilityModifier::PublicMethod,
+                    ),
+                    (
+                        "private",
+                        VisibilityModifier::PrivateField,
+                        VisibilityModifier::PrivateMethod,
+                    ),
+                    (
+                        "protected",
+                        VisibilityModifier::ProtectedField,
+                        VisibilityModifier::ProtectedMethod,
+                    ),
+                    (
+                        "package",
+                        VisibilityModifier::PackagePrivateField,
+                        VisibilityModifier::PackagePrivateMethod,
+                    ),
+                ] {
+                    if token != word {
+                        continue;
+                    }
+                    if matches!(portion, EntityPortion::Member | EntityPortion::Field) {
+                        visibilities.push(field);
+                    }
+                    if matches!(portion, EntityPortion::Member | EntityPortion::Method) {
+                        visibilities.push(method);
+                    }
+                }
+            }
+            let show = arg
+                .get("COMMAND", 0)
+                .is_some_and(|c| c.eq_ignore_ascii_case("show"));
+            d.cuca.hide_or_show_visibility_modifier(&visibilities, show);
+            CommandExecutionResult::ok()
+        },
+    ))
+}
+
+/// `hide`/`show` of whole elements by name or stereotype (`CommandHideShow2`).
+fn hide_show2() -> Cmd {
+    let r = IRegex::concat(vec![
+        IRegex::start(),
+        IRegex::named("COMMAND", "(hide|hide-class|show|show-class)"),
+        IRegex::space_one_or_more(),
+        IRegex::named("WHAT", r"([^%s]+|\<\<.*\>\>)"),
+        IRegex::end(),
+    ]);
+    Box::new(SingleLineCommand::new(
+        r,
+        |d: &mut ClassDiagram, _, arg, _| {
+            let show = arg
+                .get("COMMAND", 0)
+                .is_some_and(|c| c.to_lowercase().starts_with('s'));
+            let what = arg.get("WHAT", 0).unwrap_or("").trim();
+            d.cuca.hide_or_show2(what, show);
+            CommandExecutionResult::ok()
+        },
+    ))
+}
+
 fn arrow_head(arg: &RegexResult, key: &str) -> String {
     not_null(arg.get(key, 0)).replace('_', "")
 }
@@ -779,6 +1006,10 @@ fn execute_link(
 pub fn commands() -> Vec<Cmd> {
     let mut cmds: Vec<Cmd> = Vec::new();
     cmds.extend(crate::command::common::common_commands());
+    cmds.push(namespace_separator());
+    cmds.push(hide_show_by_visibility());
+    cmds.push(hide_show_by_gender());
+    cmds.push(hide_show2());
     cmds.push(create_class_multi());
     cmds.push(create_class_single());
     cmds.push(link_class());
@@ -786,4 +1017,80 @@ pub fn commands() -> Vec<Cmd> {
 }
 
 #[allow(dead_code)]
-fn _unused(_: Colors) {}
+fn _unused(_: ColorType) {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::command::{create_system, UmlSource};
+
+    fn parse(text: &str) -> ClassDiagram {
+        let source = UmlSource::from_text(text);
+        create_system(&commands(), ClassDiagram::new(source.clone()), &source)
+            .unwrap_or_else(|e| panic!("{e:?}"))
+    }
+
+    fn entity(d: &ClassDiagram, name: &str) -> crate::abel::Entity {
+        d.cuca
+            .first_with_name(name)
+            .and_then(|q| q.data())
+            .unwrap_or_else(|| panic!("no entity {name}"))
+    }
+
+    #[test]
+    fn set_separator_changes_qualified_names() {
+        let d = parse("@startuml\nset separator .\nclass App.Entity.A\n@enduml");
+        assert_eq!(entity(&d, "A").qualified_name(), "App.Entity.A");
+        let d = parse("@startuml\nset namespaceSeparator ::\nclass a::B\n@enduml");
+        assert_eq!(entity(&d, "B").qualified_name(), "a::B");
+        let d = parse("@startuml\nset separator none\nclass a.b\n@enduml");
+        assert_eq!(entity(&d, "a.b").qualified_name(), "a.b");
+    }
+
+    #[test]
+    fn hide_and_show_portions() {
+        let d = parse("@startuml\nclass A {\n int x\n}\nhide members\n@enduml");
+        let a = entity(&d, "A");
+        assert!(!d.cuca.show_portion(EntityPortion::Field, &a));
+        assert!(!d.cuca.show_portion(EntityPortion::Method, &a));
+        let d = parse("@startuml\nhide circle\nclass A\n@enduml");
+        let a = entity(&d, "A");
+        assert!(!d.cuca.show_portion(EntityPortion::CircledCharacter, &a));
+        assert!(d.cuca.show_portion(EntityPortion::Field, &a));
+        let d = parse("@startuml\nhide members\nshow members\nclass A\n@enduml");
+        assert!(d.cuca.show_portion(EntityPortion::Field, &entity(&d, "A")));
+    }
+
+    #[test]
+    fn hide_stereotype_and_entity() {
+        let d = parse("@startuml\nclass A <<focus>>\nhide <<focus>> stereotype\n@enduml");
+        let a = entity(&d, "A");
+        assert_eq!(d.cuca.visible_stereotype_labels(&a), Some(Vec::new()));
+        let d = parse("@startuml\nclass A\nclass B\nhide B\n@enduml");
+        assert!(d.cuca.is_hidden(&entity(&d, "B")));
+        assert!(!d.cuca.is_hidden(&entity(&d, "A")));
+    }
+
+    #[test]
+    fn hide_by_visibility_and_empty_portions() {
+        let d = parse("@startuml\nclass A {\n -int x\n +int y\n}\nhide private fields\n@enduml");
+        let a = entity(&d, "A");
+        assert_eq!(a.get().bodier.fields_to_display().len(), 1);
+        let d = parse("@startuml\nhide empty members\nclass A\n@enduml");
+        assert!(!d.cuca.show_portion(EntityPortion::Field, &entity(&d, "A")));
+    }
+
+    #[test]
+    fn rankdir_from_direction_statement() {
+        let d = parse("@startuml\nleft to right direction\nclass A\n@enduml");
+        assert_eq!(
+            d.cuca.base.skin_param.rankdir,
+            crate::skin::Rankdir::LeftToRight
+        );
+        let d = parse("@startuml\ntop to bottom direction\nclass A\n@enduml");
+        assert_eq!(
+            d.cuca.base.skin_param.rankdir,
+            crate::skin::Rankdir::TopToBottom
+        );
+    }
+}
