@@ -603,8 +603,23 @@ fn skinparam_single<D: HasBase + 'static>() -> Cmd<D> {
     ]);
     Box::new(SingleLineCommand::new(r, |d: &mut D, _, arg, _| {
         let name = arg.get("NAME", 0).unwrap_or("");
-        d.base_mut()
-            .set_param(name, arg.get("VALUE", 0).unwrap_or(""));
+        let value = arg.get("VALUE", 0).unwrap_or("");
+        if name.eq_ignore_ascii_case("handwritten") {
+            d.base_mut().add_warning(vec![format!(
+                "'skinparam handwritten' is deprecated: write '!option handwritten {value}' instead"
+            )]);
+        }
+        if name.eq_ignore_ascii_case("ParticipantPadding") {
+            d.base_mut().add_warning(vec![
+                "'skinparam ParticipantPadding' is ignored: use a style instead".to_string(),
+                "<style>".to_string(),
+                "participant {".to_string(),
+                format!("  Padding {value}"),
+                "}".to_string(),
+                "</style>".to_string(),
+            ]);
+        }
+        d.base_mut().set_param(name, value);
         CommandExecutionResult::ok()
     }))
 }
