@@ -4,6 +4,7 @@ pub mod actor;
 pub mod arrow;
 pub mod component;
 pub mod rose;
+pub mod visibility;
 
 use crate::klimt::color::colors::{ColorType, Colors};
 use crate::klimt::color::HColor;

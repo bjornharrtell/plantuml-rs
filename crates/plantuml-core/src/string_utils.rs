@@ -56,6 +56,11 @@ pub fn split_comma(s: &str) -> Vec<String> {
         .collect()
 }
 
+/// `getUid`: prefix and a four digit number.
+pub fn get_uid(prefix: &str, n: i32) -> String {
+    format!("{prefix}{n:04}")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -171,3 +171,74 @@ mod tests {
         );
     }
 }
+
+/// Cardinal direction (`Direction`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Direction {
+    Right,
+    Left,
+    Down,
+    Up,
+}
+
+impl Direction {
+    pub fn inv(self) -> Direction {
+        match self {
+            Direction::Right => Direction::Left,
+            Direction::Left => Direction::Right,
+            Direction::Down => Direction::Up,
+            Direction::Up => Direction::Down,
+        }
+    }
+
+    pub fn from_char(c: char) -> Direction {
+        match c {
+            '<' => Direction::Left,
+            '>' => Direction::Right,
+            '^' => Direction::Up,
+            _ => Direction::Down,
+        }
+    }
+
+    pub fn clockwise(self) -> Direction {
+        match self {
+            Direction::Right => Direction::Down,
+            Direction::Left => Direction::Up,
+            Direction::Down => Direction::Left,
+            Direction::Up => Direction::Right,
+        }
+    }
+}
+
+/// Position of a note around its entity (`Position`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Position {
+    Right,
+    Left,
+    Bottom,
+    Top,
+}
+
+impl Position {
+    pub fn from_string(s: &str) -> Option<Position> {
+        match s.to_uppercase().as_str() {
+            "RIGHT" => Some(Position::Right),
+            "LEFT" => Some(Position::Left),
+            "BOTTOM" => Some(Position::Bottom),
+            "TOP" => Some(Position::Top),
+            _ => None,
+        }
+    }
+
+    pub fn with_rankdir(self, rankdir: crate::skin::Rankdir) -> Position {
+        if rankdir == crate::skin::Rankdir::TopToBottom {
+            return self;
+        }
+        match self {
+            Position::Right => Position::Bottom,
+            Position::Left => Position::Top,
+            Position::Bottom => Position::Right,
+            Position::Top => Position::Left,
+        }
+    }
+}
