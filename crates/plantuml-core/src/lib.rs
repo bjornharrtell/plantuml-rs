@@ -5,6 +5,7 @@ pub mod klimt;
 pub mod real;
 pub mod regex;
 pub mod skin;
+pub mod stereo;
 pub mod style;
 pub mod text;
 

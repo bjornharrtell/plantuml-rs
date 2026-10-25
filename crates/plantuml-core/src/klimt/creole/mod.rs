@@ -2,12 +2,13 @@
 //! sheets, then layout into a [`TextBlock`].
 
 mod atoms;
+pub mod display;
 mod layout;
 mod parser;
 
 pub use atoms::{Atom, DelayedDouble};
 pub use layout::{create_text_block, SheetBlock};
-pub use parser::{create_sheet, Sheet, Stripe};
+pub use parser::{create_sheet, create_sheet_items, Sheet, SheetItem, Stripe};
 
 use crate::klimt::geom::HorizontalAlignment;
 use crate::style::Margins;

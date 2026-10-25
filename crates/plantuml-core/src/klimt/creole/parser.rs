@@ -730,6 +730,14 @@ fn manage_guillemet(s: &str) -> String {
     G.replace_all(s, "\u{00AB}$1\u{00BB}").into_owned()
 }
 
+/// One entry of a text to lay out.
+#[derive(Debug, Clone, PartialEq)]
+pub enum SheetItem {
+    Text(String),
+    /// Labels of a stereotype, drawn with the stereotype font.
+    Stereotype(Vec<String>),
+}
+
 /// Builds the sheet of a text (`CreoleParser.createSheet`).
 pub fn create_sheet(
     lines: &[String],
@@ -738,26 +746,45 @@ pub fn create_sheet(
     skin: &SkinSimple,
     mode: CreoleMode,
 ) -> Sheet {
+    let items: Vec<SheetItem> = lines.iter().cloned().map(SheetItem::Text).collect();
+    create_sheet_items(&items, fc, fc, align, skin, mode)
+}
+
+/// Like [`create_sheet`], with stereotype entries and their own font.
+pub fn create_sheet_items(
+    items: &[SheetItem],
+    fc: &FontConfiguration,
+    stereotype_fc: &FontConfiguration,
+    align: HorizontalAlignment,
+    skin: &SkinSimple,
+    mode: CreoleMode,
+) -> Sheet {
     let mut ctx = CreoleContext::default();
     let mut stripes: Vec<Stripe> = Vec::new();
-    for raw in lines {
-        let text = if skin.guillemet {
-            manage_guillemet(raw)
-        } else {
-            raw.clone()
+    for item in items {
+        let (raw, font, manage) = match item {
+            SheetItem::Text(t) => (std::slice::from_ref(t), fc, true),
+            SheetItem::Stereotype(labels) => (labels.as_slice(), stereotype_fc, false),
         };
-        let cell_align = stripes.last().map_or(align, |s| s.align);
-        let (line, style) = classify(&text, mode);
-        for single in line.split(NEWLINE) {
-            let mut b = StripeBuilder::new(fc.clone(), style, &mut ctx, skin, mode);
-            b.align = cell_align;
-            b.analyze_and_add(single);
-            stripes.push(Stripe {
-                atoms: b.atoms,
-                has_header: b.has_header,
-                align: b.align,
-                fc: b.fc,
-            });
+        for raw in raw {
+            let text = if manage && skin.guillemet {
+                manage_guillemet(raw)
+            } else {
+                raw.clone()
+            };
+            let cell_align = stripes.last().map_or(align, |s| s.align);
+            let (line, style) = classify(&text, mode);
+            for single in line.split(NEWLINE) {
+                let mut b = StripeBuilder::new(font.clone(), style, &mut ctx, skin, mode);
+                b.align = cell_align;
+                b.analyze_and_add(single);
+                stripes.push(Stripe {
+                    atoms: b.atoms,
+                    has_header: b.has_header,
+                    align: b.align,
+                    fc: b.fc,
+                });
+            }
         }
     }
     Sheet {
