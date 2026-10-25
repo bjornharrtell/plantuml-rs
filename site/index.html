@@ -33,13 +33,15 @@
   <label>Example <select id="samples"></select></label>
   <button id="download">Download SVG</button>
   <span class="grow"></span>
+  <span class="grow"></span>
+  <span title="Diagram types the port renders so far">supported: sequence, class (partial), packet, chart</span>
   <a href="https://github.com/bjornharrtell/plantuml-rs">source</a>
 </header>
 <main>
   <textarea id="editor" spellcheck="false" aria-label="PlantUML source"></textarea>
   <div id="preview" aria-live="polite"></div>
 </main>
-<div id="status"><span id="msg">loading…</span><span id="info"></span></div>
+<div id="status"><span id="msg">loading…</span><span>port of PlantUML 1.2026.10beta1 (upstream commit e6c3adc, 2026-10-24)</span><span id="info"></span></div>
 <script type="module">
 import init, { render, init_logging } from './pkg/plantuml_wasm.js';
 
@@ -88,6 +90,23 @@ participant $n
 Alice -> Bob: $greet("Bob")
 Bob -> Carol: $greet("Carol")
 @enduml`,
+  'Class (partial)': `@startuml
+class Animal {
+  -name : String
+  +eat()
+}
+interface Pet
+class Dog
+Animal <|-- Dog
+Pet <|.. Dog : implements
+Dog --> Animal : owner
+@enduml`,
+  'Chart': `@startchart
+h-axis [1, 2, 3]
+stackMode grouped
+bar [10, , 30]
+bar [5, 6, ]
+@endchart`,
   'Packet': `@startpacketdiag
 colwidth = 32
 0-15: Source Port

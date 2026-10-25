@@ -19,6 +19,9 @@ as a faithful port of [plantuml/plantuml](https://github.com/plantuml/plantuml).
 
 ## Source analysis (Java, `/home/bjorn/code/plantuml`)
 
+Base version of the port (as of 2026-10-25): PlantUML `1.2026.10beta1`, upstream commit `e6c3adc2be7a50daa5f04b2b0f9d24928aa08efa` (2026-10-24, "Vega migration: convert two tests left in the old JUnit/Java format"). Fixtures are from the same checkout.
+
+
 - 3,284 files, 447k lines. Largest: `klimt` 48k (drawing, colours, creole, fonts), `activitydiagram3` 33k,
   `sequencediagram` 25k, `svek` 23k (Graphviz glue), `gantt` 20k, `tim` 14k (preprocessor),
   `command` 11k, `skin` 9k, `style` 6k, Smetana (`gen`/`h`/`smetana`) ~50k (not ported).
