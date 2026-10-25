@@ -1,0 +1,11 @@
+[package]
+name = "plantuml-core"
+description = "PlantUML diagram rendering core (no I/O, wasm-compatible)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+log.workspace = true

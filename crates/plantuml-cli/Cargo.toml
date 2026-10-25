@@ -1,0 +1,17 @@
+[package]
+name = "plantuml-cli"
+description = "Command line renderer for plantuml-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "plantuml-cli"
+path = "src/main.rs"
+
+[dependencies]
+log.workspace = true
+plantuml-core.workspace = true
+env_logger = { version = "0.11", default-features = false, features = ["auto-color", "humantime"] }

@@ -1,0 +1,20 @@
+[workspace]
+resolver = "2"
+members = ["crates/plantuml-core", "crates/plantuml-cli", "crates/plantuml-wasm"]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2021"
+rust-version = "1.85"
+license = "MIT"
+repository = "https://github.com/bjornharrtell/plantuml-rs"
+
+[workspace.dependencies]
+log = "0.4"
+plantuml-core = { path = "crates/plantuml-core" }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
