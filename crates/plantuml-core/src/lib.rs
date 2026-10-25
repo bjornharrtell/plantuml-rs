@@ -7,7 +7,10 @@ pub mod diagram;
 pub mod export;
 pub mod json;
 pub mod klimt;
+pub mod nwdiag;
+pub mod packetdiag;
 pub mod preproc;
+pub mod psystem;
 pub mod real;
 pub mod regex;
 pub mod sequencediagram;
@@ -70,13 +73,9 @@ pub fn render_with(
     source: &str,
     resolver: std::rc::Rc<dyn crate::tim::resolver::Resolver>,
 ) -> Result<String, Error> {
-    use crate::command::{create_system, UmlSource};
+    use crate::command::UmlSource;
     use crate::export::{export_svg, ExportOptions};
     use crate::klimt::font::TableFontBounder;
-    use crate::klimt::shape::TextBlock;
-    use crate::sequencediagram::teoz::playing::SequenceBlock;
-    use crate::sequencediagram::{commands, SequenceDiagram};
-    use crate::style::Margins;
     use crate::tim::context::OptionKey;
     use crate::tim::loader::{preprocess, Defines};
     use std::rc::Rc;
@@ -91,9 +90,6 @@ pub fn render_with(
         .ok_or(Error::NoDiagram)?
         .to_string();
     log::debug!("diagram kind: {kind}");
-    if !(kind.is_empty() || kind == "uml") {
-        return Err(Error::Unsupported(kind));
-    }
     let pre = preprocess(
         block,
         &Defines::new(),
@@ -105,24 +101,36 @@ pub fn render_with(
         return Err(Error::Syntax(format!("{} (line {line})", e.message)));
     }
     let source = UmlSource::from_lines(pre.lines);
-    let mut diagram = create_system(
-        &commands::commands(),
-        SequenceDiagram::from_source(source.clone()),
-        &source,
-    )
-    .map_err(|e| Error::Syntax(e.to_string()))?;
+    let types = crate::diagram::DiagramType::find_start_types(&first_line);
+    if !crate::psystem::factories()
+        .iter()
+        .any(|f| types.contains(&f.diagram_type()))
+    {
+        return Err(Error::Unsupported(kind));
+    }
+    let mut diagram =
+        crate::psystem::create_psystem(&source).map_err(|e| Error::Syntax(e.to_string()))?;
     for w in &pre.artifact.warnings {
-        diagram.base.add_warning(w.clone());
+        diagram.base_mut().add_warning(w.clone());
     }
     let sb: Rc<dyn crate::klimt::font::StringBounder> = Rc::new(TableFontBounder);
-    let skin = Rc::new(diagram.base.skin_param.clone());
-    let block = SequenceBlock::new(&diagram, sb.clone(), skin.clone());
-    let mut opts = ExportOptions::new(&skin, diagram.base.diagram_type, Margins::same(5.0));
-    opts.back_color = diagram.base.calculate_back_color();
+    let skin = Rc::new(diagram.base().skin_param.clone());
+    let block = diagram.text_block(&sb, &skin);
+    let base = diagram.base();
+    let margin = {
+        let style = skin
+            .style_builder()
+            .merged_style(&crate::style::queries::DOCUMENT);
+        match style {
+            Some(s) if s.has_value(crate::style::PName::Margin) => s.margin(),
+            _ => diagram.default_margins(),
+        }
+    };
+    let mut opts = ExportOptions::new(&skin, base.diagram_type, margin);
+    opts.back_color = base.calculate_back_color();
     opts.svg_title = pre.artifact.options.get(&OptionKey::SvgTitle).cloned();
     opts.svg_desc = pre.artifact.options.get(&OptionKey::SvgDesc).cloned();
-    let block: Rc<dyn TextBlock> = Rc::new(block);
-    let block = crate::chrome::create(block, &diagram.base, &skin, &diagram.base.title);
+    let block = crate::chrome::create(block, base, &skin, &diagram.title());
     Ok(export_svg(block.as_ref(), sb, &opts))
 }
 
@@ -230,6 +238,21 @@ mod tests {
         }
         assert!(svg.contains("class=\"title\"") && svg.contains("class=\"legend\""));
         assert!(svg.contains("deprecated"), "warning banner");
+    }
+
+    #[test]
+    fn renders_packet_diagrams() {
+        let svg = render(
+            "@startpacketdiag\ncolwidth = 16\nscale_direction = rtl\nsame_height = true\n0-7: Source Port\n\
+             8-15: Destination Port [height=2]\n16-47: Long field that wraps [rotate=90]\n* next [len=4]\n@endpacketdiag",
+        )
+        .unwrap();
+        assert!(svg.contains("data-diagram-type=\"PACKET\""));
+        assert!(svg.contains(">Source Port</text>"));
+        assert!(matches!(
+            render("@startpacketdiag\ncolwidth = x\n@endpacketdiag"),
+            Err(Error::Syntax(_))
+        ));
     }
 
     #[test]

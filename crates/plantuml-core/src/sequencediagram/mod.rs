@@ -672,6 +672,53 @@ impl crate::command::common::HasBase for SequenceDiagram {
     }
 }
 
+/// Creates sequence diagrams (`SequenceDiagramFactory`).
+pub struct SequenceDiagramFactory;
+
+impl crate::diagram::DiagramFactory for SequenceDiagramFactory {
+    fn diagram_type(&self) -> DiagramType {
+        DiagramType::Sequence
+    }
+
+    fn create(
+        &self,
+        source: &crate::command::UmlSource,
+    ) -> Result<Box<dyn crate::diagram::Diagram>, crate::command::ErrorUml> {
+        let diagram = crate::command::create_system(
+            &commands::commands(),
+            SequenceDiagram::from_source(source.clone()),
+            source,
+        )?;
+        Ok(Box::new(diagram))
+    }
+}
+
+impl crate::diagram::Diagram for SequenceDiagram {
+    fn base(&self) -> &DiagramBase {
+        &self.base
+    }
+
+    fn base_mut(&mut self) -> &mut DiagramBase {
+        &mut self.base
+    }
+
+    fn text_block(
+        &self,
+        sb: &Rc<dyn crate::klimt::font::StringBounder>,
+        skin: &Rc<crate::skin::SkinParam>,
+    ) -> Rc<dyn crate::klimt::shape::TextBlock> {
+        Rc::new(teoz::playing::SequenceBlock::new(
+            self,
+            sb.clone(),
+            skin.clone(),
+        ))
+    }
+
+    fn default_margins(&self) -> crate::style::Margins {
+        crate::style::Margins::same(5.0)
+    }
+}
+
 impl CommandDiagram for SequenceDiagram {
     fn check_final_error(&self) -> Option<String> {
         None

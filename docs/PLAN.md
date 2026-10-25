@@ -121,3 +121,4 @@ Exit criterion per diagram type: fidelity harness numbers, plus fixtures reviewe
 - Done: border (exo) messages (`CommunicationExoTile`, exo arrow commands). Vega SEQUENCE: 75/109.
 - Done: diagram chrome (title, header, footer, legend, caption, mainframe, warnings banner): `chrome.rs`, `DecorateEntityImage`. Vega SEQUENCE: 77/109.
 - Done: preprocessor (`tim`: comments, variables, expressions, functions/procedures, conditionals, loops, includes, subs, options, builtins), source block splitting (`preproc.rs`), `json.rs`, HSLuv. Vega SEQUENCE: 101/109.
+- Done: diagram registry (`psystem.rs`), packet diagrams (56/56 Vega fixtures identical), `skin` command and bundled skins.

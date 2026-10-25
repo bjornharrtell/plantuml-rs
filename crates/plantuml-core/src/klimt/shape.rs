@@ -396,3 +396,39 @@ impl TextBlock for TextBlockBordered {
         );
     }
 }
+
+/// Vertical dashed-or-plain line interrupted at the `skip` heights (`VerticalLine`).
+pub fn draw_vertical_line(ug: &UGraphic, y1: f64, y2: f64, skip: &[f64]) {
+    use crate::klimt::drawing::ugraphic::UPath;
+    let (y1, y2) = (y1.min(y2), y1.max(y2));
+    let ug = ug.apply_back_color(HColor::TRANSPARENT);
+    let mut drawn = false;
+    let mut path = UPath::new();
+    path.move_to(0.0, y1);
+    for &step in skip {
+        if step < y1 {
+            continue;
+        }
+        drawn = true;
+        if step == y2 {
+            path.line_to(0.0, y2);
+        } else {
+            path.line_to(0.0, y2.min(step - 3.0));
+            if y2 > step {
+                path.arc_to(4.0, 4.0, 0.0, false, true, 0.0, step + 9.0);
+                continue;
+            }
+        }
+        ug.draw(path);
+        path = UPath::new();
+        let current = step + 9.0;
+        path.move_to(0.0, current);
+        if current >= y2 {
+            break;
+        }
+    }
+    if !drawn {
+        path.line_to(0.0, y2);
+        ug.draw(path);
+    }
+}

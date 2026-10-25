@@ -20,6 +20,18 @@ thread_local! {
     static DEFAULT_SKIN: StyleBuilder = StyleBuilder::default_skin();
 }
 
+/// Text of a bundled style sheet.
+fn skin_sheet(name: &str) -> Option<&'static str> {
+    Some(match name.to_lowercase().as_str() {
+        "plantuml" => include_str!("../style/plantuml.skin"),
+        "rose" => include_str!("../style/rose.skin"),
+        "debug" => include_str!("../style/debug.skin"),
+        "sonyxperiadev" => include_str!("../style/sonyxperiadev.skin"),
+        "strictuml" => include_str!("../style/strictuml.skin"),
+        _ => return None,
+    })
+}
+
 /// Diagram orientation (`Rankdir`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Rankdir {
@@ -33,6 +45,7 @@ pub enum Rankdir {
 pub struct SkinParam {
     params: HashMap<String, String>,
     style_builder: RefCell<Option<StyleBuilder>>,
+    default_skin: RefCell<Option<String>>,
     pub rankdir: Rankdir,
 }
 
@@ -103,8 +116,21 @@ impl SkinParam {
     pub fn style_builder(&self) -> StyleBuilder {
         self.style_builder
             .borrow_mut()
-            .get_or_insert_with(|| DEFAULT_SKIN.with(StyleBuilder::clone))
+            .get_or_insert_with(|| match self.default_skin.borrow().as_deref() {
+                Some(name) => skin_sheet(name)
+                    .and_then(|text| StyleBuilder::from_sheet(text).ok())
+                    .unwrap_or_else(|| DEFAULT_SKIN.with(StyleBuilder::clone)),
+                None => DEFAULT_SKIN.with(StyleBuilder::clone),
+            })
             .clone()
+    }
+
+    /// Selects the style sheet used from now on (`loadSkin` / `setDefaultSkin`).
+    pub fn set_default_skin(&self, name: &str) -> Result<(), String> {
+        let text = skin_sheet(name).ok_or_else(|| format!("Cannot find style {name}"))?;
+        StyleBuilder::from_sheet(text).map_err(|e| format!("Cannot parse style {name}: {e}"))?;
+        *self.default_skin.borrow_mut() = Some(name.to_string());
+        Ok(())
     }
 
     pub fn mute_style(&self, styles: Vec<Style>) {

@@ -2,10 +2,14 @@
 
 use crate::command::UmlSource;
 use crate::klimt::creole::display::{Display, DisplayPositioned};
+use crate::klimt::font::StringBounder;
 use crate::klimt::geom::{HorizontalAlignment, VerticalAlignment};
+use crate::klimt::shape::TextBlock;
 use crate::skin::SkinParam;
+use crate::style::Margins;
 use crate::style::SName;
 use crate::text::LineLocation;
+use std::rc::Rc;
 
 /// The kind of diagram (`DiagramType`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -18,17 +22,41 @@ pub enum DiagramType {
     Description,
     Composite,
     Timing,
+    Help,
+    Bpm,
+    Ditaa,
+    Dot,
+    Jcckit,
+    Salt,
+    Flow,
+    Creole,
+    Math,
+    Latex,
+    Definition,
     Gantt,
+    Chronology,
+    Nwdiag,
     Mindmap,
     Wbs,
+    Wire,
     Json,
+    Git,
+    Board,
     Yaml,
-    Salt,
+    Hcl,
+    Ebnf,
+    Regex,
+    Files,
+    ChenEer,
+    Chart,
+    Packet,
+    Sprites,
+    Crash,
     Unknown,
 }
 
 impl DiagramType {
-    /// Value of `data-diagram-type` in the SVG.
+    /// Value of `data-diagram-type` in the SVG (the Java constant name).
     pub fn svg_name(self) -> &'static str {
         match self {
             DiagramType::Sequence => "SEQUENCE",
@@ -39,12 +67,36 @@ impl DiagramType {
             DiagramType::Description => "DESCRIPTION",
             DiagramType::Composite => "COMPOSITE",
             DiagramType::Timing => "TIMING",
+            DiagramType::Help => "HELP",
+            DiagramType::Bpm => "BPM",
+            DiagramType::Ditaa => "DITAA",
+            DiagramType::Dot => "DOT",
+            DiagramType::Jcckit => "JCCKIT",
+            DiagramType::Salt => "SALT",
+            DiagramType::Flow => "FLOW",
+            DiagramType::Creole => "CREOLE",
+            DiagramType::Math => "MATH",
+            DiagramType::Latex => "LATEX",
+            DiagramType::Definition => "DEFINITION",
             DiagramType::Gantt => "GANTT",
+            DiagramType::Chronology => "CHRONOLOGY",
+            DiagramType::Nwdiag => "NWDIAG",
             DiagramType::Mindmap => "MINDMAP",
             DiagramType::Wbs => "WBS",
+            DiagramType::Wire => "WIRE",
             DiagramType::Json => "JSON",
+            DiagramType::Git => "GIT",
+            DiagramType::Board => "BOARD",
             DiagramType::Yaml => "YAML",
-            DiagramType::Salt => "SALT",
+            DiagramType::Hcl => "HCL",
+            DiagramType::Ebnf => "EBNF",
+            DiagramType::Regex => "REGEX",
+            DiagramType::Files => "FILES",
+            DiagramType::ChenEer => "CHEN_EER",
+            DiagramType::Chart => "CHART",
+            DiagramType::Packet => "PACKET",
+            DiagramType::Sprites => "SPRITES",
+            DiagramType::Crash => "CRASH",
             DiagramType::Unknown => "UNKNOWN",
         }
     }
@@ -58,17 +110,112 @@ impl DiagramType {
             DiagramType::Object => SName::ObjectDiagram,
             DiagramType::Activity => SName::ActivityDiagram,
             DiagramType::Description => SName::ComponentDiagram,
-            DiagramType::Composite => SName::StateDiagram,
-            DiagramType::Timing => SName::TimingDiagram,
-            DiagramType::Gantt => SName::GanttDiagram,
             DiagramType::Mindmap => SName::MindmapDiagram,
             DiagramType::Wbs => SName::WbsDiagram,
-            DiagramType::Json => SName::JsonDiagram,
-            DiagramType::Yaml => SName::YamlDiagram,
+            DiagramType::Gantt | DiagramType::Chronology => SName::GanttDiagram,
             DiagramType::Salt => SName::SaltDiagram,
-            DiagramType::Unknown => SName::Root,
+            DiagramType::Yaml | DiagramType::Hcl => SName::YamlDiagram,
+            DiagramType::Json => SName::JsonDiagram,
+            DiagramType::Timing => SName::TimingDiagram,
+            DiagramType::Nwdiag => SName::NwdiagDiagram,
+            DiagramType::Ebnf => SName::Ebnf,
+            DiagramType::Regex => SName::Regex,
+            DiagramType::Chart => SName::ChartDiagram,
+            DiagramType::Packet => SName::PacketdiagDiagram,
+            _ => SName::ActivityDiagram,
         }
     }
+
+    /// Diagram types a `@startxxx` line may stand for (`findStartTypes`).
+    pub fn find_start_types(text: &str) -> Vec<DiagramType> {
+        let chars: Vec<char> = text.chars().collect();
+        for (i, c) in chars.iter().enumerate() {
+            if c.is_whitespace() {
+                continue;
+            }
+            if *c != '@' && *c != '\\' {
+                return Vec::new();
+            }
+            let pos = i + 1;
+            if chars.len() < pos + 5 || !check("start", &chars, pos) {
+                return Vec::new();
+            }
+            let p = pos + 5;
+            if p >= chars.len() {
+                return Vec::new();
+            }
+            return types_at(&chars, p);
+        }
+        Vec::new()
+    }
+}
+
+fn check(key: &str, text: &[char], p: usize) -> bool {
+    let key: Vec<char> = key.chars().collect();
+    if p + key.len() > text.len() {
+        return false;
+    }
+    key.iter()
+        .enumerate()
+        .all(|(i, k)| text[p + i].to_ascii_lowercase() == *k)
+}
+
+fn types_at(text: &[char], p: usize) -> Vec<DiagramType> {
+    use DiagramType::*;
+    let table: &[(&str, &[DiagramType])] = &[
+        ("bpm", &[Bpm]),
+        ("board", &[Board]),
+        ("chart", &[Chart]),
+        ("creole", &[Creole]),
+        ("chronology", &[Chronology]),
+        ("chen", &[ChenEer]),
+        ("crash", &[Crash]),
+        ("dot", &[Dot]),
+        ("ditaa", &[Ditaa]),
+        ("def", &[Definition]),
+        ("ebnf", &[Ebnf]),
+        ("flow", &[Flow]),
+        ("files", &[Files]),
+        ("gantt", &[Gantt]),
+        ("git", &[Git]),
+        ("hcl", &[Hcl]),
+        ("jcckit", &[Jcckit]),
+        ("json", &[Json]),
+        ("latex", &[Latex]),
+        ("math", &[Math]),
+        ("mindmap", &[Mindmap]),
+        ("nwdiag", &[Nwdiag]),
+        ("project", &[Gantt]),
+        ("packetdiag", &[Packet]),
+        ("regex", &[Regex]),
+        ("salt", &[Salt]),
+        ("sprites", &[Sprites]),
+        (
+            "uml",
+            &[
+                Sequence,
+                State,
+                Class,
+                Object,
+                Activity,
+                Description,
+                Composite,
+                Timing,
+                Help,
+                Sprites,
+            ],
+        ),
+        ("wire", &[Wire]),
+        ("wbs", &[Wbs]),
+        ("yaml", &[Yaml]),
+    ];
+    let first = text[p].to_ascii_lowercase();
+    for (key, types) in table {
+        if key.starts_with(first) && check(key, text, p) {
+            return types.to_vec();
+        }
+    }
+    vec![Unknown]
 }
 
 /// Title, header, footer, legend and caption of a diagram.
@@ -215,6 +362,32 @@ impl DiagramBase {
     }
 }
 
+/// A parsed diagram that can be drawn (`Diagram`, `UgDiagram`).
+pub trait Diagram {
+    fn base(&self) -> &DiagramBase;
+    fn base_mut(&mut self) -> &mut DiagramBase;
+
+    /// Lays the content out (`getTextBlock`).
+    fn text_block(&self, sb: &Rc<dyn StringBounder>, skin: &Rc<SkinParam>) -> Rc<dyn TextBlock>;
+
+    fn default_margins(&self) -> Margins {
+        Margins::same(10.0)
+    }
+
+    /// Title shown above the drawing.
+    fn title(&self) -> DisplayPositioned {
+        self.base().title.clone()
+    }
+}
+
+/// Builds the diagrams of one type from their source (`PSystemFactory`).
+pub trait DiagramFactory {
+    fn diagram_type(&self) -> DiagramType;
+
+    /// Parses `source`; an error means the source is not of this type.
+    fn create(&self, source: &UmlSource) -> Result<Box<dyn Diagram>, crate::command::ErrorUml>;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -265,6 +438,30 @@ mod tests {
         ] {
             assert_eq!(s.factor(w, h), e);
         }
-        assert_eq!(DiagramType::Unknown.style_name(), SName::Root);
+        assert_eq!(DiagramType::Unknown.style_name(), SName::ActivityDiagram);
+        assert_eq!(
+            DiagramType::find_start_types("@startuml"),
+            vec![
+                DiagramType::Sequence,
+                DiagramType::State,
+                DiagramType::Class,
+                DiagramType::Object,
+                DiagramType::Activity,
+                DiagramType::Description,
+                DiagramType::Composite,
+                DiagramType::Timing,
+                DiagramType::Help,
+                DiagramType::Sprites
+            ]
+        );
+        assert_eq!(
+            DiagramType::find_start_types(" @startPacketdiag x"),
+            vec![DiagramType::Packet]
+        );
+        assert!(DiagramType::find_start_types("x").is_empty());
+        assert_eq!(
+            DiagramType::find_start_types("@startzzz"),
+            vec![DiagramType::Unknown]
+        );
     }
 }

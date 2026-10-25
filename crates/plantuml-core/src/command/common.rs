@@ -526,6 +526,7 @@ pub fn common_commands<D: HasBase + 'static>() -> Vec<Cmd<D>> {
         true,
     ));
     cmds.push(nope());
+    cmds.extend(simple_commands());
     cmds.push(pragma());
     cmds.push(skinparam_single());
     cmds.push(skinparam_block());
@@ -700,4 +701,74 @@ fn apply_style_text(base: &mut DiagramBase, text: &str) -> CommandExecutionResul
         }
         Err(e) => CommandExecutionResult::error(format!("Error in style definition: {e}")),
     }
+}
+
+/// `skin`, `minwidth`, `page`, `rotate` and `!assume transparent`.
+fn simple_commands<D: HasBase + 'static>() -> Vec<Cmd<D>> {
+    let skin = IRegex::concat(vec![
+        IRegex::start(),
+        IRegex::leaf("skin"),
+        IRegex::space_one_or_more(),
+        IRegex::named("SKIN", r"([\w.]+)"),
+        IRegex::end(),
+    ]);
+    let minwidth = IRegex::concat(vec![
+        IRegex::start(),
+        IRegex::leaf("minwidth"),
+        IRegex::space_one_or_more(),
+        IRegex::named("VALUE", r"(\d+)"),
+        IRegex::end(),
+    ]);
+    let page = IRegex::concat(vec![
+        IRegex::start(),
+        IRegex::leaf("page"),
+        IRegex::space_one_or_more(),
+        IRegex::named("NB1", r"(\d+)"),
+        IRegex::space_zero_or_more(),
+        IRegex::leaf("x*"),
+        IRegex::space_zero_or_more(),
+        IRegex::named("NB2", r"(\d+)"),
+        IRegex::end(),
+    ]);
+    let rotate = IRegex::concat(vec![IRegex::start(), IRegex::leaf("rotate"), IRegex::end()]);
+    let assume = IRegex::concat(vec![
+        IRegex::start(),
+        IRegex::leaf("!assume"),
+        IRegex::space_one_or_more(),
+        IRegex::leaf("transparent"),
+        IRegex::space_one_or_more(),
+        IRegex::named("TYPE", "(dark|light)"),
+        IRegex::end(),
+    ]);
+    vec![
+        Box::new(SingleLineCommand::new(skin, |d: &mut D, _, arg, _| match d
+            .base_mut()
+            .skin_param
+            .set_default_skin(arg.get("SKIN", 0).unwrap_or(""))
+        {
+            Ok(()) => CommandExecutionResult::ok(),
+            Err(e) => CommandExecutionResult::error(e),
+        })),
+        Box::new(SingleLineCommand::new(minwidth, |_: &mut D, _, _, _| {
+            CommandExecutionResult::ok()
+        })),
+        Box::new(SingleLineCommand::new(page, |d: &mut D, _, arg, _| {
+            let parse = |k| {
+                arg.get(k, 0)
+                    .and_then(|v| v.parse::<i64>().ok())
+                    .unwrap_or(0)
+            };
+            if parse("NB1") <= 0 || parse("NB2") <= 0 {
+                return CommandExecutionResult::error("Argument must be positive");
+            }
+            let _ = d;
+            CommandExecutionResult::ok()
+        })),
+        Box::new(SingleLineCommand::new(rotate, |_: &mut D, _, _, _| {
+            CommandExecutionResult::ok()
+        })),
+        Box::new(SingleLineCommand::new(assume, |_: &mut D, _, _, _| {
+            CommandExecutionResult::ok()
+        })),
+    ]
 }

@@ -7,11 +7,19 @@ import xml.etree.ElementTree as ET
 NUM = re.compile(r"-?\d+(?:\.\d+)?")
 
 
+FILTER_ID = re.compile(r'^(url\(#)?f[0-9a-z]{2,14}(\))?$')
+
+
 def norm_value(v):
+    # filter ids are random in Java
+    m = FILTER_ID.match(v) if v else None
+    if m:
+        return 'FILTERID'
     return v
 
 
 def same(a, b, tol):
+    a, b = norm_value(a), norm_value(b)
     if a == b:
         return True
     na, nb = NUM.findall(a), NUM.findall(b)
