@@ -10,6 +10,7 @@ pub mod regex;
 pub mod sequencediagram;
 pub mod skin;
 pub mod stereo;
+pub mod string_utils;
 pub mod style;
 pub mod svek;
 pub mod text;
@@ -147,6 +148,23 @@ mod tests {
                 "{style}"
             );
         }
+    }
+
+    #[test]
+    fn renders_boxes_and_references() {
+        let svg = render(
+            "@startuml\nbox \"Outer\" <<s>> #LightBlue\nparticipant a\nbox Inner\nparticipant b\nend box\nend box\n\
+             participant c\nref over a, c : one\nref#pink over b\nmulti\nline\nend ref\nnote right: rn\n\
+             ref over c [[http://x.org]] : linked\nnote left: ln\n@enduml",
+        )
+        .unwrap();
+        for text in ["Outer", "Inner", "ref", "one", "multi", "rn", "ln"] {
+            assert!(svg.contains(&format!(">{text}</text>")), "{text}");
+        }
+        assert!(matches!(
+            render("@startuml\nend box\n@enduml"),
+            Err(Error::Syntax(_))
+        ));
     }
 
     #[test]

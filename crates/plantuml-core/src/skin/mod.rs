@@ -206,6 +206,11 @@ impl SkinParam {
         self.margins_of("padding")
     }
 
+    /// `skinparam boxPadding`.
+    pub fn box_padding(&self) -> Margins {
+        self.margins_of("boxpadding")
+    }
+
     fn margins_of(&self, name: &str) -> Margins {
         match self.get_value(name) {
             Some(v) if is_int_or_decimal(v) => Margins::same(v.parse().unwrap_or(0.0)),

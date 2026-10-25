@@ -1,12 +1,14 @@
 //! Default look of sequence diagram components (`skin/rose`).
 
 pub mod arrow;
+pub mod englober;
 pub mod figure;
 pub mod grouping;
 pub mod line;
 pub mod misc;
 pub mod note;
 pub mod participant;
+pub mod reference;
 pub mod self_arrow;
 pub mod text;
 
@@ -24,6 +26,7 @@ use crate::klimt::fashion::Fashion;
 use crate::klimt::shape::EmptyBlock;
 use crate::svek::{Boundary, Control, EntityDomain};
 use arrow::ComponentRoseArrow;
+use englober::ComponentRoseEnglober;
 use figure::{ComponentRoseFigure, ComponentRoseQueue};
 use grouping::{
     ComponentRoseGroupingElse, ComponentRoseGroupingHeader, ComponentRoseGroupingSpace,
@@ -32,6 +35,7 @@ use line::ComponentRoseLine;
 use misc::{ComponentRoseActiveLine, ComponentRoseDelayLine, ComponentRoseDestroy};
 use note::{ComponentRoseNote, ComponentRoseNoteBox, ComponentRoseNoteHexagonal};
 use participant::ComponentRoseParticipant;
+use reference::ComponentRoseReference;
 use self_arrow::ComponentRoseSelfArrow;
 use text::{ComponentRoseDelayText, ComponentRoseDivider, ComponentRoseNewpage};
 
@@ -260,6 +264,29 @@ impl Rose {
             )),
             other => unimplemented!("note component {other:?}"),
         }
+    }
+
+    /// Frame of `ref over` (`REFERENCE`); `strings` starts with the header line.
+    pub fn create_component_reference(
+        styles: &[Style; 2],
+        strings: &Display,
+        skin: &Rc<SkinParam>,
+    ) -> Rc<dyn Component> {
+        Rc::new(ComponentRoseReference::new(
+            &styles[0],
+            &styles[1],
+            strings,
+            skin.clone(),
+        ))
+    }
+
+    /// Title band of a box around participants (`ENGLOBER`).
+    pub fn create_component_englober(
+        style: &Style,
+        display: &Display,
+        skin: &Rc<SkinParam>,
+    ) -> Rc<dyn Component> {
+        Rc::new(ComponentRoseEnglober::new(style, display, skin.clone()))
     }
 
     /// Header of a group (`GROUPING_HEADER_*`).

@@ -2,10 +2,12 @@
 //! `PlayingSpaceWithParticipants`, `SequenceDiagramFileMakerTeoz`).
 
 use super::communication::CommunicationTile;
+use super::dolls::Dolls;
 use super::grouping::{ElseTile, Frame, GroupingTile};
 use super::lifeevent::LifeEventTile;
 use super::living::{LivingSpace, LivingSpaces};
 use super::notes::{NoteOnMessageTile, NoteTile, NotesTile, Side};
+use super::reference::ReferenceTile;
 use super::self_tile::CommunicationTileSelf;
 use super::simple::{DelayTile, DividerTile, HSpaceTile, NewpageTile};
 use super::{Bordered, Model, Tile, TileArguments, YGauge};
@@ -67,6 +69,9 @@ pub fn build_one(
             }
             vec![result]
         }
+        Event::Reference(_) => {
+            vec![ReferenceTile::new(args.clone(), event, current_y) as Rc<dyn Tile>]
+        }
         Event::Note(_) => vec![NoteTile::new(args.clone(), event, current_y) as Rc<dyn Tile>],
         Event::Notes(_) => vec![NotesTile::new(args.clone(), event, current_y) as Rc<dyn Tile>],
         Event::LifeEvent(_) => {
@@ -121,9 +126,13 @@ pub struct PlayingSpace {
 }
 
 impl PlayingSpace {
-    pub fn new(args: &Rc<TileArguments>) -> PlayingSpace {
+    pub fn new(args: &Rc<TileArguments>, dolls: &Dolls) -> PlayingSpace {
         let mut mins = vec![args.xorigin.clone()];
         let mut maxs = vec![args.xorigin.clone()];
+        if dolls.size() > 0 {
+            mins.push(dolls.min_x());
+            maxs.push(dolls.max_x());
+        }
         let ycurrent = YGauge::create(&args.yorigin.add_fixed(STARTING_Y), 0.0);
         let tiles = build_several(args, ycurrent);
         for t in &tiles {
@@ -334,6 +343,10 @@ impl TextBlock for PlayingSpaceWithParticipants {
 pub struct SequenceBlock {
     body: PlayingSpaceWithParticipants,
     min1: Real,
+    dolls: Dolls,
+    height_englober1: f64,
+    height_englober2: f64,
+    string_bounder: Rc<dyn StringBounder>,
 }
 
 impl SequenceBlock {
@@ -373,28 +386,51 @@ impl SequenceBlock {
             yorigin.clone(),
             model,
         ));
-        let main = Rc::new(PlayingSpace::new(&args));
+        let dolls = Dolls::new(&args);
+        dolls.add_constraints();
+        let main = Rc::new(PlayingSpace::new(&args, &dolls));
         living_spaces.add_constraints(sb.as_ref());
         main.add_constraints();
         xorigin.compile_now();
         yorigin.compile_now();
         args.set_bordered(main.clone());
         main.on_gauge_resolved();
-        let body = PlayingSpaceWithParticipants::new(main, sb);
+        let body = PlayingSpaceWithParticipants::new(main, sb.clone());
         let min1 = body.min_x();
-        SequenceBlock { body, min1 }
+        let height_englober1 = dolls.offset_for_englobers();
+        let height_englober2 = if height_englober1 == 0.0 { 0.0 } else { 10.0 };
+        SequenceBlock {
+            body,
+            min1,
+            dolls,
+            height_englober1,
+            height_englober2,
+            string_bounder: sb,
+        }
     }
 }
 
 impl TextBlock for SequenceBlock {
     fn calculate_dimension(&self, sb: &dyn StringBounder) -> Dimension {
         let d = self.body.calculate_dimension(sb);
-        Dimension::new(d.width + 10.0, d.height + 10.0)
+        Dimension::new(
+            d.width + 10.0,
+            d.height + self.height_englober1 + self.height_englober2 + 10.0,
+        )
     }
 
     fn draw(&self, ug: &UGraphic) {
         let ug = ug.apply_translate(UTranslate::new(5.0, 5.0));
         let ug = ug.apply_translate(UTranslate::dx(-self.min1.value()));
+        let body_height = self
+            .body
+            .calculate_dimension(self.string_bounder.as_ref())
+            .height;
+        self.dolls.draw_englobers(
+            &ug,
+            body_height + self.height_englober1 + self.height_englober2 / 2.0,
+        );
+        let ug = ug.apply_translate(UTranslate::dy(self.height_englober1));
         self.body.draw(&ug);
     }
 }

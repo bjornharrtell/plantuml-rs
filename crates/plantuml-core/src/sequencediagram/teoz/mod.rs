@@ -1,11 +1,13 @@
 //! The Teoz layout of sequence diagrams (`sequencediagram/teoz`).
 
 pub mod communication;
+pub mod dolls;
 pub mod grouping;
 pub mod lifeevent;
 pub mod living;
 pub mod notes;
 pub mod playing;
+pub mod reference;
 pub mod self_tile;
 pub mod simple;
 

@@ -608,8 +608,8 @@ pub struct LivingSpace {
     create: Cell<bool>,
     alive_changes: RefCell<PosMap<bool>>,
     englober: Option<Rc<ParticipantEnglober>>,
-    margin_before: Cell<f64>,
-    margin_after: Cell<f64>,
+    margin_before: Rc<Cell<f64>>,
+    margin_after: Rc<Cell<f64>>,
 }
 
 impl LivingSpace {
@@ -644,8 +644,8 @@ impl LivingSpace {
             create: Cell::new(false),
             alive_changes: RefCell::new(PosMap::default()),
             englober,
-            margin_before: Cell::new(0.0),
-            margin_after: Cell::new(0.0),
+            margin_before: Rc::new(Cell::new(0.0)),
+            margin_after: Rc::new(Cell::new(0.0)),
         }
     }
 
@@ -826,6 +826,19 @@ impl LivingSpace {
 
     pub fn pos_a(&self) -> Real {
         self.pos_b.add_fixed(-self.margin_before.get())
+    }
+
+    /// Like `pos_a` but reads the margin when evaluated (`getPosALive`).
+    pub fn pos_a_live(&self) -> Real {
+        let margin = self.margin_before.clone();
+        self.pos_b.with_live_offset(Rc::new(move || -margin.get()))
+    }
+
+    /// Like `pos_e` but reads the margin when evaluated (`getPosELive`).
+    pub fn pos_e_live(&self, sb: &dyn StringBounder) -> Real {
+        let margin = self.margin_after.clone();
+        self.pos_d(sb)
+            .with_live_offset(Rc::new(move || margin.get()))
     }
 
     pub fn pos_e(&self, sb: &dyn StringBounder) -> Real {

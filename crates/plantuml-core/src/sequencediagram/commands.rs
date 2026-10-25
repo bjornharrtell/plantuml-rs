@@ -5,6 +5,7 @@ use super::{new_message, SequenceDiagram};
 use crate::command::{
     Command, CommandExecutionResult, MultiLineCommand, ParserPass, SingleLineCommand, Trim,
 };
+use crate::klimt::color::colors::ColorType;
 use crate::klimt::color::parser as color_parser;
 use crate::klimt::creole::display::Display;
 use crate::regex::{IRegex, RegexResult};
@@ -971,6 +972,173 @@ fn split_trailing_bracket(comment: &str) -> Option<(String, String)> {
     Some((caps[1].to_string(), caps[2].to_string()))
 }
 
+fn box_commands() -> Vec<Cmd> {
+    let start = IRegex::concat(vec![
+        IRegex::start(),
+        IRegex::leaf("box"),
+        IRegex::optional(IRegex::or(vec![
+            IRegex::group(vec![
+                IRegex::space_one_or_more(),
+                IRegex::named("NAME1", "[%g]([^%g]+)[%g]"),
+            ]),
+            IRegex::group(vec![
+                IRegex::space_one_or_more(),
+                IRegex::named("NAME2", "([^#]+)"),
+            ]),
+        ])),
+        optional_pattern("STEREO"),
+        color_parser::ColorParser::simple_color(ColorType::Back).regex(),
+        IRegex::end(),
+    ]);
+    let end = IRegex::concat(vec![
+        IRegex::start(),
+        IRegex::leaf("end"),
+        IRegex::space_zero_or_more(),
+        IRegex::leaf("box"),
+        IRegex::end(),
+    ]);
+    vec![
+        simple(start, |d, _, arg| {
+            let stereotype = arg.get("STEREO", 0).map(Stereotype::build);
+            let Some(colors) = color_parser::ColorParser::simple_color(ColorType::Back).colors(arg)
+            else {
+                return CommandExecutionResult::bad_color();
+            };
+            let title = arg.get_lazzy("NAME", 0).unwrap_or("");
+            d.box_start(
+                Display::with_newlines(Some(title)),
+                colors.color(ColorType::Back).cloned(),
+                stereotype,
+            );
+            CommandExecutionResult::ok()
+        }),
+        simple(end, |d, _, _| {
+            if !d.is_box_pending() {
+                return CommandExecutionResult::error("Missing starting box");
+            }
+            d.end_box();
+            CommandExecutionResult::ok()
+        }),
+    ]
+}
+
+fn reference_participants(
+    d: &mut SequenceDiagram,
+    location: Option<LineLocation>,
+    parts: &str,
+) -> Vec<usize> {
+    crate::string_utils::split_comma(parts)
+        .iter()
+        .map(|s| {
+            d.get_or_create_participant(
+                location,
+                &crate::string_utils::eventually_remove_starting_and_ending_double_quote(s),
+                None,
+            )
+        })
+        .collect()
+}
+
+fn reference_url(d: &SequenceDiagram, arg: &RegexResult) -> Option<crate::url::Url> {
+    arg.get(URL_KEY, 0).and_then(|u| {
+        UrlBuilder::new(d.base.skin_param.get_value("topurl"), UrlMode::Strict).url(u)
+    })
+}
+
+fn reference_commands() -> Vec<Cmd> {
+    const PART: &str = "[%pLN_.@]+|[%g][^%g]+[%g]";
+    let single = IRegex::concat(vec![
+        IRegex::start(),
+        IRegex::leaf("ref"),
+        IRegex::named("REF", r"(#\w+)?"),
+        IRegex::space_one_or_more(),
+        IRegex::leaf("over"),
+        IRegex::space_one_or_more(),
+        IRegex::named("PARTS", &format!("(({PART})([%s]*,[%s]*({PART}))*)")),
+        IRegex::space_zero_or_more(),
+        IRegex::optional(IRegex::named(URL_KEY, r"(\[\[.*?\]\])")),
+        IRegex::space_zero_or_more(),
+        IRegex::leaf(":"),
+        IRegex::space_zero_or_more(),
+        IRegex::named("TEXT", "(.*)"),
+        IRegex::end(),
+    ]);
+    let multi = IRegex::concat(vec![
+        IRegex::start(),
+        IRegex::leaf("ref"),
+        IRegex::named("REF", r"(#\w+)?"),
+        IRegex::space_one_or_more(),
+        IRegex::leaf("over"),
+        IRegex::space_one_or_more(),
+        IRegex::named("PARTS", &format!("((?:{PART})(?:[%s]*,[%s]*(?:{PART}))*)")),
+        IRegex::space_zero_or_more(),
+        IRegex::optional(IRegex::named(URL_KEY, r"(\[\[.*?\]\])")),
+        IRegex::space_zero_or_more(),
+        IRegex::named("UNUSED", r"(#\w+)?"),
+        IRegex::end(),
+    ]);
+    let back_color = |arg: &RegexResult| -> Result<Option<crate::klimt::color::HColor>, ()> {
+        match arg.get("REF", 0) {
+            None => Ok(None),
+            Some(c) => crate::klimt::color::HColor::parse(c).map(Some).ok_or(()),
+        }
+    };
+    let single_cmd = simple(single, move |d, loc, arg| {
+        let Ok(back_element) = back_color(arg) else {
+            return CommandExecutionResult::bad_color();
+        };
+        let participants = reference_participants(d, loc, arg.get("PARTS", 0).unwrap_or(""));
+        let text = crate::string_utils::trin(arg.get("TEXT", 0).unwrap_or(""));
+        let strings = Display::with_newlines(Some(text));
+        let url = reference_url(d, arg);
+        let reference = Reference::new(
+            &participants,
+            url,
+            strings,
+            None,
+            back_element,
+            d.style_builder(),
+        );
+        d.add_reference(reference);
+        CommandExecutionResult::ok()
+    });
+    let starting = multi.clone();
+    let multi_cmd: Cmd = Box::new(MultiLineCommand::new(
+        multi,
+        MultilinesStrategy::RemoveStartingQuote,
+        Trim::Both,
+        "^end[%s]?(ref)?$",
+        move |d: &mut SequenceDiagram, lines: &BlocLines, _| {
+            let first = lines.first().expect("first").trimmed();
+            let Some(arg) = starting.matcher(first.string()) else {
+                return CommandExecutionResult::error(format!(
+                    "Cannot parse line {}",
+                    first.string()
+                ));
+            };
+            let Ok(back_element) = back_color(&arg) else {
+                return CommandExecutionResult::bad_color();
+            };
+            let participants =
+                reference_participants(d, lines.location(), arg.get("PARTS", 0).unwrap_or(""));
+            let body = lines.sub_extract(1, 1).remove_empty_columns();
+            let strings = Display::create(&body.as_strings());
+            let url = reference_url(d, &arg);
+            let reference = Reference::new(
+                &participants,
+                url,
+                strings,
+                None,
+                back_element,
+                d.style_builder(),
+            );
+            d.add_reference(reference);
+            CommandExecutionResult::ok()
+        },
+    ));
+    vec![single_cmd, multi_cmd]
+}
+
 /// All commands of the sequence diagram, in matching order (`initCommandsList`, partial).
 pub fn commands() -> Vec<Cmd> {
     let mut cmds: Vec<Cmd> = Vec::new();
@@ -982,6 +1150,8 @@ pub fn commands() -> Vec<Cmd> {
     )));
     cmds.extend(lifeline_commands());
     cmds.extend(layout_commands());
+    cmds.extend(box_commands());
+    cmds.extend(reference_commands());
     cmds.extend(super::note_commands::note_commands());
     cmds.push(grouping_command());
     cmds.push(autonumber_command());
