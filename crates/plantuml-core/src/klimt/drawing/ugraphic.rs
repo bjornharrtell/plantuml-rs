@@ -503,6 +503,11 @@ impl UGraphic {
     }
 
     /// Background assumed when the current back color is transparent.
+    /// Whether shapes only feed a bounding box (`LimitFinder`).
+    pub fn is_finding_limits(&self) -> bool {
+        self.limit.is_some()
+    }
+
     pub fn default_background(&self) -> &HColor {
         &self.default_background
     }

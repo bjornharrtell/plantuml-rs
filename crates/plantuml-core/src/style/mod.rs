@@ -404,6 +404,37 @@ impl Style {
         )
     }
 
+    /// Text framed with this style's border, background and padding
+    /// (`createTextBlockBordered`).
+    pub fn create_text_block_bordered(
+        &self,
+        note: &crate::klimt::creole::display::Display,
+        skin: &crate::skin::SkinParam,
+        line_break: &crate::klimt::creole::LineBreakStrategy,
+    ) -> std::rc::Rc<dyn crate::klimt::shape::TextBlock> {
+        use crate::klimt::shape::{with_margin, TextBlockBordered};
+        let text_block = note.create_block(
+            &self.font_configuration(None),
+            self.horizontal_alignment(),
+            &skin.skin_simple(),
+            line_break,
+            crate::klimt::creole::CreoleMode::Full,
+            None,
+            None,
+            0.0,
+            0.0,
+        );
+        let bordered = std::rc::Rc::new(TextBlockBordered {
+            text_block,
+            stroke: Some(self.stroke()),
+            border_color: Some(self.value(PName::LineColor).as_color()),
+            background_color: Some(self.value(PName::BackGroundColor).as_color()),
+            corner_size: f64::from(self.value(PName::RoundCorner).as_int()),
+            margins: self.padding(),
+        });
+        with_margin(bordered, self.margin())
+    }
+
     /// Back/line colors, stroke, shadow and corners (`getSymbolContext`).
     pub fn symbol_context(
         &self,

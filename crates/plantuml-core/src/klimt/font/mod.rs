@@ -172,6 +172,9 @@ pub trait StringBounder {
     fn descent(&self, font: &UFont, _text: &str) -> f64 {
         font.size2d() / 4.5
     }
+
+    /// An owned handle to this bounder.
+    fn to_rc(&self) -> std::rc::Rc<dyn StringBounder>;
 }
 
 /// Measures with Liberation Sans metrics, reproducing Java on Windows
@@ -210,6 +213,10 @@ impl EmbeddedFontBounder {
 }
 
 impl StringBounder for EmbeddedFontBounder {
+    fn to_rc(&self) -> std::rc::Rc<dyn StringBounder> {
+        std::rc::Rc::new(*self)
+    }
+
     fn calculate_dimension(&self, font: &UFont, text: &str) -> Dimension {
         if text.is_empty() {
             return Dimension::default();
@@ -364,6 +371,10 @@ impl TableFontBounder {
 }
 
 impl StringBounder for TableFontBounder {
+    fn to_rc(&self) -> std::rc::Rc<dyn StringBounder> {
+        std::rc::Rc::new(*self)
+    }
+
     fn calculate_dimension(&self, font: &UFont, text: &str) -> Dimension {
         let size = font.size2d();
         let width: f64 = text.chars().map(|c| Self::char_width(c as u32)).sum();

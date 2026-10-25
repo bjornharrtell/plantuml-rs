@@ -340,3 +340,59 @@ impl TextBlock for MinWidthBlock {
         self.inner.draw(&ug.apply_translate(UTranslate::dx(dx)));
     }
 }
+
+/// Text with a rounded border and padding (`TextBlockBordered`).
+pub struct TextBlockBordered {
+    pub text_block: Rc<dyn TextBlock>,
+    pub stroke: Option<UStroke>,
+    pub border_color: Option<HColor>,
+    pub background_color: Option<HColor>,
+    pub corner_size: f64,
+    pub margins: Margins,
+}
+
+impl TextBlockBordered {
+    fn text_height(&self, sb: &dyn StringBounder) -> f64 {
+        self.text_block.calculate_dimension(sb).height + self.margins.top + self.margins.bottom
+    }
+
+    fn text_width(&self, sb: &dyn StringBounder) -> f64 {
+        self.text_block.calculate_dimension(sb).width + self.margins.left + self.margins.right
+    }
+
+    fn no_border(&self) -> bool {
+        self.stroke.is_some_and(|s| s.thickness == 0.0)
+    }
+}
+
+impl TextBlock for TextBlockBordered {
+    fn calculate_dimension(&self, sb: &dyn StringBounder) -> Dimension {
+        Dimension::new(self.text_width(sb) + 1.0, self.text_height(sb) + 1.0)
+    }
+
+    fn draw(&self, ug: &UGraphic) {
+        let sb = ug.string_bounder();
+        let rect =
+            URectangle::build(self.text_width(sb), self.text_height(sb)).rounded(self.corner_size);
+        let back = match &self.background_color {
+            Some(b) if !b.is_transparent() && b != ug.default_background() => b.clone(),
+            _ => HColor::TRANSPARENT,
+        };
+        let color = if self.no_border() {
+            back.clone()
+        } else {
+            self.border_color.clone().unwrap_or(HColor::TRANSPARENT)
+        };
+        if !back.is_transparent() || !color.is_transparent() {
+            let mut u = ug.apply_back_color(back).apply_color(color.clone());
+            if let Some(stroke) = self.stroke {
+                u = u.apply_stroke(stroke);
+            }
+            u.draw(rect);
+        }
+        self.text_block.draw(
+            &ug.apply_color(color)
+                .apply_translate(UTranslate::new(self.margins.left, self.margins.top)),
+        );
+    }
+}

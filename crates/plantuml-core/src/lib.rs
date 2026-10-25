@@ -1,5 +1,6 @@
 //! PlantUML rendering core. Pure library: no I/O, usable on `wasm32-unknown-unknown`.
 
+pub mod chrome;
 pub mod command;
 pub mod decoration;
 pub mod diagram;
@@ -86,8 +87,9 @@ pub fn render(source: &str) -> Result<String, Error> {
     let block = SequenceBlock::new(&diagram, sb.clone(), skin.clone());
     let mut opts = ExportOptions::new(&skin, diagram.base.diagram_type, Margins::same(5.0));
     opts.back_color = diagram.base.calculate_back_color();
-    let _ = (&block as &dyn TextBlock).calculate_dimension(sb.as_ref());
-    Ok(export_svg(&block, sb, &opts))
+    let block: Rc<dyn TextBlock> = Rc::new(block);
+    let block = crate::chrome::create(block, &diagram.base, &skin, &diagram.base.title);
+    Ok(export_svg(block.as_ref(), sb, &opts))
 }
 
 #[cfg(test)]
@@ -180,6 +182,20 @@ mod tests {
         ] {
             assert!(svg.contains(&format!(">{text}</text>")), "{text}");
         }
+    }
+
+    #[test]
+    fn renders_chrome() {
+        let svg = render(
+            "@startuml\ntitle My title\nheader hd\nfooter ft\ncaption cp\nlegend\nleg\nendlegend\n\
+             mainframe frame\nA -> B\nnote over A: n\n/ note over B: m\n@enduml",
+        )
+        .unwrap();
+        for text in ["My title", "hd", "ft", "cp", "leg", "frame", "n", "m"] {
+            assert!(svg.contains(&format!(">{text}</text>")), "{text}");
+        }
+        assert!(svg.contains("class=\"title\"") && svg.contains("class=\"legend\""));
+        assert!(svg.contains("deprecated"), "warning banner");
     }
 
     #[test]
