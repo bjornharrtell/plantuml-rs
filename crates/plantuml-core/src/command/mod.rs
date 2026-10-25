@@ -535,13 +535,13 @@ pub struct UmlSource {
 }
 
 impl UmlSource {
-    /// Builds a source from text, numbering lines from 1.
+    /// Builds a source from text; lines are numbered from 0 like Java's locations.
     pub fn from_text(text: &str) -> Self {
         Self {
             lines: text
                 .lines()
                 .enumerate()
-                .map(|(i, l)| StringLocated::new(l, Some(LineLocation { position: i + 1 })))
+                .map(|(i, l)| StringLocated::new(l, Some(LineLocation { position: i })))
                 .collect(),
         }
     }
@@ -806,8 +806,8 @@ mod tests {
     fn errors() {
         let e = run("@startuml\nword a\nnope\n@enduml").unwrap_err();
         assert_eq!(e.kind, ErrorUmlType::SyntaxError);
-        assert_eq!(e.position(), 3);
-        assert_eq!(e.to_string(), "Syntax Error? (line 3)");
+        assert_eq!(e.position(), 2);
+        assert_eq!(e.to_string(), "Syntax Error? (line 2)");
         let e = run("@startuml\nfail\n@enduml").unwrap_err();
         assert_eq!(
             (e.kind, e.score, e.message.as_str()),

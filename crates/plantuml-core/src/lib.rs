@@ -99,9 +99,23 @@ mod tests {
 
     #[test]
     fn unsupported_kind() {
-        let err = render("  @startuml\nA -> B\n@enduml").unwrap_err();
-        assert_eq!(err, Error::Unsupported("uml".into()));
-        assert_eq!(err.to_string(), "unsupported diagram type: uml");
+        let err = render("@startmindmap\n* a\n@endmindmap").unwrap_err();
+        assert_eq!(err, Error::Unsupported("mindmap".into()));
+        assert_eq!(err.to_string(), "unsupported diagram type: mindmap");
+    }
+
+    #[test]
+    fn renders_a_sequence_diagram() {
+        let svg = render("  @startuml\nA -> B: hi\n@enduml").unwrap();
+        assert!(svg.contains("data-diagram-type=\"SEQUENCE\""));
+        assert!(svg.contains(">hi</text>"));
+    }
+
+    #[test]
+    fn syntax_errors_are_reported() {
+        let err = render("@startuml\nA -> B: hi\n???\n@enduml").unwrap_err();
+        assert!(matches!(err, Error::Syntax(_)));
+        assert!(err.to_string().contains("Syntax"));
     }
 
     #[test]
