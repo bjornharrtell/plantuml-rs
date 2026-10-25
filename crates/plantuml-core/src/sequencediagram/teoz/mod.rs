@@ -1,6 +1,7 @@
 //! The Teoz layout of sequence diagrams (`sequencediagram/teoz`).
 
 pub mod communication;
+pub mod lifeevent;
 pub mod living;
 pub mod playing;
 

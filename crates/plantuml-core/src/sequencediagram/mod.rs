@@ -462,6 +462,17 @@ impl SequenceDiagram {
         }
     }
 
+    /// Index of the last event taking life events (`getLastEventWithDeactivate`).
+    pub fn last_event_with_deactivate(&self) -> Option<usize> {
+        (0..self.events.len())
+            .rev()
+            .find(|i| match &self.events[*i] {
+                Event::Message(_) | Event::MessageExo(_) | Event::Divider { .. } => true,
+                Event::Grouping(g) => !g.grouping_type.is_start(),
+                _ => false,
+            })
+    }
+
     /// The message currently being activated (`getActivatingMessage`).
     pub fn activating_message(&self) -> Option<usize> {
         self.activation_state.last().copied()

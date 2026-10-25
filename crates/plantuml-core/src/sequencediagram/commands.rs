@@ -564,6 +564,253 @@ fn autonumber_command() -> Cmd {
     ))
 }
 
+fn who_regex() -> &'static str {
+    "([%pLN_.@]+|[%g][^%g]+[%g])"
+}
+
+fn strip_quotes(s: &str) -> &str {
+    s.strip_prefix('"')
+        .and_then(|s| s.strip_suffix('"'))
+        .unwrap_or(s)
+}
+
+fn result_of(error: Option<String>) -> CommandExecutionResult {
+    match error {
+        None => CommandExecutionResult::ok(),
+        Some(e) => CommandExecutionResult::error(e),
+    }
+}
+
+fn simple<F>(r: IRegex, f: F) -> Cmd
+where
+    F: Fn(&mut SequenceDiagram, Option<LineLocation>, &RegexResult) -> CommandExecutionResult
+        + 'static,
+{
+    Box::new(SingleLineCommand::new(
+        r,
+        move |d: &mut SequenceDiagram, loc, arg, _| f(d, loc, arg),
+    ))
+}
+
+fn lifeline_commands() -> Vec<Cmd> {
+    let mut cmds: Vec<Cmd> = Vec::new();
+    cmds.push(simple(
+        IRegex::concat(vec![
+            IRegex::start(),
+            IRegex::named("HIDE", "(hide|show)"),
+            IRegex::space_one_or_more(),
+            IRegex::leaf("@?unlinked"),
+            IRegex::end(),
+        ]),
+        |d, _, arg| {
+            d.hide_unlinked_data = arg
+                .get("HIDE", 0)
+                .is_some_and(|h| h.eq_ignore_ascii_case("hide"));
+            CommandExecutionResult::ok()
+        },
+    ));
+    cmds.push(simple(
+        IRegex::concat(vec![
+            IRegex::start(),
+            IRegex::named("TYPE", "(activate|deactivate|destroy|create)"),
+            IRegex::space_one_or_more(),
+            IRegex::named("WHO", who_regex()),
+            IRegex::space_zero_or_more(),
+            IRegex::named("BACK", r"(#\w+)?"),
+            IRegex::optional(IRegex::group(vec![
+                IRegex::space_one_or_more(),
+                IRegex::named("LINE", r"(#\w+)"),
+            ])),
+            IRegex::end(),
+        ]),
+        |d, loc, arg| {
+            let kind = match arg.get("TYPE", 0).unwrap_or("").to_uppercase().as_str() {
+                "ACTIVATE" => LifeEventType::Activate,
+                "DEACTIVATE" => LifeEventType::Deactivate,
+                "DESTROY" => LifeEventType::Destroy,
+                _ => LifeEventType::Create,
+            };
+            let who = strip_quotes(arg.get("WHO", 0).unwrap_or(""));
+            let p = d.get_or_create_participant(loc, who, None);
+            let back = arg
+                .get("BACK", 0)
+                .and_then(crate::klimt::color::HColor::parse);
+            let line = arg
+                .get("LINE", 0)
+                .and_then(crate::klimt::color::HColor::parse);
+            result_of(d.activate(p, kind, back, line))
+        },
+    ));
+    cmds.push(simple(
+        IRegex::concat(vec![
+            IRegex::start(),
+            IRegex::leaf("deactivate"),
+            IRegex::space_zero_or_more(),
+            IRegex::end(),
+        ]),
+        |d, _, _| {
+            let Some(m) = d.activating_message() else {
+                return CommandExecutionResult::error("Nothing to deactivate.");
+            };
+            let p2 = match &d.events()[m] {
+                Event::Message(m) => m.p2,
+                Event::MessageExo(m) => m.participant,
+                _ => unreachable!(),
+            };
+            result_of(d.activate(p2, LifeEventType::Deactivate, None, None))
+        },
+    ));
+    cmds.push(simple(
+        IRegex::concat(vec![
+            IRegex::start(),
+            IRegex::named("NAME", CODE),
+            IRegex::space_zero_or_more(),
+            IRegex::named("TYPE", r"(\+\+|--)"),
+            IRegex::space_zero_or_more(),
+            IRegex::named("COLOR", r"(#\w+)?"),
+            IRegex::end(),
+        ]),
+        |d, loc, arg| {
+            let kind = if arg.get("TYPE", 0) == Some("++") {
+                LifeEventType::Activate
+            } else {
+                LifeEventType::Deactivate
+            };
+            let p = d.get_or_create_participant(loc, arg.get("NAME", 0).unwrap_or(""), None);
+            let color = arg
+                .get("COLOR", 0)
+                .and_then(crate::klimt::color::HColor::parse);
+            result_of(d.activate(p, kind, color, None))
+        },
+    ));
+    cmds.push(simple(
+        IRegex::concat(vec![
+            IRegex::start(),
+            IRegex::named("PARALLEL", "(&[%s]*)?"),
+            IRegex::space_zero_or_more(),
+            IRegex::leaf("return"),
+            IRegex::space_zero_or_more(),
+            IRegex::optional(IRegex::group(vec![
+                IRegex::named("COLOR", r"(#\w+)"),
+                IRegex::space_one_or_more(),
+            ])),
+            IRegex::named("MESSAGE", "(.*)"),
+            IRegex::end(),
+        ]),
+        execute_return,
+    ));
+    cmds.push(simple(
+        IRegex::concat(vec![
+            IRegex::start(),
+            IRegex::leaf("autoactivate"),
+            IRegex::space_one_or_more(),
+            IRegex::named("ON", "(off|on)"),
+            IRegex::end(),
+        ]),
+        |d, _, arg| {
+            d.autoactivate = arg
+                .get("ON", 0)
+                .is_some_and(|v| v.eq_ignore_ascii_case("on"));
+            CommandExecutionResult::ok()
+        },
+    ));
+    cmds.push(simple(
+        IRegex::concat(vec![
+            IRegex::start(),
+            IRegex::named("TYPE", "(hide|show)?"),
+            IRegex::space_zero_or_more(),
+            IRegex::leaf("footbox"),
+            IRegex::end(),
+        ]),
+        |d, _, arg| {
+            d.set_show_footbox(
+                arg.get("TYPE", 0)
+                    .is_some_and(|v| v.eq_ignore_ascii_case("show")),
+            );
+            CommandExecutionResult::ok()
+        },
+    ));
+    cmds.push(simple(
+        IRegex::concat(vec![
+            IRegex::start(),
+            IRegex::leaf("footbox"),
+            IRegex::space_zero_or_more(),
+            IRegex::named("TYPE", "(on|off)?"),
+            IRegex::space_zero_or_more(),
+            IRegex::end(),
+        ]),
+        |d, _, arg| {
+            d.set_show_footbox(
+                arg.get("TYPE", 0)
+                    .is_some_and(|v| v.eq_ignore_ascii_case("on")),
+            );
+            CommandExecutionResult::ok()
+        },
+    ));
+    cmds
+}
+
+fn execute_return(
+    d: &mut SequenceDiagram,
+    location: Option<LineLocation>,
+    arg: &RegexResult,
+) -> CommandExecutionResult {
+    let mut do_deactivation = true;
+    let mut message1 = d.activating_message();
+    if message1.is_none() {
+        match d.last_event_with_deactivate() {
+            Some(i) if matches!(d.events()[i], Event::Message(_)) => {
+                message1 = Some(i);
+                do_deactivation = false;
+            }
+            _ => return CommandExecutionResult::error("Nowhere to return to."),
+        }
+    }
+    let m1 = message1.expect("set above");
+    let core = d.events()[m1].message_core().expect("message").clone();
+    let mut arrow = core.arrow_configuration.with_body(ArrowBody::Dotted);
+    if let Some(c) = arg.get("COLOR", 0) {
+        match crate::klimt::color::HColor::parse(c) {
+            Some(c) => arrow = arrow.with_color(Some(c)),
+            None => return CommandExecutionResult::bad_color(),
+        }
+    }
+    let display = Display::with_newlines(arg.get("MESSAGE", 0));
+    let number = d.next_message_number();
+    let (message2, p2_of_1) = match d.events()[m1].clone() {
+        Event::MessageExo(exo1) => {
+            let msg = MessageExo {
+                core: MessageCore::new(d.style_builder(), display, arrow, number, location),
+                participant: exo1.participant,
+                exo_type: exo1.exo_type.reverse(),
+                short_arrow: false,
+            };
+            (Event::MessageExo(msg), exo1.participant)
+        }
+        Event::Message(m) => {
+            let mut msg = Message {
+                core: MessageCore::new(d.style_builder(), display, arrow, number, location),
+                p1: m.p2,
+                p2: m.p1,
+                multicast: Vec::new(),
+            };
+            if arg.get("PARALLEL", 0).is_some() {
+                msg.core.parallel = true;
+            }
+            (Event::Message(msg), m.p2)
+        }
+        _ => unreachable!(),
+    };
+    let status = d.add_message(message2);
+    if !status.is_ok() {
+        return status;
+    }
+    if do_deactivation {
+        return result_of(d.activate(p2_of_1, LifeEventType::Deactivate, None, None));
+    }
+    CommandExecutionResult::ok()
+}
+
 /// All commands of the sequence diagram, in matching order (`initCommandsList`, partial).
 pub fn commands() -> Vec<Cmd> {
     let mut cmds: Vec<Cmd> = Vec::new();
@@ -573,6 +820,7 @@ pub fn commands() -> Vec<Cmd> {
         arrow_regex(),
         |d, loc, arg, _: ParserPass| execute_arrow(d, loc, arg),
     )));
+    cmds.extend(lifeline_commands());
     cmds.push(autonumber_command());
     cmds
 }

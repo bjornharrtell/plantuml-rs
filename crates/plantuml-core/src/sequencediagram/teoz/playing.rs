@@ -2,6 +2,7 @@
 //! `PlayingSpaceWithParticipants`, `SequenceDiagramFileMakerTeoz`).
 
 use super::communication::CommunicationTile;
+use super::lifeevent::LifeEventTile;
 use super::living::{LivingSpace, LivingSpaces};
 use super::{Bordered, Model, Tile, TileArguments, YGauge};
 use crate::klimt::drawing::ugraphic::{find_limits, UGraphic, UTranslate};
@@ -19,6 +20,9 @@ fn build_one(args: &Rc<TileArguments>, event: usize, current_y: &YGauge) -> Vec<
     match &args.model.events[event] {
         Event::Message(m) if !m.is_self_message() => {
             vec![CommunicationTile::new(args.clone(), event, current_y) as Rc<dyn Tile>]
+        }
+        Event::LifeEvent(_) => {
+            vec![LifeEventTile::new(args.clone(), event, current_y) as Rc<dyn Tile>]
         }
         other => {
             log::warn!("TileBuilder: ignoring {:?}", std::mem::discriminant(other));
