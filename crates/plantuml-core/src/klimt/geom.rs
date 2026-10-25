@@ -242,3 +242,12 @@ impl Position {
         }
     }
 }
+
+/// Side of a rectangle (`Side`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Side {
+    North,
+    East,
+    South,
+    West,
+}
