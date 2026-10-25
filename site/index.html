@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>plantuml-rs playground</title>
+<style>
+  :root { --bg:#fff; --fg:#1b1f23; --muted:#667; --line:#d0d7de; --panel:#f6f8fa; --err:#b42318; --accent:#0969da; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0d1117; --fg:#e6edf3; --muted:#8b949e; --line:#30363d; --panel:#161b22; --err:#ff7b72; --accent:#58a6ff; }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--fg); font: 14px/1.4 system-ui, sans-serif; display: flex; flex-direction: column; }
+  header { display: flex; gap: 12px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+  header h1 { font-size: 15px; margin: 0; font-weight: 600; }
+  header .grow { flex: 1; }
+  select, button { font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+  a { color: var(--accent); }
+  main { flex: 1; display: grid; grid-template-columns: minmax(280px, 40%) 1fr; min-height: 0; }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; grid-template-rows: 40% 1fr; } }
+  #editor { width: 100%; height: 100%; border: 0; border-right: 1px solid var(--line); padding: 12px 16px; resize: none; outline: none;
+    font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--bg); color: var(--fg); tab-size: 2; }
+  #preview { overflow: auto; padding: 16px; background: #fff; min-height: 0; }
+  #preview svg { max-width: none; display: block; margin: 0 auto; }
+  #status { padding: 4px 12px; border-top: 1px solid var(--line); background: var(--panel); color: var(--muted); font-size: 12px; display: flex; gap: 16px; white-space: pre-wrap; }
+  #status.err { color: var(--err); }
+</style>
+</head>
+<body>
+<header>
+  <h1>plantuml-rs</h1>
+  <label>Example <select id="samples"></select></label>
+  <button id="download">Download SVG</button>
+  <span class="grow"></span>
+  <a href="https://github.com/bjornharrtell/plantuml-rs">source</a>
+</header>
+<main>
+  <textarea id="editor" spellcheck="false" aria-label="PlantUML source"></textarea>
+  <div id="preview" aria-live="polite"></div>
+</main>
+<div id="status"><span id="msg">loading…</span><span id="info"></span></div>
+<script type="module">
+import init, { render, init_logging } from './pkg/plantuml_wasm.js';
+
+const SAMPLES = {
+  'Sequence: basics': `@startuml
+Alice -> Bob: Authentication Request
+Bob --> Alice: Authentication Response
+Alice -> Alice: self message
+note right of Bob: a note
+@enduml`,
+  'Sequence: groups, activation': `@startuml
+actor User
+participant API
+database DB
+User -> API: request
+activate API
+alt cache hit
+  API --> User: cached
+else miss
+  API -> DB: query
+  DB --> API: rows
+  API --> User: response
+end
+deactivate API
+ref over User, API : see other diagram
+@enduml`,
+  'Sequence: boxes, dividers, delay': `@startuml
+box "Internal" #LightBlue
+participant A
+participant B
+end box
+== Init ==
+A -> B: hello
+...
+B -> A: later
+[-> A: from the border
+@enduml`,
+  'Preprocessor': `@startuml
+!$names = ["Alice", "Bob", "Carol"]
+!function $greet($n)
+!return "hello " + $n
+!endfunction
+!foreach $n in $names
+participant $n
+!endfor
+Alice -> Bob: $greet("Bob")
+Bob -> Carol: $greet("Carol")
+@enduml`,
+  'Packet': `@startpacketdiag
+colwidth = 32
+0-15: Source Port
+16-31: Destination Port
+32-63: Sequence Number
+64-95: Acknowledgment Number
+96-99: Data Offset
+100-105: Reserved
+106-111: Flags
+@endpacketdiag`,
+};
+
+const editor = document.getElementById('editor');
+const preview = document.getElementById('preview');
+const msg = document.getElementById('msg');
+const info = document.getElementById('info');
+const status = document.getElementById('status');
+const samples = document.getElementById('samples');
+
+for (const name of Object.keys(SAMPLES)) samples.add(new Option(name, name));
+samples.add(new Option('(custom)', ''), 0);
+
+const toB64 = (s) => btoa(String.fromCharCode(...new TextEncoder().encode(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const fromB64 = (s) => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0)));
+
+let ready = false;
+let timer = 0;
+let lastSvg = '';
+
+function run() {
+  if (!ready) return;
+  const t0 = performance.now();
+  try {
+    lastSvg = render(editor.value);
+    preview.innerHTML = lastSvg;
+    status.classList.remove('err');
+    msg.textContent = 'ok';
+    info.textContent = `${(performance.now() - t0).toFixed(0)} ms · ${(lastSvg.length / 1024).toFixed(1)} kB`;
+  } catch (e) {
+    status.classList.add('err');
+    msg.textContent = String(e && e.message ? e.message : e);
+    info.textContent = '';
+  }
+}
+
+function schedule() {
+  clearTimeout(timer);
+  timer = setTimeout(() => {
+    try { history.replaceState(null, '', '#' + toB64(editor.value)); } catch {}
+    run();
+  }, 250);
+}
+
+editor.addEventListener('input', () => { samples.value = ''; schedule(); });
+editor.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Tab') {
+    ev.preventDefault();
+    const { selectionStart: s, selectionEnd: e } = editor;
+    editor.setRangeText('  ', s, e, 'end');
+    editor.dispatchEvent(new Event('input'));
+  }
+});
+samples.addEventListener('change', () => {
+  if (samples.value) { editor.value = SAMPLES[samples.value]; schedule(); }
+});
+document.getElementById('download').addEventListener('click', () => {
+  const url = URL.createObjectURL(new Blob([lastSvg], { type: 'image/svg+xml' }));
+  const a = Object.assign(document.createElement('a'), { href: url, download: 'diagram.svg' });
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+const first = Object.keys(SAMPLES)[0];
+try {
+  editor.value = location.hash.length > 1 ? fromB64(location.hash.slice(1)) : SAMPLES[first];
+  samples.value = location.hash.length > 1 ? '' : first;
+} catch {
+  editor.value = SAMPLES[first];
+  samples.value = first;
+}
+
+try {
+  await init();
+  init_logging();
+  ready = true;
+  fetch('./pkg/version.txt').then((r) => (r.ok ? r.text() : '')).then((v) => { if (v) document.title += ' · ' + v.trim(); }).catch(() => {});
+  run();
+} catch (e) {
+  status.classList.add('err');
+  msg.textContent = 'failed to load the wasm module: ' + e;
+}
+</script>
+</body>
+</html>

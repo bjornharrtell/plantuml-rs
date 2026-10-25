@@ -1,2 +1,4 @@
 fidelity.json
 target/
+site/pkg/
+.claude/
