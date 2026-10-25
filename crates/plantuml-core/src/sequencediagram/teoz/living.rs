@@ -370,27 +370,25 @@ impl LiveBoxes {
                 seen_deactivate = false;
             }
             let potential = steps.get(&idx).copied();
-            if position.is_none() || last_message.is_none() {
-                position = potential;
-            } else if let Event::LifeEvent(le) = event {
-                if event.deals_with(p) {
-                    let lm = last_message.expect("checked");
-                    if le.message.is_none()
-                        || !le.message.is_some_and(|m| parallel_with(events, m, lm))
-                    {
-                        position = potential;
-                    } else if (le.is_activate() && seen_deactivate)
-                        || (le.kind == LifeEventType::Deactivate && seen_activate)
-                    {
-                        position = potential;
+            match (position, last_message, event) {
+                (Some(_), Some(lm), Event::LifeEvent(le)) => {
+                    if event.deals_with(p) {
+                        if le.message.is_none()
+                            || !le.message.is_some_and(|m| parallel_with(events, m, lm))
+                        {
+                            position = potential;
+                        } else if (le.is_activate() && seen_deactivate)
+                            || (le.kind == LifeEventType::Deactivate && seen_activate)
+                        {
+                            position = potential;
+                        }
+                        seen_activate |= le.is_activate();
+                        seen_deactivate |= le.kind == LifeEventType::Deactivate;
+                    } else {
+                        continue;
                     }
-                    seen_activate |= le.is_activate();
-                    seen_deactivate |= le.kind == LifeEventType::Deactivate;
-                } else {
-                    continue;
                 }
-            } else {
-                position = potential;
+                _ => position = potential,
             }
             if matches!(event, Event::Message(_) | Event::MessageExo(_)) {
                 if last_message.is_some_and(|lm| parallel_with(events, idx, lm)) {
