@@ -134,6 +134,10 @@ impl Trim {
     }
 }
 
+type TextPredicate = Box<dyn Fn(&str) -> bool>;
+type LinesPredicate = Box<dyn Fn(&BlocLines) -> bool>;
+type LinesVerification = Box<dyn Fn(&BlocLines) -> CommandControl>;
+
 type SingleExec<D> =
     dyn Fn(&mut D, Option<LineLocation>, &RegexResult, ParserPass) -> CommandExecutionResult;
 
@@ -142,8 +146,8 @@ pub struct SingleLineCommand<D> {
     pattern: IRegex,
     do_trim: bool,
     with_final_bracket: bool,
-    forbidden_lines: Option<Box<dyn Fn(&BlocLines) -> bool>>,
-    forbidden_text: Option<Box<dyn Fn(&str) -> bool>>,
+    forbidden_lines: Option<LinesPredicate>,
+    forbidden_text: Option<TextPredicate>,
     final_verification: Option<Box<dyn Fn() -> CommandControl>>,
     exec: Box<SingleExec<D>>,
 }
@@ -270,8 +274,8 @@ pub struct MultiLineCommand<D> {
     trim_end: Trim,
     end: fancy_regex::Regex,
     with_final_bracket: bool,
-    forbidden: Option<Box<dyn Fn(&BlocLines) -> bool>>,
-    final_verification: Option<Box<dyn Fn(&BlocLines) -> CommandControl>>,
+    forbidden: Option<LinesPredicate>,
+    final_verification: Option<LinesVerification>,
     exec: Box<MultiExec<D>>,
 }
 
@@ -677,8 +681,10 @@ mod tests {
         assert_eq!(e.message, "Empty description");
         let e = run("@startuml\nbegin\nx\n@enduml").unwrap_err();
         assert_eq!(e.kind, ErrorUmlType::SyntaxError);
-        let mut d = Diag::default();
-        d.fail_final = true;
+        let d = Diag {
+            fail_final: true,
+            ..Diag::default()
+        };
         let e = create_system(
             &commands(),
             d,
@@ -758,7 +764,7 @@ mod tests {
         assert!(!nt
             .execute(&mut d, &BlocLines::single_string("zzz"), ParserPass::One)
             .is_ok());
-        assert_eq!(nt.is_eligible_for(ParserPass::Two), false);
+        assert!(!nt.is_eligible_for(ParserPass::Two));
         let ml = MultiLineCommand::new(
             IRegex::concat(vec![IRegex::start(), IRegex::leaf("note"), IRegex::end()]),
             MultilinesStrategy::KeepStartingQuote,
