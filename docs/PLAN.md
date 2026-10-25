@@ -97,3 +97,14 @@ Exit criterion per diagram type: fidelity harness numbers, plus fixtures reviewe
 - Preferred embedded font(s) and their license (candidates: Liberation Sans/Mono, DejaVu Sans).
 - Whether the standard library should be bundled, fetched lazily, or left to the host.
 - Crate/npm names and publishing.
+
+## Effort estimate
+
+- Full parity: ~150k lines of Rust, 9-12 months of focused work.
+- Useful subset (class, sequence, activity, state, component, usecase): 3-4 months.
+- Class-diagram vertical slice: 4-6 weeks.
+
+## Progress
+
+- Done: colors, embedded font metrics (PlantUML's own Liberation Sans tables, `metrics.bin`), XML writer, SVG backend (`klimt/drawing`).
+- Next: UGraphic shapes, style/skin cascade, creole, preprocessor, class parser, svek.
