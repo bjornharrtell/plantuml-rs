@@ -14,6 +14,7 @@ as a faithful port of [plantuml/plantuml](https://github.com/plantuml/plantuml).
 | Text metrics | Embedded font metrics only (deterministic, no browser canvas) |
 | License | MIT (PlantUML is multi-licensed and offers MIT) |
 | First vertical slice | Class diagram (proves the Graphviz path early) |
+| C4 models | A desired supported type, and not a diagram type of its own: C4-PlantUML is a stdlib macro library (`!include <C4/C4_Container>`) that expands to DESCRIPTION (component) statements. Supporting C4 therefore means bundled stdlib includes plus the DESCRIPTION diagram type |
 | Regex | `fancy-regex` (Java patterns use lookaround); port `ubrex` only if needed |
 | Logging | `log` facade only (see `AGENTS.md`) |
 
@@ -80,11 +81,44 @@ diagram type) so that each Rust file maps to a Java file and can be reviewed aga
    colours, skinparam/style cascade, creole text, `klimt` shapes + SVG writer, font metrics trait and embedded fonts.
    (The `graphviz-pure` spike is done, see above.)
 4. **Class diagram slice**: parser commands, entities, `svek` DOT generation and SVG-result parsing, edge decoration.
-5. **Other Graphviz types**: object, component/deployment, state, use case.
-6. **Self-layout types**, in order of use: sequence, activity-beta, mindmap, wbs, json/yaml, gantt, salt, timing, chart, packet, others.
-7. **wasm packaging**: size budget, npm package, demo page, size/speed comparison against the TeaVM build.
+5. **Other Graphviz types**: object, component/deployment (DESCRIPTION), state, use case.
+6. **C4 models**: bundle C4-PlantUML sources, resolve `!include <C4/...>` and render the canonical C4 samples (see the
+   C4 section below). Depends on phase 5 for DESCRIPTION.
+7. **Self-layout types**, in order of use: sequence, activity-beta, mindmap, wbs, json/yaml, gantt, salt, timing, chart, packet, others.
+8. **wasm packaging**: size budget, npm package, demo page, size/speed comparison against the TeaVM build.
 
 Exit criterion per diagram type: fidelity harness numbers, plus fixtures reviewed visually side by side.
+
+## C4 model support
+
+C4 has no `@startc4`; diagrams are plain `@startuml` sources that include the C4-PlantUML macro library and call its
+procedures (`Person`, `System`, `Container`, `Component`, `*_Boundary`, `Rel`). The macros emit DESCRIPTION statements:
+
+- `rectangle "<creole label>" <<person|system|container|component|boundary>> as <alias>`, default shape `rectangle`
+  (`$portraitPerson = "false"`); `Person` emits `actor`/`person` only after `SHOW_PERSON_PORTRAIT()` or
+  `SHOW_PERSON_OUTLINE()`.
+- `Rel()` and friends emit one relationship statement (`-->`, `-->>`, `..>`) with the label, `$techn` and `$descr`
+  folded into it; the `Lay_*` helpers add `-[hidden]` ones for layout only.
+- Styling is `skinparam rectangle<<stereotype>> { ... }` written by `UpdateElementStyle`/`AddElementTag`, plus
+  `LAYOUT_WITH_LEGEND()` (legend), `hide stereotype`, `skinparam shadowing false`.
+- Boundaries are titled rectangles (`== label ==` heading), not clusters, in the current C4 style.
+
+What that needs, and where the port stands:
+
+| Piece | State |
+|---|---|
+| Preprocessor builtins C4 uses (`%substr`, `%strpos`, `%strlen`, `%splitstr`, `%set_variable_value`, `%get_variable_value`, `%variable_exists`, `%function_exists`, `%intval`, `%chr`, `%lower`, `%is_dark`, `%darken`, `%newline`, `%breakline`, `%true`/`%false`), plus `!global`, `!unquoted procedure`, `!function`/`!return`, `!while`, `!foreach`, `!elseif` | present in `tim` |
+| `!include <name>` resolution | `read_stdlib` hook exists (`tim/builtin.rs`, `tim/context.rs`) but no bundled data, and `render` passes `NoResolver`, so `<C4/...>` cannot resolve in wasm or the CLI |
+| C4 sources | not bundled. Java ships them packed as `.spm` archives (`src/main/resources/stdlib/c4`); take the plain `.puml` sources from `plantuml-stdlib/C4-PlantUML` instead (7 files, 3,361 lines, MIT) |
+| DESCRIPTION diagram type | not ported: `component`, `rectangle`, `node`, `database`, `queue`, `cloud`, `person`, `actor`, `interface`, `storage`, `card` all fail to parse, and 0 of the 6 Vega DESCRIPTION fixtures render |
+| Stereotype styles, creole headings, legend chrome | present (`style`, `klimt/creole`, `chrome.rs`), so the C4 look is mostly a matter of the DESCRIPTION image |
+
+Exit criterion for C4: the canonical samples (`samples/` in C4-PlantUML: context, container, component, deployment,
+dynamic) render and match Java within `svgdiff.py` tolerance; `Person`, `System`, `Container`, `Component`,
+`*_Boundary`, `Rel` first, then sprites and `$baseShape` variants.
+
+Oracle: no C4 sources exist in the Vega fixtures (0 of 431 reference C4), so C4 needs generated references: render the
+samples with the Java jar built from base commit `e6c3adc` and compare with `scripts/svgdiff.py`.
 
 ## Risks
 
@@ -99,6 +133,9 @@ Exit criterion per diagram type: fidelity harness numbers, plus fixtures reviewe
 
 - Preferred embedded font(s) and their license (candidates: Liberation Sans/Mono, DejaVu Sans).
 - Whether the standard library should be bundled, fetched lazily, or left to the host.
+- C4: bundle only the C4-PlantUML sources or a wider stdlib slice; whether sprites (`tupadr3/font-awesome`) and the C4
+  themes (`themes/puml-theme-C4_*.puml`, a `!theme`-shaped feature) are in scope for the first C4 slice; whether
+  `C4_Sequence`/`C4_Dynamic` reuse the sequence renderer or need their own handling.
 - Crate/npm names and publishing.
 
 ## Effort estimate
@@ -128,6 +165,7 @@ Exit criterion per diagram type: fidelity harness numbers, plus fixtures reviewe
 - Done: wasm package and playground (`site/`, `scripts/build-site.sh`, `.github/workflows/pages.yml`; enable Pages with source "GitHub Actions" in the repository settings).
 - Done: chart diagrams (`chart/`: axes, bar/line/area/scatter series, legend, annotations). Vega CHART: 35/35 identical.
 - In progress: class diagrams. Ported: `abel` model, `plasma`, `cucadiagram`, link decorations, visibility icons, class/link commands, `DotPath`, `svek` (types, node, role labels, extremities, bibliotekon, cluster), `SvekEdge`, `DotStringFactory` on graphviz-pure, `EntityImageClass`. Class diagrams render end to end (parse, layout, boxes, links, arrow ends); see the measured table below for what still differs.
+- Next: description/component diagrams, then C4 models (see the C4 section).
 
 ## Measured fidelity (2026-10-25)
 
