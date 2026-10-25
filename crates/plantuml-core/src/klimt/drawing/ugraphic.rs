@@ -4,6 +4,8 @@ use super::svg::{PathSeg, SvgGraphics, SvgOption, TextAttrs};
 use crate::klimt::color::{HColor, TransparentFillBehavior};
 use crate::klimt::font::config::{FontConfiguration, FontStyle};
 use crate::klimt::font::StringBounder;
+use crate::klimt::shape::{Stencil, UHorizontalLine};
+use std::rc::Rc;
 
 /// Translation applied to subsequent shapes (`UTranslate`).
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -324,6 +326,7 @@ pub enum UShape {
     Polygon(UPolygon),
     Path(UPath),
     Text(Box<UText>),
+    HLine(UHorizontalLine),
     Comment(String),
 }
 
@@ -333,7 +336,7 @@ macro_rules! impl_from {
     )*};
 }
 impl_from!(URectangle => Rectangle, ULine => Line, UEllipse => Ellipse,
-    UPolygon => Polygon, UPath => Path);
+    UPolygon => Polygon, UPath => Path, UHorizontalLine => HLine);
 
 impl From<UText> for UShape {
     fn from(t: UText) -> Self {
@@ -358,6 +361,17 @@ pub struct UGraphic<'a> {
     bounder: &'a dyn StringBounder,
     translate: UTranslate,
     param: Param,
+    stencil: Option<Rc<StencilLayer>>,
+    default_background: HColor,
+}
+
+/// Stencil installed by [`UGraphic::apply_stencil`] (`UGraphicStencil`).
+struct StencilLayer {
+    stencil: Rc<dyn Stencil>,
+    default_stroke: UStroke,
+    /// Position of the drawing context when the stencil was installed.
+    origin: UTranslate,
+    parent: Option<Rc<StencilLayer>>,
 }
 
 impl<'a> UGraphic<'a> {
@@ -373,10 +387,26 @@ impl<'a> UGraphic<'a> {
                 clip: None,
                 hidden: false,
             },
+            stencil: None,
+            default_background: HColor::WHITE,
         }
     }
 
-    pub fn string_bounder(&self) -> &dyn StringBounder {
+    /// Background assumed when the current back color is transparent.
+    pub fn default_background(&self) -> &HColor {
+        &self.default_background
+    }
+
+    pub fn with_default_background(mut self, bg: HColor) -> Self {
+        self.default_background = bg;
+        self
+    }
+
+    pub fn back_color(&self) -> &HColor {
+        &self.param.backcolor
+    }
+
+    pub fn string_bounder(&self) -> &'a dyn StringBounder {
         self.bounder
     }
 
@@ -387,6 +417,8 @@ impl<'a> UGraphic<'a> {
             bounder: self.bounder,
             translate: self.translate,
             param: self.param.clone(),
+            stencil: self.stencil.clone(),
+            default_background: self.default_background.clone(),
         }
     }
 
@@ -419,6 +451,23 @@ impl<'a> UGraphic<'a> {
     pub fn apply_hidden(&mut self, hidden: bool) -> UGraphic<'_> {
         let mut u = self.scope();
         u.param.hidden = hidden;
+        u
+    }
+
+    /// Makes horizontal lines span `stencil` from the current position on.
+    pub fn apply_stencil(
+        &mut self,
+        stencil: Rc<dyn Stencil>,
+        default_stroke: UStroke,
+    ) -> UGraphic<'_> {
+        let parent = self.stencil.clone();
+        let mut u = self.scope();
+        u.stencil = Some(Rc::new(StencilLayer {
+            stencil,
+            default_stroke,
+            origin: u.translate,
+            parent,
+        }));
         u
     }
 
@@ -473,9 +522,21 @@ impl<'a> UGraphic<'a> {
             UShape::Polygon(p) => self.draw_polygon(&p, x, y),
             UShape::Path(p) => self.draw_path(&p, x, y),
             UShape::Text(t) => self.draw_text(&t, x, y),
+            UShape::HLine(l) => self.draw_hline(&l),
             UShape::Comment(c) => self.svg.add_comment(&c),
         }
         self.svg.set_hidden(false);
+    }
+
+    fn draw_hline(&mut self, l: &UHorizontalLine) {
+        let Some(layer) = self.stencil.clone() else {
+            return;
+        };
+        let y = self.translate.dy - layer.origin.dy;
+        let mut u = self.scope();
+        u.translate = layer.origin;
+        u.stencil = layer.parent.clone();
+        l.draw_line_internal(&mut u, layer.stencil.as_ref(), y, layer.default_stroke);
     }
 
     fn draw_rectangle(&mut self, r: &URectangle, mut x: f64, mut y: f64) {

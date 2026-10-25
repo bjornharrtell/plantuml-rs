@@ -194,6 +194,7 @@ impl FontConfiguration {
                 None => attributes.push((k.clone(), v.clone())),
             }
         }
+        attributes.sort();
         Self {
             attributes,
             ..self.clone()

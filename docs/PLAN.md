@@ -109,4 +109,5 @@ Exit criterion per diagram type: fidelity harness numbers, plus fixtures reviewe
 - Done: colors, embedded font metrics (PlantUML's own Liberation Sans tables, `metrics.bin`), XML writer, SVG backend (`klimt/drawing`).
 - Done: `UGraphic` context, shapes (rect, line, ellipse, polygon, path, text) and SVG drivers (`klimt/drawing/ugraphic.rs`).
 - Done: style system (parser, cascade, index, built-in `plantuml.skin`) in `style/`.
+- Done: text blocks, horizontal-line stencils and Creole text (styles, colors, lists, headings, hlines, line breaking) in `klimt/shape.rs` and `klimt/creole/`. Not yet: tables, trees, code blocks, images, sprites, emoji, math, links as `<a>`.
 - Next: creole, preprocessor, class parser, svek.

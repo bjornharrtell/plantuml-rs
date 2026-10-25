@@ -60,9 +60,86 @@ impl VerticalAlignment {
     }
 }
 
+/// Bounding box accumulator (`MinMax`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MinMax {
+    pub min_x: f64,
+    pub min_y: f64,
+    pub max_x: f64,
+    pub max_y: f64,
+}
+
+impl MinMax {
+    pub fn empty(init_to_zero: bool) -> Self {
+        if init_to_zero {
+            Self {
+                min_x: 0.0,
+                min_y: 0.0,
+                max_x: 0.0,
+                max_y: 0.0,
+            }
+        } else {
+            Self {
+                min_x: f64::MAX,
+                min_y: f64::MAX,
+                max_x: -f64::MAX,
+                max_y: -f64::MAX,
+            }
+        }
+    }
+
+    pub fn from_max(max_x: f64, max_y: f64) -> Self {
+        Self::empty(true).add_point(max_x, max_y)
+    }
+
+    pub fn add_point(self, x: f64, y: f64) -> Self {
+        Self {
+            min_x: self.min_x.min(x),
+            min_y: self.min_y.min(y),
+            max_x: self.max_x.max(x),
+            max_y: self.max_y.max(y),
+        }
+    }
+
+    pub fn add_min_max(self, o: MinMax) -> Self {
+        Self {
+            min_x: self.min_x.min(o.min_x),
+            min_y: self.min_y.min(o.min_y),
+            max_x: self.max_x.max(o.max_x),
+            max_y: self.max_y.max(o.max_y),
+        }
+    }
+
+    pub fn width(&self) -> f64 {
+        self.max_x - self.min_x
+    }
+
+    pub fn height(&self) -> f64 {
+        self.max_y - self.min_y
+    }
+
+    pub fn translate(self, dx: f64, dy: f64) -> Self {
+        Self {
+            min_x: self.min_x + dx,
+            min_y: self.min_y + dy,
+            max_x: self.max_x + dx,
+            max_y: self.max_y + dy,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn min_max() {
+        let m = MinMax::empty(false).add_point(1.0, 2.0).add_point(4.0, 6.0);
+        assert_eq!((m.width(), m.height()), (3.0, 4.0));
+        let z = MinMax::from_max(2.0, 2.0).add_min_max(m);
+        assert_eq!((z.min_x, z.max_y), (0.0, 6.0));
+        assert_eq!(m.translate(1.0, 1.0).min_x, 2.0);
+    }
 
     #[test]
     fn alignment() {

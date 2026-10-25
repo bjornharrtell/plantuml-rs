@@ -145,6 +145,24 @@ impl Dimension {
     pub const fn new(width: f64, height: f64) -> Self {
         Self { width, height }
     }
+
+    pub fn delta(self, dw: f64, dh: f64) -> Self {
+        Self::new(self.width + dw, self.height + dh)
+    }
+
+    /// Stacks `bottom` under this one.
+    pub fn merge_tb(self, bottom: Dimension) -> Self {
+        Self::new(self.width.max(bottom.width), self.height + bottom.height)
+    }
+
+    /// Puts `right` beside this one.
+    pub fn merge_lr(self, right: Dimension) -> Self {
+        Self::new(self.width + right.width, self.height.max(right.height))
+    }
+
+    pub fn at_least(self, min_width: f64, min_height: f64) -> Self {
+        Self::new(self.width.max(min_width), self.height.max(min_height))
+    }
 }
 
 /// Measures text (`StringBounder`).

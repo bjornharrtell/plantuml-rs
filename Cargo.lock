@@ -240,6 +240,7 @@ name = "plantuml-core"
 version = "0.0.1"
 dependencies = [
  "log",
+ "regex",
 ]
 
 [[package]]
