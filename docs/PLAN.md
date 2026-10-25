@@ -158,6 +158,17 @@ Oracle: no C4 sources exist in the Vega fixtures (0 of 431 reference C4), so C4 
 samples with the Java jar built from base commit `e6c3adc` and score them with `scripts/fidelity.py` (or
 `scripts/svgdiff.py layout` for one pair).
 
+## C4 model diagrams
+
+C4 (`!include <C4/C4_Container>` etc.) is not a diagram type of its own: the C4-PlantUML library is a set of `!procedure`/`!function` definitions that expand to description/component diagram elements (`rectangle`, `database`, `queue`, `person` stereotypes, `Rel` links, boundaries as packages) with C4 styling through `skinparam`/`<style>`. Support therefore needs, in order:
+
+1. Description/component diagrams (`descdiagram`), including nested boundaries (clusters) and stereotyped rectangles.
+2. Stdlib loading for `<C4/...>` includes (`src/main/resources/stdlib/c4`, `.spm` archives). Fetch lazily or bundle only the C4 subset, since the whole stdlib is 9 MB.
+3. The preprocessor features the library uses (procedures with default arguments, `!ifndef`, `$argument` expansion, sprites, `%`-builtins), already in `tim`; verify against the library.
+4. Fixtures: render the C4 samples and compare with Java's SVG.
+
+Progress is tracked with the description diagram work.
+
 ## Risks
 
 - Scale: the Java code is very large; rely on the harness and strict Java-file mapping to keep it tractable.
