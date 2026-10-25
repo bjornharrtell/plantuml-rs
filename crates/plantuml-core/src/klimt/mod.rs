@@ -3,6 +3,7 @@
 pub mod color;
 pub mod creole;
 pub mod drawing;
+pub mod fashion;
 pub mod font;
 pub mod geom;
 pub mod shape;

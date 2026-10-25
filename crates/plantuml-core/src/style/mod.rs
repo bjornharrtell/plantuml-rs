@@ -267,6 +267,11 @@ impl Style {
         Style::new(self.query.clone(), map)
     }
 
+    /// A number rendered as Java's `"" + double` does.
+    pub fn override_number(&self, name: PName, value: f64) -> Style {
+        self.override_string(name, &format!("{value:?}"))
+    }
+
     pub fn override_color(&self, name: PName, color: Option<crate::klimt::color::HColor>) -> Style {
         let Some(color) = color else {
             return self.clone();
@@ -324,6 +329,110 @@ impl Style {
             },
         };
         UStroke::new(visible, space, thickness)
+    }
+
+    /// Font, color and hyperlink look of the style (`getFontConfiguration`).
+    pub fn font_configuration(
+        &self,
+        colors: Option<&crate::klimt::color::colors::Colors>,
+    ) -> crate::klimt::font::config::FontConfiguration {
+        use crate::klimt::color::colors::ColorType;
+        let font = self.font();
+        let color = colors
+            .and_then(|c| c.color(ColorType::Text).cloned())
+            .unwrap_or_else(|| self.value(PName::FontColor).as_color());
+        let hyperlink_color = self.value(PName::HyperLinkColor).as_color();
+        let stroke = self.stroke_of(
+            PName::HyperlinkUnderlineThickness,
+            PName::HyperlinkUnderlineStyle,
+        );
+        crate::klimt::font::config::FontConfiguration::create(
+            font,
+            color,
+            hyperlink_color,
+            Some(stroke),
+            8,
+        )
+    }
+
+    /// Back/line colors, stroke, shadow and corners (`getSymbolContext`).
+    pub fn symbol_context(
+        &self,
+        colors: Option<&crate::klimt::color::colors::Colors>,
+    ) -> crate::klimt::fashion::Fashion {
+        use crate::klimt::color::colors::ColorType;
+        let back = colors
+            .and_then(|c| c.color(ColorType::Back).cloned())
+            .unwrap_or_else(|| self.value(PName::BackGroundColor).as_color());
+        let fore = colors
+            .and_then(|c| c.color(ColorType::Line).cloned())
+            .unwrap_or_else(|| self.value(PName::LineColor).as_color());
+        let round = self.value(PName::RoundCorner).as_double();
+        let diagonal = self.value(PName::DiagonalCorner).as_double();
+        crate::klimt::fashion::Fashion::new(Some(back), Some(fore))
+            .with_stroke(self.stroke())
+            .with_delta_shadow(self.shadowing())
+            .with_corner(round, diagonal)
+    }
+
+    pub fn horizontal_alignment(&self) -> crate::klimt::geom::HorizontalAlignment {
+        self.value(PName::HorizontalAlignment)
+            .as_horizontal_alignment()
+    }
+
+    pub fn wrap_width(&self) -> crate::klimt::creole::LineBreakStrategy {
+        crate::klimt::creole::LineBreakStrategy(Some(self.value(PName::MaximumWidth).as_string()))
+    }
+
+    /// Forced back/line/text colors (`eventuallyOverride(Colors)`).
+    pub fn override_colors(&self, colors: &crate::klimt::color::colors::Colors) -> Style {
+        use crate::klimt::color::colors::ColorType;
+        let mut r = self.clone();
+        for (t, p) in [
+            (ColorType::Back, PName::BackGroundColor),
+            (ColorType::Line, PName::LineColor),
+            (ColorType::Text, PName::FontColor),
+        ] {
+            if let Some(c) = colors.color(t) {
+                r = r.override_color(p, Some(c.clone()));
+            }
+        }
+        r
+    }
+
+    /// Forces the stroke (`eventuallyOverride(UStroke)`).
+    pub fn override_stroke(&self, stroke: &UStroke) -> Style {
+        let r = self.override_string(PName::LineThickness, &format!("{:?}", stroke.thickness));
+        r.override_string(
+            PName::LineStyle,
+            &format!("{:?}-{:?}", stroke.dash_visible, stroke.dash_space),
+        )
+    }
+
+    /// Style where only the values of `nested` differing from `parent` override (`mergeNestedChildOver`).
+    pub fn merge_nested_child_over(
+        &self,
+        nested: Option<&Style>,
+        nested_parent: Option<&Style>,
+        strategy: MergeStrategy,
+    ) -> Style {
+        let Some(nested) = nested else {
+            return self.clone();
+        };
+        let divergent: BTreeMap<PName, Value> = nested
+            .map
+            .iter()
+            .filter(|(k, v)| {
+                nested_parent
+                    .and_then(|p| p.map.get(k))
+                    .is_none_or(|a| a.as_string() != v.as_string())
+            })
+            .map(|(k, v)| (*k, v.clone()))
+            .collect();
+        if divergent.is_empty() {
+            return self.clone();
+        }
+        self.merge_with(&Style::new(nested.query.clone(), divergent), strategy)
     }
 
     pub fn padding(&self) -> Margins {

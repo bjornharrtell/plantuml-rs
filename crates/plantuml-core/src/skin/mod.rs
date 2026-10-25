@@ -1,5 +1,9 @@
 //! Skin parameters, ported from `skin/SkinParam` (the settings part).
 
+pub mod arrow;
+pub mod component;
+pub mod rose;
+
 use crate::klimt::color::HColor;
 use crate::klimt::creole::{LineBreakStrategy, SkinSimple};
 use crate::style::skinparam::FromSkinparamToStyle;
@@ -20,7 +24,7 @@ pub enum Rankdir {
 }
 
 /// `skinparam` values plus the style sheet they modify.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct SkinParam {
     params: HashMap<String, String>,
     style_builder: RefCell<Option<StyleBuilder>>,

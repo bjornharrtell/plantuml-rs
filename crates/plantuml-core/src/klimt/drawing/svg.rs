@@ -654,7 +654,13 @@ impl SvgGraphics {
     pub fn start_group(&mut self, attrs: &[(&str, String)]) {
         let mut g = XmlNode::new("g");
         for (k, v) in attrs {
-            g.set(k, v.clone());
+            if *k == "title" {
+                let mut t = XmlNode::new("title");
+                t.set_text(v);
+                g.push(t);
+            } else {
+                g.set(k, v.clone());
+            }
         }
         self.pending.push(g);
     }

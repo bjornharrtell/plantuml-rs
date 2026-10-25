@@ -165,6 +165,19 @@ pub struct ULine {
 }
 
 impl ULine {
+    /// Rotation of the vector around its start (`rotate`).
+    pub fn rotate(&self, theta: f64) -> ULine {
+        if theta == 0.0 {
+            return self.clone();
+        }
+        let (sin, cos) = theta.sin_cos();
+        ULine {
+            dx: self.dx * cos - self.dy * sin,
+            dy: self.dx * sin + self.dy * cos,
+            delta_shadow: self.delta_shadow,
+        }
+    }
+
     pub const fn new(dx: f64, dy: f64) -> Self {
         Self {
             dx,
@@ -226,6 +239,17 @@ impl UPolygon {
     pub fn add_point(&mut self, x: f64, y: f64) {
         self.points.push((x, y));
     }
+    /// Rotates every point around the origin.
+    pub fn rotate(&mut self, theta: f64) {
+        if theta == 0.0 {
+            return;
+        }
+        let (sin, cos) = theta.sin_cos();
+        for p in &mut self.points {
+            *p = (p.0 * cos - p.1 * sin, p.0 * sin + p.1 * cos);
+        }
+    }
+
     pub fn translate(&self, dx: f64, dy: f64) -> Self {
         Self {
             points: self.points.iter().map(|&(x, y)| (x + dx, y + dy)).collect(),

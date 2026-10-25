@@ -80,12 +80,14 @@ impl Fashion {
     }
 
     /// Applies fore and back colors, then the stroke, to a drawing context.
-    pub fn apply<'a>(&self, ug: &'a mut UGraphic) -> UGraphic {
+    pub fn apply(&self, ug: &UGraphic) -> UGraphic {
+        self.apply_colors(ug).apply_stroke(self.stroke)
+    }
+
+    pub fn apply_colors(&self, ug: &UGraphic) -> UGraphic {
         let fore = self.fore_color.clone().unwrap_or(HColor::TRANSPARENT);
         let back = self.back_color.clone().unwrap_or(HColor::TRANSPARENT);
-        let mut u = ug.apply_color(fore);
-        let mut u = u.apply_back_color(back);
-        u.apply_stroke(self.stroke).into_owned_scope()
+        ug.apply_color(fore).apply_back_color(back)
     }
 }
 
