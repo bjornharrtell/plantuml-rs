@@ -124,3 +124,4 @@ Exit criterion per diagram type: fidelity harness numbers, plus fixtures reviewe
 - Done: diagram registry (`psystem.rs`), packet diagrams (56/56 Vega fixtures identical), `skin` command and bundled skins.
 - Done: wasm package and playground (`site/`, `scripts/build-site.sh`, `.github/workflows/pages.yml`; enable Pages with source "GitHub Actions" in the repository settings).
 - Done: chart diagrams (`chart/`: axes, bar/line/area/scatter series, legend, annotations). Vega CHART: 35/35 identical.
+- Done: wasm package and playground (`site/`, `scripts/build-site.sh`, `.github/workflows/pages.yml`; enable Pages with source "GitHub Actions" in the repository settings).
