@@ -7,7 +7,7 @@ as a faithful port of [plantuml/plantuml](https://github.com/plantuml/plantuml).
 
 | Topic | Decision |
 |---|---|
-| Approach | Faithful port of the Java code, not a re-implementation |
+| Approach | Faithful port of the Java code by default, so behavior matches the Vega fixtures. Re-implement idiomatically only where the Java is a workaround for Java or its dependencies (Graphviz process and SVG round trip, TeaVM/Smetana/Elk paths, legacy strategies, AWT/image plumbing) or an infrastructure-heavy area (stdlib/theme loading, Creole, activity). Judge by behavior and the fixtures, not by the Java structure |
 | Fidelity | Visually identical to Java's SVG; text width differences accepted (no byte-exact goal) |
 | Output | SVG only. No PNG, PDF, EPS, AWT, GUI, servers |
 | Layout | [`graphviz-pure`](https://github.com/graphviz-pure/graphviz-pure) (pure-Rust Graphviz 16.1.0 port, wasm-capable, EPL-2.0). Pin the version. Java's Smetana is not ported |
