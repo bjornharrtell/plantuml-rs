@@ -164,7 +164,7 @@ samples with the Java jar built from base commit `e6c3adc` and compare with `scr
 - Done: diagram registry (`psystem.rs`), packet diagrams (56/56 Vega fixtures identical), `skin` command and bundled skins.
 - Done: wasm package and playground (`site/`, `scripts/build-site.sh`, `.github/workflows/pages.yml`; enable Pages with source "GitHub Actions" in the repository settings).
 - Done: chart diagrams (`chart/`: axes, bar/line/area/scatter series, legend, annotations). Vega CHART: 35/35 identical.
-- In progress: class diagrams. Ported: `abel` model, `plasma`, `cucadiagram`, link decorations, visibility icons, class/link commands, `DotPath`, `svek` (types, node, role labels, extremities, bibliotekon, cluster), `SvekEdge`, `DotStringFactory` on graphviz-pure, `EntityImageClass`. Class diagrams render end to end (parse, layout, boxes, links, arrow ends); see the measured table below for what still differs.
+- In progress: class diagrams. Ported: `abel` model, `plasma`, `cucadiagram`, link decorations, visibility icons, class/link commands, `set separator`/`namespaceSeparator`, `hide`/`show` (by name, stereotype, gender, visibility), `left to right`/`top to bottom direction`, `package`/`namespace` blocks with `}`, `DotPath`, `svek` (types, node, role labels, extremities, bibliotekon, cluster), `SvekEdge`, `DotStringFactory` on graphviz-pure, `EntityImageClass`. Next: cluster layout and drawing for `package`/`namespace` bodies (`Cluster::print_internal` and the cluster box), then notes on members and association classes.
 - Next: description/component diagrams, then C4 models (see the C4 section).
 
 ## Measured fidelity (2026-10-25)
@@ -176,7 +176,7 @@ graphviz-pure stands in for `dot`; `!pragma layout smetana` fixtures are unmatch
 | SEQUENCE | 149 | 97% | 0.95 | 95% | 93% |
 | PACKET | 57 | 100% | 1.00 | 100% | 100% |
 | CHART | 35 | 100% | 1.00 | 100% | 100% |
-| CLASS | 53 | 30% | 0.30 | 21% | 0% |
+| CLASS | 53 | 62% (33; 12 of them empty) | 0.30 | 21% | 0% |
 | STATE | 48 | 0% | - | - | 0% |
 | ACTIVITY | 36 | 0% | - | - | 0% |
 | GANTT | 16 | 0% | - | - | 0% |
@@ -187,7 +187,7 @@ graphviz-pure stands in for `dot`; `!pragma layout smetana` fixtures are unmatch
 | TIMING | 3 | 0% | - | - | 0% |
 | BPM, JSON, YAML | 1 each | 0% | - | - | 0% |
 
-All 431 fixtures: 58% render, 230 (53%) structurally identical. CLASS renders 16 of 53; the 37 failures are unported commands (packages/namespaces, notes, hide/show, association classes, direction keywords).
+All 431 fixtures: 58% render, 230 (53%) structurally identical. CLASS renders 33 of 53 after `set separator`, `hide`/`show`, direction, `package`/`namespace` and `!pragma`; 12 of those are empty because grouped entities are not laid out yet, 20 still fail (association classes, notes on members, object/description diagrams).
 
 Columns: `renders` = exit 0 with an `<svg` document; `text jaccard` = overlap of the text contents; `size within 20%` = both width and height; `structurally identical` = `scripts/svgdiff.py` reports no difference with 0.5 px coordinate tolerance (`SVG_TOL`).
 
