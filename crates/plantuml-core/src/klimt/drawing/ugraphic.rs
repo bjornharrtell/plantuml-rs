@@ -387,6 +387,8 @@ pub enum UShape {
     /// Invisible shape only extending the bounds (`UEmpty`).
     Empty(f64, f64),
     Comment(String),
+    /// A character centered on the origin, as in the spot of a class (`UCenteredCharacter`).
+    CenteredChar(char),
 }
 
 macro_rules! impl_from {
@@ -644,6 +646,7 @@ impl UGraphic {
             UShape::Text(t) => self.draw_text(&t, x, y),
             UShape::HLine(l) => self.draw_hline(&l),
             UShape::Comment(c) => self.svg.add_comment(&c),
+            UShape::CenteredChar(c) => self.draw_centered_char(c, x, y),
         }
         self.svg.set_hidden(false);
     }
@@ -700,8 +703,28 @@ impl UGraphic {
                 add(x + w, y + h);
             }
             UShape::HLine(l) => self.draw_hline(l),
-            UShape::Comment(_) => {}
+            UShape::Comment(_) | UShape::CenteredChar(_) => {}
         }
+    }
+
+    fn draw_centered_char(&self, c: char, x: f64, y: f64) {
+        self.apply_fill(&self.param.color);
+        self.svg.text(
+            &c.to_string(),
+            x - 5.0,
+            y + 5.0,
+            &TextAttrs {
+                family: Some("monospace"),
+                size: 14,
+                weight: None,
+                style: None,
+                decoration: None,
+                text_length: 0.0,
+                extra: Vec::new(),
+                back_color: None,
+                orientation: 0,
+            },
+        );
     }
 
     fn draw_hline(&self, l: &UHorizontalLine) {

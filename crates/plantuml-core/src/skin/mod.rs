@@ -195,6 +195,15 @@ impl SkinParam {
         }
     }
 
+    /// Minimum width of every class (`getParamSameClassWidth`); not set by any command yet.
+    pub fn same_class_width_value(&self) -> f64 {
+        0.0
+    }
+
+    pub fn use_rank_same(&self) -> bool {
+        false
+    }
+
     pub fn class_attribute_icon_size(&self) -> i32 {
         self.as_int("classattributeiconsize", 10)
     }

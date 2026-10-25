@@ -8,7 +8,7 @@ use crate::command::{create_system, CommandDiagram, CommandExecutionResult, Erro
 use crate::cucadiagram::CucaDiagram;
 use crate::diagram::{Diagram, DiagramBase, DiagramFactory, DiagramType};
 use crate::klimt::font::StringBounder;
-use crate::klimt::shape::{EmptyBlock, TextBlock};
+use crate::klimt::shape::TextBlock;
 use crate::skin::SkinParam;
 use std::rc::Rc;
 
@@ -145,11 +145,12 @@ impl Diagram for ClassDiagram {
         &mut self.cuca.base
     }
 
-    fn text_block(&self, _sb: &Rc<dyn StringBounder>, _skin: &Rc<SkinParam>) -> Rc<dyn TextBlock> {
-        Rc::new(EmptyBlock {
-            width: 10.0,
-            height: 10.0,
-        })
+    fn default_margins(&self) -> crate::style::Margins {
+        crate::style::Margins::new(0.0, 5.0, 5.0, 0.0)
+    }
+
+    fn text_block(&self, sb: &Rc<dyn StringBounder>, skin: &Rc<SkinParam>) -> Rc<dyn TextBlock> {
+        crate::svek::builder::build_image(&self.cuca, skin, sb)
     }
 }
 

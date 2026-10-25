@@ -21,11 +21,11 @@ pub fn is_block_separator(s: &str) -> bool {
 }
 
 /// A block preceded by a separator line, possibly titled (`TextBlockLineBefore`).
-struct LineBefore {
-    block: Rc<dyn TextBlock>,
-    separator: char,
-    title: Option<Rc<dyn TextBlock>>,
-    default_thickness: f64,
+pub struct LineBefore {
+    pub block: Rc<dyn TextBlock>,
+    pub separator: char,
+    pub title: Option<Rc<dyn TextBlock>>,
+    pub default_thickness: f64,
 }
 
 impl TextBlock for LineBefore {

@@ -155,7 +155,8 @@ impl SvekNode {
     }
 
     pub fn is_shielded(&self) -> bool {
-        self.get().has_kal || !self.shield().is_zero()
+        let kal = self.get().has_kal;
+        kal || !self.shield().is_zero()
     }
 
     pub fn point_2d(&self, x: f64, y: f64) -> Point {
@@ -206,11 +207,13 @@ impl SvekNode {
         sb.push(',');
         sb.push_str("label=\"\"");
         sb.push(',');
-        sb.push_str(&format!("width={}", pixel_to_inches(self.width())));
+        let color = self.get().color;
+        let (width, height) = (self.width(), self.height());
+        sb.push_str(&format!("width={}", pixel_to_inches(width)));
         sb.push(',');
-        sb.push_str(&format!("height={}", pixel_to_inches(self.height())));
+        sb.push_str(&format!("height={}", pixel_to_inches(height)));
         sb.push(',');
-        sb.push_str(&format!("color=\"{}\"", hex_rgb(self.get().color)));
+        sb.push_str(&format!("color=\"{}\"", hex_rgb(color)));
         sb.push_str("];\n");
     }
 
@@ -231,11 +234,13 @@ impl SvekNode {
         sb.push_str("<TD></TD></TR>");
         sb.push_str("<TR>");
         td(sb, shield.left, 1.0);
+        let color = self.get().color;
+        let (width, height) = (self.width(), self.height());
         sb.push_str(&format!(
             "<TD BGCOLOR=\"{}\" FIXEDSIZE=\"TRUE\" WIDTH=\"{}\" HEIGHT=\"{}\" PORT=\"h\"></TD>",
-            hex_rgb(self.get().color),
-            java_double(self.width()),
-            java_double(self.height())
+            hex_rgb(color),
+            java_double(width),
+            java_double(height)
         ));
         td(sb, shield.right, 1.0);
         sb.push_str("</TR>");

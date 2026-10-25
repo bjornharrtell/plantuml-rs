@@ -127,7 +127,8 @@ impl Cluster {
 
     pub fn move_delta(&self, dx: f64, dy: f64) {
         let mut c = self.get_mut();
-        for p in [&mut c.xy_note_top, &mut c.xy_note_bottom, &mut c.xy_title]
+        let d = &mut *c;
+        for p in [&mut d.xy_note_top, &mut d.xy_note_bottom, &mut d.xy_title]
             .into_iter()
             .flatten()
         {
