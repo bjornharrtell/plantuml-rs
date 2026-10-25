@@ -2,6 +2,7 @@
 
 pub mod names;
 pub mod parser;
+pub mod skinparam;
 pub mod value;
 
 use crate::klimt::drawing::ugraphic::UStroke;

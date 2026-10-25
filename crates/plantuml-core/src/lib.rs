@@ -3,6 +3,7 @@
 pub mod command;
 pub mod klimt;
 pub mod regex;
+pub mod skin;
 pub mod style;
 pub mod text;
 

@@ -111,4 +111,5 @@ Exit criterion per diagram type: fidelity harness numbers, plus fixtures reviewe
 - Done: style system (parser, cascade, index, built-in `plantuml.skin`) in `style/`.
 - Done: text blocks, horizontal-line stencils and Creole text (styles, colors, lists, headings, hlines, line breaking) in `klimt/shape.rs` and `klimt/creole/`. Not yet: tables, trees, code blocks, images, sprites, emoji, math, links as `<a>`.
 - Done: composable regex (`regex.rs`), source lines (`text.rs`), command framework and parse loop (`command.rs`).
+- Done: skinparam → style conversion (`style/skinparam.rs`) and `SkinParam` settings (`skin/mod.rs`).
 - Next: creole, preprocessor, class parser, svek.
