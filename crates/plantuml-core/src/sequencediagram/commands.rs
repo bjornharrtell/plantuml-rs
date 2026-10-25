@@ -567,6 +567,7 @@ fn autonumber_command() -> Cmd {
 /// All commands of the sequence diagram, in matching order (`initCommandsList`, partial).
 pub fn commands() -> Vec<Cmd> {
     let mut cmds: Vec<Cmd> = Vec::new();
+    cmds.extend(crate::command::common::common_commands());
     cmds.extend(participant_commands());
     cmds.push(Box::new(SingleLineCommand::new(
         arrow_regex(),
@@ -583,8 +584,12 @@ mod tests {
 
     fn parse(text: &str) -> SequenceDiagram {
         let source = UmlSource::from_text(text);
-        create_system(&commands(), SequenceDiagram::from_source(source.clone()), &source)
-            .unwrap_or_else(|e| panic!("{e}"))
+        create_system(
+            &commands(),
+            SequenceDiagram::from_source(source.clone()),
+            &source,
+        )
+        .unwrap_or_else(|e| panic!("{e}"))
     }
 
     #[test]
@@ -592,7 +597,9 @@ mod tests {
         let d = parse("@startuml\nAlice -> Bob: hi\n@enduml");
         assert_eq!(d.participants().len(), 2);
         assert_eq!(d.participants()[0].code, "Alice");
-        let Event::Message(m) = &d.events()[0] else { panic!() };
+        let Event::Message(m) = &d.events()[0] else {
+            panic!()
+        };
         assert_eq!((m.p1, m.p2), (0, 1));
         assert_eq!(m.core.label.text_at(0), "hi");
         assert!(!m.core.arrow_configuration.is_dotted());
@@ -619,7 +626,13 @@ mod tests {
         let msgs: Vec<_> = d
             .events()
             .iter()
-            .filter_map(|e| if let Event::Message(m) = e { Some(m) } else { None })
+            .filter_map(|e| {
+                if let Event::Message(m) = e {
+                    Some(m)
+                } else {
+                    None
+                }
+            })
             .collect();
         assert_eq!(msgs.len(), 14);
         assert!(msgs[1].core.arrow_configuration.is_dotted());
@@ -635,18 +648,32 @@ mod tests {
         let kinds: Vec<_> = d
             .events()
             .iter()
-            .filter_map(|e| if let Event::LifeEvent(l) = e { Some(l.kind) } else { None })
+            .filter_map(|e| {
+                if let Event::LifeEvent(l) = e {
+                    Some(l.kind)
+                } else {
+                    None
+                }
+            })
             .collect();
         assert_eq!(
             kinds,
-            [LifeEventType::Activate, LifeEventType::Deactivate, LifeEventType::Destroy]
+            [
+                LifeEventType::Activate,
+                LifeEventType::Deactivate,
+                LifeEventType::Destroy
+            ]
         );
     }
 
     #[test]
     fn illegal_arrow_is_an_error() {
         let source = UmlSource::from_text("@startuml\nA -- B\n@enduml");
-        let r = create_system(&commands(), SequenceDiagram::from_source(source.clone()), &source);
+        let r = create_system(
+            &commands(),
+            SequenceDiagram::from_source(source.clone()),
+            &source,
+        );
         assert!(r.is_err());
     }
 }

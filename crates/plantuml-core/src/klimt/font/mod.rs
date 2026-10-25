@@ -307,3 +307,85 @@ mod tests {
         assert_eq!(FontFace::default(), FontFace::NORMAL);
     }
 }
+
+/// Fixed-width table for SansSerif at 16pt, used for reproducible output
+/// (`StringBounderFromWidthTable`, the `SVG_DETERMINISTIC` mode).
+#[derive(Debug, Clone, Copy, Default)]
+pub struct TableFontBounder;
+
+static WIDTHS: std::sync::LazyLock<Vec<Vec<u8>>> = std::sync::LazyLock::new(|| {
+    let bin = include_bytes!("widths.bin");
+    let n = usize::from(u16::from_le_bytes([bin[0], bin[1]]));
+    let mut pos = 2;
+    let mut blocks = Vec::with_capacity(n);
+    for _ in 0..n {
+        let len = usize::from(u16::from_le_bytes([bin[pos], bin[pos + 1]]));
+        pos += 2;
+        let data = &bin[pos..pos + len];
+        pos += len;
+        blocks.push(decode_block(data));
+    }
+    blocks
+});
+
+/// Blocks shorter than 256 entries are run-length encoded as (count, value) pairs.
+fn decode_block(data: &[u8]) -> Vec<u8> {
+    if data.len() != 1 && data.len() < 256 {
+        let mut out = vec![0u8; 256];
+        let mut idx = 0;
+        for pair in data.chunks_exact(2) {
+            for _ in 0..pair[0] {
+                if idx < 256 {
+                    out[idx] = pair[1];
+                    idx += 1;
+                }
+            }
+        }
+        out
+    } else {
+        data.to_vec()
+    }
+}
+
+impl TableFontBounder {
+    fn char_width(cp: u32) -> f64 {
+        if cp >= 0xFFFF {
+            return 16.0;
+        }
+        let block = (cp >> 8) & 0xFF;
+        let Some(data) = WIDTHS.get(block as usize) else {
+            return 13.0;
+        };
+        if data.len() == 1 {
+            return f64::from(data[0]) / 10.0;
+        }
+        f64::from(data[(cp & 0xFF) as usize]) / 10.0
+    }
+}
+
+impl StringBounder for TableFontBounder {
+    fn calculate_dimension(&self, font: &UFont, text: &str) -> Dimension {
+        let size = font.size2d();
+        let width: f64 = text.chars().map(|c| Self::char_width(c as u32)).sum();
+        Dimension::new(width * size / 16.0, size)
+    }
+}
+
+#[cfg(test)]
+mod table_tests {
+    use super::*;
+
+    #[test]
+    fn table_widths() {
+        let f = UFont::sans_serif(14);
+        let w = TableFontBounder.calculate_dimension(&f, "alice");
+        assert!((w.width - 28.875).abs() < 1e-9, "{w:?}");
+        assert_eq!(w.height, 14.0);
+        let b = TableFontBounder.calculate_dimension(&f, "bob");
+        assert!((b.width - 23.3625).abs() < 1e-9, "{b:?}");
+        assert_eq!(TableFontBounder::char_width(0x1_0000), 16.0);
+        assert_eq!(TableFontBounder::char_width(0xFF_FF00), 16.0);
+        assert!(TableFontBounder::char_width(0x4E2D) > 0.0);
+        assert_eq!(TableFontBounder.descent(&f, "x"), 14.0 / 4.5);
+    }
+}

@@ -199,3 +199,72 @@ impl TextualCore {
         self.padding
     }
 }
+
+/// Kinds of components created by the skin factory (`ComponentType`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ComponentType {
+    Arrow,
+    ActorHead,
+    ActorTail,
+    BoundaryHead,
+    BoundaryTail,
+    ControlHead,
+    ControlTail,
+    EntityHead,
+    EntityTail,
+    QueueHead,
+    QueueTail,
+    DatabaseHead,
+    DatabaseTail,
+    CollectionsHead,
+    CollectionsTail,
+    ActivationBoxCloseClose,
+    ActivationBoxCloseOpen,
+    ActivationBoxOpenClose,
+    ActivationBoxOpenOpen,
+    DelayText,
+    Destroy,
+    DelayLine,
+    ParticipantLine,
+    GroupingElseLegacy,
+    GroupingElseTeoz,
+    GroupingHeaderLegacy,
+    GroupingHeaderTeoz,
+    GroupingSpace,
+    Newpage,
+    Note,
+    NoteHexagonal,
+    NoteBox,
+    Divider,
+    Reference,
+    Englober,
+    ParticipantHead,
+    ParticipantTail,
+}
+
+impl ComponentType {
+    pub fn is_arrow(self) -> bool {
+        self == ComponentType::Arrow
+    }
+
+    /// Style signature used by this component (`getStyleQuery`).
+    pub fn style_query(self) -> crate::style::StyleQuery {
+        use crate::style::queries as q;
+        use ComponentType::*;
+        match self {
+            ParticipantHead | ParticipantTail => q::SEQUENCEDIAG_PARTICIPANT.clone(),
+            ParticipantLine => q::SEQUENCEDIAG_LIFELINE.clone(),
+            ActivationBoxCloseClose
+            | ActivationBoxCloseOpen
+            | ActivationBoxOpenClose
+            | ActivationBoxOpenOpen => q::SEQUENCEDIAG_ACTIVATIONBOX.clone(),
+            Destroy => q::SEQUENCEDIAG_LIFELINE_DESTROY.clone(),
+            Divider => q::SEQUENCEDIAG_SEPARATOR.clone(),
+            Englober => q::SEQUENCEDIAG_BOX.clone(),
+            Newpage => q::SEQUENCEDIAG_NEWPAGE.clone(),
+            Note => q::SEQUENCEDIAG_NOTE.clone(),
+            DelayText | DelayLine => q::SEQUENCEDIAG_LIFELINE_DELAY.clone(),
+            other => panic!("no style query for {other:?}"),
+        }
+    }
+}

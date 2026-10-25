@@ -1,6 +1,8 @@
 //! Command framework, ported from PlantUML's `command` package: single-line and multi-line
 //! commands matched with [`IRegex`] and the loop that feeds source lines to them.
 
+pub mod common;
+
 use crate::regex::{compile, IRegex, RegexResult};
 use crate::text::{BlocLines, LineLocation, MultilinesStrategy, StringLocated};
 
@@ -373,6 +375,140 @@ impl<D> Command<D> for MultiLineCommand<D> {
             lines = lines.eventually_move_bracket();
         }
         (self.exec)(diagram, &lines, pass)
+    }
+}
+
+type LineConsistency = Box<dyn Fn(&str, i32) -> bool>;
+
+/// Multi-line command whose body ends when braces balance (`CommandMultilinesBracket`).
+pub struct BracketCommand<D> {
+    starting: IRegex,
+    consistent: LineConsistency,
+    exec: Box<MultiExec<D>>,
+}
+
+impl<D> BracketCommand<D> {
+    pub fn new(
+        starting: IRegex,
+        consistent: impl Fn(&str, i32) -> bool + 'static,
+        exec: impl Fn(&mut D, &BlocLines, ParserPass) -> CommandExecutionResult + 'static,
+    ) -> Self {
+        Self {
+            starting,
+            consistent: Box::new(consistent),
+            exec: Box::new(exec),
+        }
+    }
+}
+
+impl<D> Command<D> for BracketCommand<D> {
+    fn is_valid(&self, lines: &BlocLines) -> CommandControl {
+        let Some(first) = lines.first() else {
+            return CommandControl::NotOk;
+        };
+        if !self.starting.is_match(first.trimmed().string()) {
+            return CommandControl::NotOk;
+        }
+        if lines.size() == 1 {
+            return CommandControl::OkPartial;
+        }
+        let mut level = 1;
+        for cs in lines.sub_extract(1, 0).iter() {
+            let t = cs.trimmed();
+            let s = t.string();
+            if !(self.consistent)(s, level) {
+                return CommandControl::NotOk;
+            }
+            if s.ends_with('{') {
+                level += 1;
+            }
+            if s.ends_with('}') {
+                level -= 1;
+            }
+            if level < 0 {
+                return CommandControl::NotOk;
+            }
+        }
+        if level != 0 {
+            CommandControl::OkPartial
+        } else {
+            CommandControl::Ok
+        }
+    }
+
+    fn execute(
+        &self,
+        diagram: &mut D,
+        lines: &BlocLines,
+        pass: ParserPass,
+    ) -> CommandExecutionResult {
+        (self.exec)(diagram, lines, pass)
+    }
+}
+
+/// Multi-line command from a start pattern and an end pattern, both matching whole trimmed
+/// lines (`CommandMultilines`).
+pub struct SimpleMultiLineCommand<D> {
+    starting: IRegex,
+    ending: fancy_regex::Regex,
+    exec: Box<MultiExec<D>>,
+}
+
+impl<D> SimpleMultiLineCommand<D> {
+    /// `start` and `end` are pattern sources like `^title$`.
+    pub fn new(
+        start: &str,
+        end: &str,
+        exec: impl Fn(&mut D, &BlocLines, ParserPass) -> CommandExecutionResult + 'static,
+    ) -> Self {
+        let body = start
+            .strip_prefix('^')
+            .and_then(|s| s.strip_suffix('$'))
+            .expect("anchored");
+        Self {
+            starting: IRegex::concat(vec![IRegex::start(), IRegex::leaf(body), IRegex::end()]),
+            ending: compile(end),
+            exec: Box::new(exec),
+        }
+    }
+
+    pub fn starting(&self) -> &IRegex {
+        &self.starting
+    }
+}
+
+impl<D> Command<D> for SimpleMultiLineCommand<D> {
+    fn is_valid(&self, lines: &BlocLines) -> CommandControl {
+        let Some(first) = lines.first() else {
+            return CommandControl::NotOk;
+        };
+        if !self.starting.is_match(first.trimmed().string()) {
+            return CommandControl::NotOk;
+        }
+        if lines.size() == 1 {
+            return CommandControl::OkPartial;
+        }
+        let last = lines.last().trimmed();
+        let whole = self
+            .ending
+            .find(last.string())
+            .ok()
+            .flatten()
+            .is_some_and(|m| m.start() == 0 && m.end() == last.string().len());
+        if whole {
+            CommandControl::Ok
+        } else {
+            CommandControl::OkPartial
+        }
+    }
+
+    fn execute(
+        &self,
+        diagram: &mut D,
+        lines: &BlocLines,
+        pass: ParserPass,
+    ) -> CommandExecutionResult {
+        (self.exec)(diagram, lines, pass)
     }
 }
 

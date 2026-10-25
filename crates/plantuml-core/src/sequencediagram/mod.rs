@@ -2,6 +2,7 @@
 
 pub mod commands;
 pub mod model;
+pub mod teoz;
 
 use crate::command::{CommandDiagram, CommandExecutionResult};
 use crate::diagram::{DiagramBase, DiagramType};
@@ -651,6 +652,12 @@ fn add_note_message(
     };
     notes.push(note);
     None
+}
+
+impl crate::command::common::HasBase for SequenceDiagram {
+    fn base_mut(&mut self) -> &mut DiagramBase {
+        &mut self.base
+    }
 }
 
 impl CommandDiagram for SequenceDiagram {

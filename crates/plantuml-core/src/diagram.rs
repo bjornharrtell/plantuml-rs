@@ -84,6 +84,7 @@ pub struct DiagramBase {
     pub footer: DisplayPositioned,
     pub main_frame: DisplayPositioned,
     pub scale: Option<Scale>,
+    pub pragma: std::collections::HashMap<String, String>,
 }
 
 /// Requested scaling of the image (`Scale`).
@@ -135,7 +136,14 @@ impl DiagramBase {
             footer: DisplayPositioned::none(Some(HorizontalAlignment::Center), None),
             main_frame: DisplayPositioned::none(None, None),
             scale: None,
+            pragma: std::collections::HashMap::new(),
         }
+    }
+
+    pub fn pragma_is_true(&self, key: &str) -> bool {
+        self.pragma
+            .get(&key.to_lowercase())
+            .is_some_and(|v| v.eq_ignore_ascii_case("true"))
     }
 
     /// Sets a title; blank titles are ignored (`setTitle`).
