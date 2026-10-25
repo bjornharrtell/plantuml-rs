@@ -10,7 +10,7 @@ use crate::klimt::font::{Dimension, StringBounder};
 use crate::klimt::geom::HorizontalAlignment;
 use crate::klimt::shape::TextBlock;
 use crate::real::{self, Real};
-use crate::sequencediagram::model::{Event, Grouping, GroupingType, Note};
+use crate::sequencediagram::model::{Event, Grouping, GroupingType, Note, NotePosition};
 use crate::skin::component::{Area, Component};
 use crate::skin::rose::Rose;
 use crate::style::PName;
@@ -427,17 +427,59 @@ impl GroupingTile {
         }
     }
 
-    fn end_notes(&self) -> Vec<Note> {
-        match self.end.map(|e| &self.args.model.events[e]) {
-            Some(Event::Grouping(g)) => g.notes.clone(),
-            _ => Vec::new(),
-        }
+    /// Components of the notes attached after the `end`, on one side (`getNoteComponents`).
+    fn note_components(&self, left: bool) -> Vec<Rc<dyn Component>> {
+        let Some(Event::Grouping(end)) = self.end.map(|e| &self.args.model.events[e]) else {
+            return Vec::new();
+        };
+        end.notes
+            .iter()
+            .filter(|n| (n.position == NotePosition::Left) == left)
+            .map(|n| {
+                Rose::create_component_note(
+                    &n.used_styles()[0],
+                    n.note_style.component_type(),
+                    &self.args.skin_param,
+                    &n.display,
+                    &n.colors,
+                    None,
+                )
+            })
+            .collect()
     }
 
     /// Width taken on one side by notes attached to the end of the group (`getNotesWidth`).
     fn notes_width(&self, left: bool) -> f64 {
-        let _ = (left, self.end_notes());
-        0.0
+        let sb = self.sb();
+        self.note_components(left)
+            .iter()
+            .map(|c| c.preferred_dimension(sb).width)
+            .sum()
+    }
+
+    fn draw_notes(&self, ug: &UGraphic) {
+        let sb = ug.string_bounder();
+        let background = ug.is_background_layer();
+        let mut x_right = self.frame.max().value();
+        for note in self.note_components(false) {
+            let dim = note.preferred_dimension(sb);
+            note.draw(
+                &ug.apply_translate(UTranslate::dx(x_right)),
+                &Area::create(dim.width, dim.height),
+                background,
+            );
+            x_right += dim.width;
+        }
+        let mut x_left = self.frame.min().value();
+        for note in self.note_components(true) {
+            let dim = note.preferred_dimension(sb);
+            note.draw(
+                &ug.apply_translate(UTranslate::dx(x_left - dim.width)),
+                &Area::create(dim.width, dim.height),
+                background,
+            );
+            x_left -= dim.width;
+        }
     }
 }
 
@@ -541,39 +583,6 @@ fn collect_touched(args: &TileArguments, tiles: &[Rc<dyn Tile>], touched: &mut V
     }
 }
 
-fn is_self_message(args: &TileArguments, tile: &Rc<dyn Tile>) -> bool {
-    matches!(
-        tile.event().map(|e| &args.model.events[e]),
-        Some(Event::Message(m)) if m.is_self_message()
-    )
-}
-
-fn stable_max_x(args: &TileArguments, tile: &Rc<dyn Tile>) -> Vec<Real> {
-    let stable = is_self_message(args, tile)
-        || matches!(
-            tile.event().map(|e| &args.model.events[e]),
-            Some(Event::LifeEvent(_) | Event::Reference(_) | Event::Divider { .. })
-        );
-    if stable {
-        vec![tile.drawn_max_x()]
-    } else {
-        Vec::new()
-    }
-}
-
-fn stable_min_x(args: &TileArguments, tile: &Rc<dyn Tile>) -> Vec<Real> {
-    let stable = is_self_message(args, tile)
-        || matches!(
-            tile.event().map(|e| &args.model.events[e]),
-            Some(Event::LifeEvent(_) | Event::Reference(_))
-        );
-    if stable {
-        vec![tile.drawn_min_x()]
-    } else {
-        Vec::new()
-    }
-}
-
 impl GroupingTile {
     fn sb(&self) -> &dyn StringBounder {
         self.args.sb()
@@ -638,7 +647,7 @@ impl GroupingTile {
                 );
                 continue;
             }
-            for min_x in stable_min_x(&self.args, tile) {
+            for min_x in tile.stable_min_x() {
                 min_x.ensure_bigger_than(&previous_pos_c.add_fixed(margin));
             }
         }
@@ -656,7 +665,7 @@ impl GroupingTile {
                 );
                 continue;
             }
-            for max_x in stable_max_x(&self.args, tile) {
+            for max_x in tile.stable_max_x() {
                 next_pos_c.ensure_bigger_than(&max_x.add_fixed(margin));
             }
         }
@@ -673,7 +682,14 @@ impl GroupingTile {
         else {
             return;
         };
-        let overhang = 0.0;
+        let mut overhang: f64 = 0.0;
+        for tile in &group.tiles {
+            if let Some((anchor, o)) = tile.left_anchor() {
+                if anchor == leftmost.participant.id {
+                    overhang = overhang.max(o);
+                }
+            }
+        }
         let width = group.component().preferred_dimension(self.sb()).width;
         next_pos_c.ensure_bigger_than(
             &leftmost
@@ -742,6 +758,7 @@ impl Tile for GroupingTile {
             &area,
             background,
         );
+        self.draw_notes(&ug.apply_translate(UTranslate::dy(self.frame_y())));
         for t in &self.tiles {
             t.draw(ug);
         }

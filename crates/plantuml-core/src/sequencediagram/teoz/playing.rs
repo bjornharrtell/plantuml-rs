@@ -5,6 +5,7 @@ use super::communication::CommunicationTile;
 use super::grouping::{ElseTile, Frame, GroupingTile};
 use super::lifeevent::LifeEventTile;
 use super::living::{LivingSpace, LivingSpaces};
+use super::notes::{NoteOnMessageTile, NoteTile, NotesTile, Side};
 use super::self_tile::CommunicationTileSelf;
 use super::simple::{DelayTile, DividerTile, HSpaceTile, NewpageTile};
 use super::{Bordered, Model, Tile, TileArguments, YGauge};
@@ -13,7 +14,7 @@ use crate::klimt::font::{Dimension, StringBounder};
 use crate::klimt::geom::VerticalAlignment;
 use crate::klimt::shape::TextBlock;
 use crate::real::{self, Real};
-use crate::sequencediagram::model::{Event, GroupingType};
+use crate::sequencediagram::model::{Event, GroupingType, NotePosition};
 use crate::sequencediagram::SequenceDiagram;
 use crate::skin::SkinParam;
 use std::rc::Rc;
@@ -27,12 +28,47 @@ pub fn build_one(
     current_y: &YGauge,
 ) -> Vec<Rc<dyn Tile>> {
     match &args.model.events[event] {
-        Event::Message(m) if !m.is_self_message() => {
-            vec![CommunicationTile::new(args.clone(), event, current_y) as Rc<dyn Tile>]
+        Event::Message(m) => {
+            let (mut result, reverse): (Rc<dyn Tile>, bool) = if m.is_self_message() {
+                (
+                    CommunicationTileSelf::new(args.clone(), event, current_y),
+                    false,
+                )
+            } else {
+                let tile = CommunicationTile::new(args.clone(), event, current_y);
+                let reverse = tile.is_reverse();
+                (tile, reverse)
+            };
+            let ls1 = args.living_spaces.get(m.p1);
+            let ls2 = args.living_spaces.get(m.p2);
+            for note in &m.core.notes {
+                let (side, ls) = match (note.position, m.is_self_message()) {
+                    (NotePosition::Left, true) => (Side::SelfLeft, ls1.clone()),
+                    (NotePosition::Left, false) => {
+                        (Side::Left, if reverse { ls2.clone() } else { ls1.clone() })
+                    }
+                    (NotePosition::Right, true) => (Side::SelfRight, ls1.clone()),
+                    (NotePosition::Right, false) => {
+                        (Side::Right, if reverse { ls1.clone() } else { ls2.clone() })
+                    }
+                    (NotePosition::Bottom, _) => (Side::Bottom, ls1.clone()),
+                    (NotePosition::Top, _) => (Side::Top, ls1.clone()),
+                    _ => continue,
+                };
+                result = NoteOnMessageTile::new(
+                    args.clone(),
+                    side,
+                    result,
+                    event,
+                    note.clone(),
+                    ls,
+                    m.core.is_create(),
+                );
+            }
+            vec![result]
         }
-        Event::Message(_) => {
-            vec![CommunicationTileSelf::new(args.clone(), event, current_y) as Rc<dyn Tile>]
-        }
+        Event::Note(_) => vec![NoteTile::new(args.clone(), event, current_y) as Rc<dyn Tile>],
+        Event::Notes(_) => vec![NotesTile::new(args.clone(), event, current_y) as Rc<dyn Tile>],
         Event::LifeEvent(_) => {
             vec![LifeEventTile::new(args.clone(), event, current_y) as Rc<dyn Tile>]
         }
@@ -81,6 +117,7 @@ pub struct PlayingSpace {
     show_footbox: bool,
     tiles: Vec<Rc<dyn Tile>>,
     living_spaces: Rc<LivingSpaces>,
+    args: Rc<TileArguments>,
 }
 
 impl PlayingSpace {
@@ -103,6 +140,7 @@ impl PlayingSpace {
             show_footbox: args.model.show_footbox,
             tiles,
             living_spaces: args.living_spaces.clone(),
+            args: args.clone(),
         }
     }
 
@@ -110,6 +148,67 @@ impl PlayingSpace {
         for t in &self.tiles {
             t.add_constraints();
         }
+        self.add_parallel_sibling_disjoint_constraints();
+    }
+
+    fn add_parallel_sibling_disjoint_constraints(&self) {
+        let mut cluster: Vec<Rc<dyn Tile>> = Vec::new();
+        for tile in &self.tiles {
+            if self.is_parallel(tile) {
+                for other in &cluster {
+                    self.ensure_disjoint(other, tile);
+                }
+                cluster.push(tile.clone());
+            } else {
+                cluster.clear();
+                cluster.push(tile.clone());
+            }
+        }
+    }
+
+    fn is_parallel(&self, tile: &Rc<dyn Tile>) -> bool {
+        tile.event()
+            .is_some_and(|e| self.args.model.events[e].is_parallel())
+    }
+
+    fn ensure_disjoint(&self, a: &Rc<dyn Tile>, b: &Rc<dyn Tile>) {
+        let (Some(a_anchor), Some(b_anchor)) = (
+            self.find_anchor_living_space(a),
+            self.find_anchor_living_space(b),
+        ) else {
+            return;
+        };
+        if Rc::ptr_eq(&a_anchor, &b_anchor) {
+            return;
+        }
+        if a_anchor.pos_b().value() <= b_anchor.pos_b().value() {
+            b.min_x().ensure_bigger_than(&a.max_x());
+        } else {
+            a.min_x().ensure_bigger_than(&b.max_x());
+        }
+    }
+
+    fn find_anchor_living_space(&self, tile: &Rc<dyn Tile>) -> Option<Rc<LivingSpace>> {
+        let spaces = &self.args.living_spaces;
+        match tile.event().map(|e| &self.args.model.events[e]) {
+            Some(Event::Message(m)) => return spaces.try_get(m.p1),
+            Some(Event::MessageExo(m)) => return spaces.try_get(m.participant),
+            Some(Event::Note(n)) => return n.p.and_then(|p| spaces.try_get(p)),
+            Some(Event::Notes(ns)) => {
+                if let Some(n) = ns.first() {
+                    return n.p.and_then(|p| spaces.try_get(p));
+                }
+            }
+            _ => {}
+        }
+        if let Some(g) = tile.as_grouping() {
+            for child in g.child_tiles() {
+                if let Some(found) = self.find_anchor_living_space(child) {
+                    return Some(found);
+                }
+            }
+        }
+        None
     }
 
     fn draw_internal(&self, ug: &UGraphic) -> f64 {

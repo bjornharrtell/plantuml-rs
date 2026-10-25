@@ -2,6 +2,7 @@
 
 pub mod commands;
 pub mod model;
+pub mod note_commands;
 pub mod teoz;
 
 use crate::command::{CommandDiagram, CommandExecutionResult};

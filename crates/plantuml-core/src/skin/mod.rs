@@ -4,8 +4,11 @@ pub mod arrow;
 pub mod component;
 pub mod rose;
 
+use crate::klimt::color::colors::{ColorType, Colors};
 use crate::klimt::color::HColor;
 use crate::klimt::creole::{LineBreakStrategy, SkinSimple};
+use crate::klimt::geom::HorizontalAlignment;
+use crate::stereo::{Guillemet, Stereotype};
 use crate::style::skinparam::FromSkinparamToStyle;
 use crate::style::{Margins, PName, SName, Style, StyleBuilder, StyleQuery};
 use std::cell::RefCell;
@@ -213,6 +216,70 @@ impl SkinParam {
             .get_value("wrapmessagewidth")
             .or_else(|| self.get_value("maxmessagesize"));
         LineBreakStrategy(v.map(str::to_string))
+    }
+
+    /// Colors set by `skinparam <param>color` (`getColors`); `None` for an unknown color.
+    pub fn get_colors(
+        &self,
+        param: &str,
+        color_type: ColorType,
+        stereotype: Option<&Stereotype>,
+    ) -> Option<Colors> {
+        if let Some(label) = stereotype.and_then(|st| st.label(Guillemet::DoubleComparator)) {
+            if let Some(v) = self.get_value(&format!("{param}color{label}")) {
+                return Colors::parse(v, color_type);
+            }
+        }
+        match self.get_value(&format!("{param}color")) {
+            None => Some(Colors::empty()),
+            Some(v) => Colors::parse(v, color_type),
+        }
+    }
+
+    /// Colors of a note given its stereotype (`applyStereotypeForNote`).
+    pub fn colors_for_note(&self, colors: &Colors, stereotype: &Stereotype) -> Option<Colors> {
+        let mut result = colors.clone();
+        for (param, color_type) in [
+            ("notebackground", ColorType::Back),
+            ("noteborder", ColorType::Line),
+        ] {
+            if result.color(color_type).is_none() {
+                let found = self.get_colors(param, color_type, Some(stereotype))?;
+                result = result.add_colors(&found);
+            }
+        }
+        Some(result.with_shadowing(self.shadowing_for_note(Some(stereotype))))
+    }
+
+    pub fn shadowing_for_note(&self, stereotype: Option<&Stereotype>) -> bool {
+        if let Some(label) = stereotype.and_then(|st| st.label(Guillemet::DoubleComparator)) {
+            if let Some(v) = self.get_value(&format!("noteshadowing{label}")) {
+                return v.eq_ignore_ascii_case("true");
+            }
+        }
+        match self.get_value("noteshadowing") {
+            Some(v) => v.eq_ignore_ascii_case("true"),
+            None => self.shadowing(),
+        }
+    }
+
+    /// `skinparam defaultTextAlignment`, else `default` (`getDefaultTextAlignment`).
+    pub fn default_text_alignment(&self, default: HorizontalAlignment) -> HorizontalAlignment {
+        self.get_value("defaulttextalignment")
+            .and_then(HorizontalAlignment::from_string)
+            .unwrap_or(default)
+    }
+
+    /// Alignment of the text of notes (`getHorizontalAlignment(noteTextAlignment, ...)`).
+    pub fn note_text_alignment(
+        &self,
+        override_default: Option<HorizontalAlignment>,
+    ) -> HorizontalAlignment {
+        self.get_value("notetextalignment")
+            .and_then(HorizontalAlignment::from_string)
+            .unwrap_or_else(|| {
+                self.default_text_alignment(override_default.unwrap_or(HorizontalAlignment::Left))
+            })
     }
 
     pub fn shadowing(&self) -> bool {

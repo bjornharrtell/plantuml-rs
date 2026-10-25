@@ -2,6 +2,7 @@
 //! sheets, then layout into a [`TextBlock`].
 
 mod atoms;
+pub mod body;
 pub mod display;
 mod layout;
 mod parser;

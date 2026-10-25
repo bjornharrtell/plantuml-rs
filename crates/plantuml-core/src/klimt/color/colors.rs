@@ -193,6 +193,16 @@ impl Colors {
         r
     }
 
+    /// Overlays the colors and line style of `other` (`add(ColorType, Colors)`).
+    pub fn add_colors(&self, other: &Colors) -> Colors {
+        let mut r = self.clone();
+        r.map.extend(other.map.iter().map(|(k, v)| (*k, v.clone())));
+        if other.line_style.is_some() {
+            r.line_style = other.line_style;
+        }
+        r
+    }
+
     pub fn line_style(&self) -> Option<LinkStyle> {
         self.line_style
     }

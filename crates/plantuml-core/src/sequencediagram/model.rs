@@ -295,6 +295,15 @@ impl NoteStyle {
         }
     }
 
+    pub fn component_type(self) -> crate::skin::component::ComponentType {
+        use crate::skin::component::ComponentType;
+        match self {
+            NoteStyle::Hexagonal => ComponentType::NoteHexagonal,
+            NoteStyle::Box => ComponentType::NoteBox,
+            NoteStyle::Normal => ComponentType::Note,
+        }
+    }
+
     pub fn style_query(self) -> StyleQuery {
         match self {
             NoteStyle::Hexagonal => q::SEQUENCEDIAG_NOTE_HNOTE.clone(),

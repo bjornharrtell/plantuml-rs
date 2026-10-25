@@ -4,13 +4,15 @@ pub mod arrow;
 pub mod grouping;
 pub mod line;
 pub mod misc;
+pub mod note;
 pub mod participant;
 pub mod self_arrow;
 pub mod text;
 
+use crate::klimt::color::colors::Colors;
 use crate::klimt::creole::display::Display;
 use crate::klimt::geom::HorizontalAlignment;
-use crate::sequencediagram::model::Participant;
+use crate::sequencediagram::model::{NotePosition, Participant};
 use crate::skin::arrow::{ArrowConfiguration, ArrowDirection};
 use crate::skin::component::{ArrowComponent, Component, ComponentType};
 use crate::skin::SkinParam;
@@ -23,6 +25,7 @@ use grouping::{
 };
 use line::ComponentRoseLine;
 use misc::{ComponentRoseActiveLine, ComponentRoseDelayLine, ComponentRoseDestroy};
+use note::{ComponentRoseNote, ComponentRoseNoteBox, ComponentRoseNoteHexagonal};
 use participant::ComponentRoseParticipant;
 use self_arrow::ComponentRoseSelfArrow;
 use text::{ComponentRoseDelayText, ComponentRoseDivider, ComponentRoseNewpage};
@@ -127,6 +130,55 @@ impl Rose {
             !skin.strict_uml_style(),
             skin.is_true("responsemessagebelowarrow"),
         ))
+    }
+
+    /// Note shaped by `ctype` (`createComponentNote`).
+    pub fn create_component_note(
+        style: &Style,
+        ctype: ComponentType,
+        skin: &Rc<SkinParam>,
+        display: &Display,
+        colors: &Colors,
+        position: Option<NotePosition>,
+    ) -> Rc<dyn Component> {
+        let (text_align, alignment) = if position == Some(NotePosition::OverSeveral) {
+            let text_align = skin.note_text_alignment(Some(HorizontalAlignment::Left));
+            let default = skin.note_text_alignment(Some(HorizontalAlignment::Center));
+            let alignment = if text_align == default {
+                text_align
+            } else {
+                HorizontalAlignment::Center
+            };
+            (text_align, alignment)
+        } else {
+            let text_align = skin.note_text_alignment(None);
+            (text_align, text_align)
+        };
+        match ctype {
+            ComponentType::Note => Rc::new(ComponentRoseNote::new(
+                style,
+                display,
+                5.0,
+                5.0,
+                skin.clone(),
+                text_align,
+                alignment,
+                colors,
+            )),
+            ComponentType::NoteHexagonal => Rc::new(ComponentRoseNoteHexagonal::new(
+                style,
+                display,
+                skin.clone(),
+                colors,
+            )),
+            ComponentType::NoteBox => Rc::new(ComponentRoseNoteBox::new(
+                style,
+                display,
+                skin.clone(),
+                colors,
+            )),
+            other => unimplemented!("note component {other:?}"),
+        }
     }
 
     /// Header of a group (`GROUPING_HEADER_*`).

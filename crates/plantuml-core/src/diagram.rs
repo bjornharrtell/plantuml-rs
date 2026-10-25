@@ -85,6 +85,8 @@ pub struct DiagramBase {
     pub main_frame: DisplayPositioned,
     pub scale: Option<Scale>,
     pub pragma: std::collections::HashMap<String, String>,
+    /// Warnings shown in a banner, one entry per warning with its lines.
+    pub warnings: Vec<Vec<String>>,
 }
 
 /// Requested scaling of the image (`Scale`).
@@ -137,7 +139,12 @@ impl DiagramBase {
             main_frame: DisplayPositioned::none(None, None),
             scale: None,
             pragma: std::collections::HashMap::new(),
+            warnings: Vec::new(),
         }
+    }
+
+    pub fn add_warning(&mut self, lines: Vec<String>) {
+        self.warnings.push(lines);
     }
 
     pub fn pragma_is_true(&self, key: &str) -> bool {

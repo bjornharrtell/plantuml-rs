@@ -4,11 +4,12 @@ pub mod communication;
 pub mod grouping;
 pub mod lifeevent;
 pub mod living;
+pub mod notes;
 pub mod playing;
 pub mod self_tile;
 pub mod simple;
 
-use super::model::{Event, Participant};
+use super::model::{Event, NotePosition, Participant};
 use crate::klimt::drawing::ugraphic::UGraphic;
 use crate::klimt::font::StringBounder;
 use crate::real::Real;
@@ -34,6 +35,7 @@ pub struct YGauge {
     max: Real,
     contact: Option<Real>,
     origin: Option<Real>,
+    note_anchors_in_run: Option<Rc<Vec<(usize, NotePosition)>>>,
 }
 
 impl YGauge {
@@ -43,7 +45,28 @@ impl YGauge {
             max,
             contact: None,
             origin: None,
+            note_anchors_in_run: None,
         }
+    }
+
+    /// Gauge with explicit contact and origin.
+    pub fn with_contact(min: Real, max: Real, contact: Option<Real>, origin: Option<Real>) -> Self {
+        Self {
+            min,
+            max,
+            contact,
+            origin,
+            note_anchors_in_run: None,
+        }
+    }
+
+    pub fn with_note_anchors_in_run(mut self, anchors: Vec<(usize, NotePosition)>) -> Self {
+        self.note_anchors_in_run = Some(Rc::new(anchors));
+        self
+    }
+
+    pub fn note_anchors_in_run(&self) -> Option<&[(usize, NotePosition)]> {
+        self.note_anchors_in_run.as_deref().map(Vec::as_slice)
     }
 
     pub fn create(min: &Real, height: f64) -> YGauge {
@@ -62,6 +85,7 @@ impl YGauge {
             max,
             contact: Some(contact),
             origin: Some(origin),
+            note_anchors_in_run: None,
         }
     }
 
@@ -78,6 +102,7 @@ impl YGauge {
             max,
             contact: Some(contact.clone()),
             origin: Some(origin.clone()),
+            note_anchors_in_run: None,
         }
     }
 
@@ -89,6 +114,7 @@ impl YGauge {
             min,
             contact: current.contact.clone(),
             origin: current.origin.clone(),
+            note_anchors_in_run: None,
         }
     }
 
@@ -145,6 +171,18 @@ pub trait Tile {
     }
     fn draw(&self, ug: &UGraphic);
     fn as_grouping(&self) -> Option<&grouping::GroupingTile> {
+        None
+    }
+    /// Left edges that must stay clear of the previous participant (`stableMinX`).
+    fn stable_min_x(&self) -> Vec<Real> {
+        Vec::new()
+    }
+    /// Right edges that must stay clear of the next participant (`stableMaxX`).
+    fn stable_max_x(&self) -> Vec<Real> {
+        Vec::new()
+    }
+    /// Participant a note is anchored to on its left and how far it overhangs it.
+    fn left_anchor(&self) -> Option<(usize, f64)> {
         None
     }
 }

@@ -189,6 +189,14 @@ impl Tile for CommunicationTileSelf {
             .add_fixed(self.drawn_width())
     }
 
+    fn stable_min_x(&self) -> Vec<Real> {
+        vec![self.drawn_min_x()]
+    }
+
+    fn stable_max_x(&self) -> Vec<Real> {
+        vec![self.drawn_max_x()]
+    }
+
     fn event(&self) -> Option<usize> {
         Some(self.event)
     }

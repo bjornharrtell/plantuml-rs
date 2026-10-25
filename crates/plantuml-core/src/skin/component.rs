@@ -1,6 +1,7 @@
 //! Skin components (`skin/Component`, `AbstractComponent`, `AbstractTextualComponent`).
 
 use crate::klimt::color::HColor;
+use crate::klimt::creole::body::BodyEnhanced;
 use crate::klimt::creole::display::Display;
 use crate::klimt::creole::{CreoleMode, LineBreakStrategy};
 use crate::klimt::drawing::ugraphic::{UGraphic, UStroke, UTranslate};
@@ -152,6 +153,27 @@ impl TextualCore {
         skin: Rc<SkinParam>,
         display: &Display,
     ) -> Self {
+        Self::with_enhanced(
+            style,
+            stereo,
+            max_message_size,
+            padding,
+            skin,
+            display,
+            false,
+        )
+    }
+
+    /// `enhanced` bodies are split on `--`, `==`, `..` and `__` separator lines.
+    pub fn with_enhanced(
+        style: &Style,
+        stereo: &Style,
+        max_message_size: &LineBreakStrategy,
+        padding: Margins,
+        skin: Rc<SkinParam>,
+        display: &Display,
+        enhanced: bool,
+    ) -> Self {
         let base = ComponentBase::new(style.clone(), skin.clone());
         let fc = base.font_configuration();
         let horizontal_alignment = base.horizontal_alignment();
@@ -164,6 +186,16 @@ impl TextualCore {
                 width: 0.0,
                 height: 0.0,
             })
+        } else if enhanced {
+            Rc::new(BodyEnhanced::new(
+                display.clone(),
+                skin.skin_simple(),
+                horizontal_alignment,
+                fc,
+                max_message_size.clone(),
+                style.value(PName::MinimumWidth).as_double(),
+                style.value(PName::LineThickness).as_double(),
+            ))
         } else {
             display.create_block(
                 &fc,

@@ -982,6 +982,7 @@ pub fn commands() -> Vec<Cmd> {
     )));
     cmds.extend(lifeline_commands());
     cmds.extend(layout_commands());
+    cmds.extend(super::note_commands::note_commands());
     cmds.push(grouping_command());
     cmds.push(autonumber_command());
     cmds

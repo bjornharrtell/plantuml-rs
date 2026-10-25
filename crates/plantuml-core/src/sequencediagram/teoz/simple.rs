@@ -66,6 +66,10 @@ impl Tile for DividerTile {
         self.args.xorigin.add_fixed(w)
     }
 
+    fn stable_max_x(&self) -> Vec<Real> {
+        vec![self.drawn_max_x()]
+    }
+
     fn event(&self) -> Option<usize> {
         Some(self.event)
     }

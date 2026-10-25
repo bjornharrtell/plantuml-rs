@@ -130,6 +130,22 @@ mod tests {
     }
 
     #[test]
+    fn renders_notes() {
+        let svg = render(
+            "@startuml\nA -> B\nnote left of A: l\nnote right of B #red: r\nnote over A: o\n\
+             hnote over B: h\nrnote over A, B: several\nnote across: all\nB -> B\nnote right: sr\nnote left: sl\n\
+             A -> B\nnote top: t\nnote bottom\nb1\n--x--\nb2\nend note\n\
+             alt\nA -> B\nnote left: gl\nend\nnote right: after\n& note over B: p\n@enduml",
+        )
+        .unwrap();
+        for text in [
+            "l", "r", "o", "h", "several", "all", "sr", "sl", "t", "b1", "b2", "after",
+        ] {
+            assert!(svg.contains(&format!(">{text}</text>")), "{text}");
+        }
+    }
+
+    #[test]
     fn group_without_start_is_an_error() {
         assert!(matches!(
             render("@startuml\nA -> B\nend\n@enduml"),
