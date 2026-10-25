@@ -107,4 +107,5 @@ Exit criterion per diagram type: fidelity harness numbers, plus fixtures reviewe
 ## Progress
 
 - Done: colors, embedded font metrics (PlantUML's own Liberation Sans tables, `metrics.bin`), XML writer, SVG backend (`klimt/drawing`).
-- Next: UGraphic shapes, style/skin cascade, creole, preprocessor, class parser, svek.
+- Done: `UGraphic` context, shapes (rect, line, ellipse, polygon, path, text) and SVG drivers (`klimt/drawing/ugraphic.rs`).
+- Next: style/skin cascade, creole, preprocessor, class parser, svek.

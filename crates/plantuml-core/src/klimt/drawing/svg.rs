@@ -406,6 +406,28 @@ impl SvgGraphics {
         self.ensure_visible(cx + rx + shadow * 2.0, cy + ry + shadow * 2.0);
     }
 
+    /// Elliptical arc from (x1,y1) to (x2,y2) (`svgArcEllipse`).
+    pub fn arc_ellipse(&mut self, rx: f64, ry: f64, x1: f64, y1: f64, x2: f64, y2: f64) {
+        if !self.hidden {
+            let d = format!(
+                "M{},{} A{},{} 0 0 0 {} {}",
+                self.format(x1),
+                self.format(y1),
+                self.format(rx),
+                self.format(ry),
+                self.format(x2),
+                self.format(y2)
+            );
+            let mut e = XmlNode::new("path");
+            e.set("d", d);
+            self.fill_me(&mut e);
+            self.style_me(&mut e, None);
+            self.current().push(e);
+        }
+        self.ensure_visible(x1, y1);
+        self.ensure_visible(x2, y2);
+    }
+
     pub fn line(&mut self, x1: f64, y1: f64, x2: f64, y2: f64, shadow: f64) {
         self.manage_shadow(shadow);
         if !self.hidden {
