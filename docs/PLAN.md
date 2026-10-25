@@ -114,3 +114,4 @@ Exit criterion per diagram type: fidelity harness numbers, plus fixtures reviewe
 - Done: skinparam → style conversion (`style/skinparam.rs`) and `SkinParam` settings (`skin/mod.rs`).
 - Next: creole, preprocessor, class parser, svek.
 - Done: self messages (`ComponentRoseSelfArrow`, `CommunicationTileSelf`), byte-identical to Java on reference cases.
+- Done: groups (alt/loop/opt/par/group/critical/break/partition): `GroupingTile`, `ElseTile`, `Blotter`, rose grouping components, `CommandGrouping`. UGraphic default colors are now transparent like Java.

@@ -2,6 +2,7 @@
 //! `PlayingSpaceWithParticipants`, `SequenceDiagramFileMakerTeoz`).
 
 use super::communication::CommunicationTile;
+use super::grouping::{ElseTile, Frame, GroupingTile};
 use super::lifeevent::LifeEventTile;
 use super::living::{LivingSpace, LivingSpaces};
 use super::self_tile::CommunicationTileSelf;
@@ -12,13 +13,19 @@ use crate::klimt::font::{Dimension, StringBounder};
 use crate::klimt::geom::VerticalAlignment;
 use crate::klimt::shape::TextBlock;
 use crate::real::{self, Real};
-use crate::sequencediagram::model::Event;
+use crate::sequencediagram::model::{Event, GroupingType};
 use crate::sequencediagram::SequenceDiagram;
 use crate::skin::SkinParam;
 use std::rc::Rc;
 
 /// Builds the tile of one event (`TileBuilder.buildOne`); unsupported events are skipped.
-fn build_one(args: &Rc<TileArguments>, event: usize, current_y: &YGauge) -> Vec<Rc<dyn Tile>> {
+pub fn build_one(
+    args: &Rc<TileArguments>,
+    cursor: &mut usize,
+    event: usize,
+    parent: Option<&Rc<Frame>>,
+    current_y: &YGauge,
+) -> Vec<Rc<dyn Tile>> {
     match &args.model.events[event] {
         Event::Message(m) if !m.is_self_message() => {
             vec![CommunicationTile::new(args.clone(), event, current_y) as Rc<dyn Tile>]
@@ -37,6 +44,13 @@ fn build_one(args: &Rc<TileArguments>, event: usize, current_y: &YGauge) -> Vec<
         Event::Newpage { .. } => {
             vec![NewpageTile::new(args.clone(), event, current_y) as Rc<dyn Tile>]
         }
+        Event::Grouping(g) if g.grouping_type.is_start() => {
+            vec![GroupingTile::new(args.clone(), cursor, event, current_y) as Rc<dyn Tile>]
+        }
+        Event::Grouping(g) if g.grouping_type == GroupingType::Else => {
+            let parent = parent.expect("else outside of a group");
+            vec![ElseTile::new(args.clone(), event, parent.clone(), current_y) as Rc<dyn Tile>]
+        }
         other => {
             log::warn!("TileBuilder: ignoring {:?}", std::mem::discriminant(other));
             Vec::new()
@@ -46,8 +60,11 @@ fn build_one(args: &Rc<TileArguments>, event: usize, current_y: &YGauge) -> Vec<
 
 pub fn build_several(args: &Rc<TileArguments>, mut current_y: YGauge) -> Vec<Rc<dyn Tile>> {
     let mut tiles: Vec<Rc<dyn Tile>> = Vec::new();
-    for event in 0..args.model.events.len() {
-        for tile in build_one(args, event, &current_y) {
+    let mut cursor = 0;
+    while cursor < args.model.events.len() {
+        let event = cursor;
+        cursor += 1;
+        for tile in build_one(args, &mut cursor, event, None, &current_y) {
             current_y = tile.y_gauge();
             tiles.push(tile);
         }

@@ -1,6 +1,7 @@
 //! Default look of sequence diagram components (`skin/rose`).
 
 pub mod arrow;
+pub mod grouping;
 pub mod line;
 pub mod misc;
 pub mod participant;
@@ -17,6 +18,9 @@ use crate::style::{queries, PName, Style};
 use std::rc::Rc;
 
 use arrow::ComponentRoseArrow;
+use grouping::{
+    ComponentRoseGroupingElse, ComponentRoseGroupingHeader, ComponentRoseGroupingSpace,
+};
 use line::ComponentRoseLine;
 use misc::{ComponentRoseActiveLine, ComponentRoseDelayLine, ComponentRoseDestroy};
 use participant::ComponentRoseParticipant;
@@ -123,6 +127,43 @@ impl Rose {
             !skin.strict_uml_style(),
             skin.is_true("responsemessagebelowarrow"),
         ))
+    }
+
+    /// Header of a group (`GROUPING_HEADER_*`).
+    pub fn create_grouping_header(
+        teoz: bool,
+        styles: &[Option<Style>; 2],
+        title: &str,
+        comment: Option<&str>,
+        skin: &Rc<SkinParam>,
+    ) -> Rc<dyn Component> {
+        Rc::new(ComponentRoseGroupingHeader::new(
+            teoz,
+            styles[0].as_ref().expect("group style"),
+            styles[1].as_ref().expect("group header style"),
+            title,
+            comment,
+            skin.clone(),
+        ))
+    }
+
+    /// Separator of a group (`GROUPING_ELSE_*`).
+    pub fn create_grouping_else(
+        teoz: bool,
+        style: &Style,
+        comment: Option<&str>,
+        skin: &Rc<SkinParam>,
+    ) -> Rc<dyn Component> {
+        Rc::new(ComponentRoseGroupingElse::new(
+            teoz,
+            style,
+            comment,
+            skin.clone(),
+        ))
+    }
+
+    pub fn create_grouping_space() -> Rc<dyn Component> {
+        Rc::new(ComponentRoseGroupingSpace::new(7.0))
     }
 
     /// Lifeline, activation, destroy and delay components (`createComponent`).

@@ -449,11 +449,12 @@ mod tests {
             0,
             Rc::new(EmbeddedFontBounder),
             |ug| {
+                let ug = ug.apply_color(crate::klimt::color::HColor::BLACK);
                 n.with_body(ArrowBody::Dotted)
-                    .apply_stroke(ug, &style)
+                    .apply_stroke(&ug, &style)
                     .draw(ULine::hline(10.0));
-                n.apply_thickness_only(ug).draw(ULine::hline(5.0));
-                n.apply_stroke(ug, &style).draw(ULine::hline(7.0));
+                n.apply_thickness_only(&ug).draw(ULine::hline(5.0));
+                n.apply_stroke(&ug, &style).draw(ULine::hline(7.0));
             },
         );
         assert!(out.contains("stroke-dasharray:2,2"), "{out}");

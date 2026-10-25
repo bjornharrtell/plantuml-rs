@@ -1,6 +1,7 @@
 //! The Teoz layout of sequence diagrams (`sequencediagram/teoz`).
 
 pub mod communication;
+pub mod grouping;
 pub mod lifeevent;
 pub mod living;
 pub mod playing;
@@ -143,6 +144,9 @@ pub trait Tile {
         false
     }
     fn draw(&self, ug: &UGraphic);
+    fn as_grouping(&self) -> Option<&grouping::GroupingTile> {
+        None
+    }
 }
 
 /// Everything tiles need to be built and drawn (`TileArguments`).

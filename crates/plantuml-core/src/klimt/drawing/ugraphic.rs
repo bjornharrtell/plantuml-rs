@@ -299,6 +299,9 @@ impl UPath {
         self.segments
             .push(PathSeg::ArcTo(rx, ry, rot, large, sweep, x, y));
     }
+    pub fn close_path(&mut self) {
+        self.segments.push(PathSeg::Close);
+    }
     pub fn is_empty(&self) -> bool {
         self.segments.is_empty()
     }
@@ -476,8 +479,8 @@ impl UGraphic {
             bounder,
             translate: UTranslate::default(),
             param: Param {
-                color: HColor::BLACK,
-                backcolor: HColor::BLACK,
+                color: HColor::TRANSPARENT,
+                backcolor: HColor::TRANSPARENT,
                 stroke: UStroke::simple(),
                 clip: None,
                 hidden: false,

@@ -903,6 +903,74 @@ fn layout_commands() -> Vec<Cmd> {
     ]
 }
 
+fn grouping_command() -> Cmd {
+    let r = IRegex::concat(vec![
+        IRegex::start(),
+        IRegex::named("PARALLEL", "(&[%s]*)?"),
+        IRegex::named(
+            "TYPE",
+            "(opt|alt|loop|par|par2|break|critical|else|end|also|group|partition)",
+        ),
+        IRegex::named(
+            "COLORS",
+            r"((?<!else)(?<!also)(?<!end)#\w+)?(?:[%s]+(#\w+))?",
+        ),
+        IRegex::optional(IRegex::group(vec![
+            IRegex::space_one_or_more(),
+            IRegex::named("COMMENT", "(.*?)"),
+        ])),
+        IRegex::end(),
+    ]);
+    simple(r, |d, _, arg| {
+        let color = |i: usize| -> Result<Option<crate::klimt::color::HColor>, ()> {
+            match arg.get("COLORS", i) {
+                None => Ok(None),
+                Some(c) => crate::klimt::color::HColor::parse(c).map(Some).ok_or(()),
+            }
+        };
+        let (Ok(back_element), Ok(back_general)) = (color(0), color(1)) else {
+            return CommandExecutionResult::bad_color();
+        };
+        let mut ty = arg.get("TYPE", 0).unwrap_or("").to_lowercase();
+        let mut comment = arg.get("COMMENT", 0).map(str::to_string);
+        let grouping_type = GroupingType::parse(&ty);
+        if ty == "group" {
+            match comment.as_deref() {
+                None | Some("") => comment = Some("group".to_string()),
+                Some(c) => {
+                    if let Some((header, label)) = split_trailing_bracket(c) {
+                        ty = header;
+                        comment = Some(label);
+                    }
+                }
+            }
+        }
+        let parallel = arg.get("PARALLEL", 0).is_some();
+        if d.grouping(
+            &ty,
+            comment.as_deref(),
+            grouping_type,
+            back_general,
+            back_element,
+            parallel,
+        ) {
+            CommandExecutionResult::ok()
+        } else {
+            CommandExecutionResult::error("Cannot create group")
+        }
+    })
+}
+
+/// Splits `header [label]` of a `group` (`TRAILING_BRACKET_CONTENT_PATTERN`).
+fn split_trailing_bracket(comment: &str) -> Option<(String, String)> {
+    static RE: std::sync::OnceLock<fancy_regex::Regex> = std::sync::OnceLock::new();
+    let re = RE.get_or_init(|| {
+        fancy_regex::Regex::new(r"^(.*\[\[.*\]\].*?|.*?)\[(.*)\]$").expect("bracket pattern")
+    });
+    let caps = re.captures(comment).ok().flatten()?;
+    Some((caps[1].to_string(), caps[2].to_string()))
+}
+
 /// All commands of the sequence diagram, in matching order (`initCommandsList`, partial).
 pub fn commands() -> Vec<Cmd> {
     let mut cmds: Vec<Cmd> = Vec::new();
@@ -914,6 +982,7 @@ pub fn commands() -> Vec<Cmd> {
     )));
     cmds.extend(lifeline_commands());
     cmds.extend(layout_commands());
+    cmds.push(grouping_command());
     cmds.push(autonumber_command());
     cmds
 }

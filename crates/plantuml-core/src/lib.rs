@@ -118,6 +118,30 @@ mod tests {
     }
 
     #[test]
+    fn renders_groups() {
+        let svg = render(
+            "@startuml\nalt#Gold #LightBlue ok\nA -> B\nelse #Pink bad\nB -> A\nelse\nloop 2\nA -> A\nend\nend\n\
+             group My [label]\nA -> B\nend\ngroup\nA -> B\nend\npar2\nA -> B\nend\npartition P1\nA -> B\nend\n@enduml",
+        )
+        .unwrap();
+        assert!(svg.contains(">alt</text>") && svg.contains(">[ok]</text>"));
+        assert!(svg.contains(">[bad]</text>") && svg.contains(">P1</text>"));
+        assert!(svg.contains(">My</text>") && svg.contains(">[label]</text>"));
+    }
+
+    #[test]
+    fn group_without_start_is_an_error() {
+        assert!(matches!(
+            render("@startuml\nA -> B\nend\n@enduml"),
+            Err(Error::Syntax(_))
+        ));
+        assert!(matches!(
+            render("@startuml\nalt #nosuchcolor\nA -> B\nend\n@enduml"),
+            Err(Error::Syntax(_))
+        ));
+    }
+
+    #[test]
     fn syntax_errors_are_reported() {
         let err = render("@startuml\nA -> B: hi\n???\n@enduml").unwrap_err();
         assert!(matches!(err, Error::Syntax(_)));
