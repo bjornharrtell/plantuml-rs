@@ -3,6 +3,7 @@
 
 use super::communication::CommunicationTile;
 use super::dolls::Dolls;
+use super::exo::CommunicationExoTile;
 use super::grouping::{ElseTile, Frame, GroupingTile};
 use super::lifeevent::LifeEventTile;
 use super::living::{LivingSpace, LivingSpaces};
@@ -64,6 +65,28 @@ pub fn build_one(
                     event,
                     note.clone(),
                     ls,
+                    m.core.is_create(),
+                );
+            }
+            vec![result]
+        }
+        Event::MessageExo(m) => {
+            let mut result: Rc<dyn Tile> =
+                CommunicationExoTile::new(args.clone(), event, current_y);
+            let ls = args.living_spaces.get(m.participant);
+            for note in &m.core.notes {
+                let side = match m.core.notes.first().map(|n| n.position) {
+                    Some(NotePosition::Left) => Side::Left,
+                    Some(NotePosition::Right) => Side::Right,
+                    _ => continue,
+                };
+                result = NoteOnMessageTile::new(
+                    args.clone(),
+                    side,
+                    result,
+                    event,
+                    note.clone(),
+                    ls.clone(),
                     m.core.is_create(),
                 );
             }

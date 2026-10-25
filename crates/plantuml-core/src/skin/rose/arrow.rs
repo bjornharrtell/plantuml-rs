@@ -17,7 +17,7 @@ use std::rc::Rc;
 pub(super) const ARROW_DELTA_X: f64 = 10.0;
 pub(super) const ARROW_DELTA_Y: f64 = 4.0;
 pub(super) const SPACE_CROSS_X: f64 = 6.0;
-pub(super) const DIAM_CIRCLE: f64 = 8.0;
+pub const DIAM_CIRCLE: f64 = 8.0;
 pub(super) const THIN_CIRCLE: f64 = 1.5;
 
 /// Shared state of the arrow components (`AbstractComponentRoseArrow`).

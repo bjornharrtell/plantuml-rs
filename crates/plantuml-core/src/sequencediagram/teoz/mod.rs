@@ -2,6 +2,7 @@
 
 pub mod communication;
 pub mod dolls;
+pub mod exo;
 pub mod grouping;
 pub mod lifeevent;
 pub mod living;

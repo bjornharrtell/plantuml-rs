@@ -1139,6 +1139,229 @@ fn reference_commands() -> Vec<Cmd> {
     vec![single_cmd, multi_cmd]
 }
 
+fn exo_regex(left: bool) -> IRegex {
+    let dressing_both = IRegex::named("ARROW_BOTHDRESSING", r"(<<?|//?|\\\\?)?");
+    let styles = |n: &str| IRegex::named(&format!("ARROW_STYLE{n}"), &color_or_style_pattern());
+    let arrow = IRegex::or(vec![
+        IRegex::group(vec![
+            dressing_both,
+            IRegex::named("ARROW_BODYA1", "(-+)"),
+            styles("1"),
+            IRegex::named("ARROW_BODYB1", "(-*)"),
+            IRegex::named("ARROW_DRESSING1", r"(>>?|//?|\\\\?)"),
+        ]),
+        IRegex::group(vec![
+            IRegex::named("ARROW_DRESSING2", r"(<<?|//?|\\\\?)"),
+            IRegex::named("ARROW_BODYB2", "(-*)"),
+            styles("2"),
+            IRegex::named("ARROW_BODYA2", "(-+)"),
+        ]),
+    ]);
+    let participant = IRegex::named("PARTICIPANT", "([%pLN_.@]+|[%g][^%g]+[%g])");
+    let tail = vec![
+        IRegex::space_zero_or_more(),
+        IRegex::named("ACTIVATION", "(?:([+*!-]+)?)"),
+        IRegex::space_zero_or_more(),
+        IRegex::named("LIFECOLOR", r"(?:(#\w+)?)"),
+        IRegex::space_zero_or_more(),
+        url::optional(),
+        IRegex::space_zero_or_more(),
+        IRegex::optional(IRegex::group(vec![
+            IRegex::leaf(":"),
+            IRegex::space_zero_or_more(),
+            IRegex::named("LABEL", "(.*)"),
+        ])),
+        IRegex::end(),
+    ];
+    let mut v = vec![
+        IRegex::start(),
+        IRegex::named("PARALLEL", "(&[%s]*)?"),
+        IRegex::named("ANCHOR", ANCHOR),
+    ];
+    if left {
+        v.push(IRegex::named("ARROW_SUPPCIRCLE2", r"([?\[\]][ox]?)?"));
+        v.push(arrow);
+        v.push(IRegex::named("ARROW_SUPPCIRCLE1", "([ox][%s]+)?"));
+        v.push(IRegex::space_zero_or_more());
+        v.push(participant);
+    } else {
+        v.push(participant);
+        v.push(IRegex::space_zero_or_more());
+        v.push(IRegex::named("ARROW_SUPPCIRCLE1", "([%s]+[ox])?"));
+        v.push(arrow);
+        v.push(IRegex::named("ARROW_SUPPCIRCLE2", r"([ox]?[?\]\[])?"));
+    }
+    v.extend(tail);
+    IRegex::concat(v)
+}
+
+fn exo_type(arg: &RegexResult, left: bool) -> MessageExoType {
+    let supp = arg.get("ARROW_SUPPCIRCLE2", 0);
+    let dressing1 = arg.get("ARROW_DRESSING1", 0).is_some();
+    let dressing2 = arg.get("ARROW_DRESSING2", 0).is_some();
+    let (border, if1, if2) = if left {
+        (
+            supp.is_some_and(|s| s.contains(']')),
+            (MessageExoType::FromRight, MessageExoType::ToRight),
+            (MessageExoType::FromLeft, MessageExoType::ToLeft),
+        )
+    } else {
+        (
+            supp.is_some_and(|s| s.contains('[')),
+            (MessageExoType::ToLeft, MessageExoType::FromLeft),
+            (MessageExoType::ToRight, MessageExoType::FromRight),
+        )
+    };
+    let pair = if border { if1 } else { if2 };
+    if dressing1 {
+        pair.0
+    } else if dressing2 {
+        pair.1
+    } else {
+        unreachable!("an exo arrow has a dressing")
+    }
+}
+
+fn execute_exo(
+    d: &mut SequenceDiagram,
+    location: Option<LineLocation>,
+    arg: &RegexResult,
+    left: bool,
+) -> CommandExecutionResult {
+    let body = format!(
+        "{}{}",
+        arg.get_lazzy("ARROW_BODYA", 0).unwrap_or(""),
+        arg.get_lazzy("ARROW_BODYB", 0).unwrap_or("")
+    );
+    let dressing = arg.get_lazzy("ARROW_DRESSING", 0).unwrap_or("");
+    let p = d.get_or_create_participant(
+        location,
+        &crate::string_utils::eventually_remove_starting_and_ending_double_quote(
+            arg.get("PARTICIPANT", 0).unwrap_or(""),
+        ),
+        None,
+    );
+    let sync = dressing.chars().count() == 2;
+    let dotted = body.contains("--");
+    let labels = match arg.get("LABEL", 0) {
+        None => Display::create(&[""]),
+        Some(l) => Display::with_newlines(Some(l)),
+    };
+    let both = arg.get("ARROW_BOTHDRESSING", 0).is_some();
+    let mut config = if both {
+        ArrowConfiguration::with_direction_both()
+    } else {
+        ArrowConfiguration::with_direction_normal()
+    };
+    if dotted {
+        config = config.with_body(ArrowBody::Dotted);
+    }
+    if sync {
+        config = config.with_head(ArrowHead::Async);
+    }
+    let exo_type = exo_type(arg, left);
+    let part = if dressing.contains('/') {
+        if exo_type.direction() == 1 {
+            ArrowPart::BottomPart
+        } else {
+            ArrowPart::TopPart
+        }
+    } else if dressing.contains('\\') {
+        if exo_type.direction() == 1 {
+            ArrowPart::TopPart
+        } else {
+            ArrowPart::BottomPart
+        }
+    } else {
+        ArrowPart::Full
+    };
+    config = config.with_part(part);
+    let Some(styled) = apply_arrow_style(arg.get_lazzy("ARROW_STYLE", 0), config) else {
+        return CommandExecutionResult::bad_color();
+    };
+    config = styled;
+    let activation = arg.get("ACTIVATION", 0).filter(|a| !a.is_empty());
+    if activation.is_some_and(|a| a.starts_with('*')) {
+        d.activate(p, LifeEventType::Create, None, None);
+    }
+    let has = |key: &str, symbol: &str| arg.get(key, 0).is_some_and(|s| s.contains(symbol));
+    if matches!(exo_type, MessageExoType::ToRight | MessageExoType::ToLeft) {
+        if has("ARROW_SUPPCIRCLE1", "o") {
+            config = config.with_decoration1(ArrowDecoration::Circle);
+        }
+        if has("ARROW_SUPPCIRCLE1", "x") {
+            config = config.with_head1(ArrowHead::CrossX);
+        }
+        if has("ARROW_SUPPCIRCLE2", "o") {
+            config = config.with_decoration2(ArrowDecoration::Circle);
+        }
+        if has("ARROW_SUPPCIRCLE2", "x") {
+            config = config.with_head2(ArrowHead::CrossX);
+        }
+    } else {
+        if has("ARROW_SUPPCIRCLE2", "o") {
+            config = config.with_decoration1(ArrowDecoration::Circle);
+        }
+        if has("ARROW_SUPPCIRCLE2", "x") {
+            config = config.with_head1(ArrowHead::CrossX);
+        }
+        if has("ARROW_SUPPCIRCLE1", "o") {
+            config = config.with_decoration2(ArrowDecoration::Circle);
+        }
+        if has("ARROW_SUPPCIRCLE1", "x") {
+            config = config.with_head2(ArrowHead::CrossX);
+        }
+    }
+    let number = d.next_message_number();
+    let mut core = MessageCore::new(d.style_builder(), labels, config.clone(), number, location);
+    if let Some(u) = arg.get(URL_KEY, 0) {
+        core.url = UrlBuilder::new(d.base.skin_param.get_value("topurl"), UrlMode::Strict).url(u);
+    }
+    if arg.get("PARALLEL", 0).is_some() {
+        core.parallel = true;
+    }
+    core.anchor = arg.get("ANCHOR", 1).map(str::to_string);
+    core.part1_anchor = arg.get("PART1ANCHOR", 1).map(str::to_string);
+    core.part2_anchor = arg.get("PART2ANCHOR", 1).map(str::to_string);
+    let short_arrow = arg
+        .get("ARROW_SUPPCIRCLE2", 0)
+        .is_some_and(|s| s.contains('?'));
+    let msg = MessageExo {
+        core,
+        participant: p,
+        exo_type,
+        short_arrow,
+    };
+    let status = d.add_message(Event::MessageExo(msg));
+    if !status.is_ok() {
+        return status;
+    }
+    let life_color = arg
+        .get("LIFECOLOR", 0)
+        .and_then(crate::klimt::color::HColor::parse);
+    if let Some(spec) = activation {
+        match spec.chars().next() {
+            Some('+') => {
+                d.activate(p, LifeEventType::Activate, life_color, None);
+            }
+            Some('-') => {
+                d.activate(p, LifeEventType::Deactivate, None, None);
+            }
+            Some('!') => {
+                d.activate(p, LifeEventType::Destroy, None, None);
+            }
+            _ => {}
+        }
+    } else if d.autoactivate && matches!(config.head(), ArrowHead::Normal | ArrowHead::Async) {
+        if config.is_dotted() {
+            d.activate(p, LifeEventType::Deactivate, None, None);
+        } else {
+            d.activate(p, LifeEventType::Activate, life_color, None);
+        }
+    }
+    CommandExecutionResult::ok()
+}
+
 /// All commands of the sequence diagram, in matching order (`initCommandsList`, partial).
 pub fn commands() -> Vec<Cmd> {
     let mut cmds: Vec<Cmd> = Vec::new();
@@ -1147,6 +1370,14 @@ pub fn commands() -> Vec<Cmd> {
     cmds.push(Box::new(SingleLineCommand::new(
         arrow_regex(),
         |d, loc, arg, _: ParserPass| execute_arrow(d, loc, arg),
+    )));
+    cmds.push(Box::new(SingleLineCommand::new(
+        exo_regex(true),
+        |d, loc, arg, _: ParserPass| execute_exo(d, loc, arg, true),
+    )));
+    cmds.push(Box::new(SingleLineCommand::new(
+        exo_regex(false),
+        |d, loc, arg, _: ParserPass| execute_exo(d, loc, arg, false),
     )));
     cmds.extend(lifeline_commands());
     cmds.extend(layout_commands());

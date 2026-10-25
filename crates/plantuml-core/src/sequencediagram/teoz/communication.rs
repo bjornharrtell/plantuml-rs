@@ -262,23 +262,30 @@ impl Tile for CommunicationTile {
 
 /// Attributes of the SVG group around a message (`groupTypeMessage`).
 pub fn message_group_attributes(m: &Message, args: &TileArguments) -> Vec<(&'static str, String)> {
+    group_attributes(&m.core, m.p1, m.p2, args)
+}
+
+/// Same for any message given its core and both participants.
+pub fn group_attributes(
+    core: &crate::sequencediagram::model::MessageCore,
+    p1: usize,
+    p2: usize,
+    args: &TileArguments,
+) -> Vec<(&'static str, String)> {
     let mut v = vec![("class", "message".to_string())];
-    let p1 = args
-        .model
-        .participants
-        .iter()
-        .find(|p| p.id == m.p1)
-        .expect("p1");
-    let p2 = args
-        .model
-        .participants
-        .iter()
-        .find(|p| p.id == m.p2)
-        .expect("p2");
-    v.push(("data-entity-1", p1.uid.clone()));
-    v.push(("data-entity-2", p2.uid.clone()));
-    v.push(("id", m.core.uid.clone()));
-    if let Some(l) = m.core.location {
+    let uid = |id: usize| {
+        args.model
+            .participants
+            .iter()
+            .find(|p| p.id == id)
+            .expect("participant")
+            .uid
+            .clone()
+    };
+    v.push(("data-entity-1", uid(p1)));
+    v.push(("data-entity-2", uid(p2)));
+    v.push(("id", core.uid.clone()));
+    if let Some(l) = core.location {
         v.push(("data-source-line", l.position.to_string()));
     }
     v

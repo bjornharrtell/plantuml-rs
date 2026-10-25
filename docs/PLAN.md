@@ -118,3 +118,4 @@ Exit criterion per diagram type: fidelity harness numbers, plus fixtures reviewe
 - Done: notes (`NoteTile`, `NotesTile`, note-on-message tiles, group end notes, rose note components, `BodyEnhanced`, note commands) and parallel sibling disjoint constraints. Vega SEQUENCE: 45/109 identical.
 - Done: participant figures (actor styles, boundary, control, entity, database, queue). Vega SEQUENCE: 57/109.
 - Done: participant boxes (`Dolls`, englober), `ref over` (`ReferenceTile`), `StringUtils` helpers. Vega SEQUENCE: 73/109.
+- Done: border (exo) messages (`CommunicationExoTile`, exo arrow commands). Vega SEQUENCE: 75/109.

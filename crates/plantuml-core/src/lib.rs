@@ -168,6 +168,21 @@ mod tests {
     }
 
     #[test]
+    fn renders_border_messages() {
+        let svg = render(
+            "@startuml\nparticipant A\nparticipant B\n[-> A : l1\nA ->] : r1\n[<- B : l2\nB <-] : r2\n\
+             ?-> B : short\nB ->? : short2\n[->o B\n[x-> B\nA ->x]\nA ->o]\nactivate A\n[-> A ++\n[<- A --\n\
+             [--> A : dotted\n[->> A : async\nnote right: n\n@enduml",
+        )
+        .unwrap();
+        for text in [
+            "l1", "r1", "l2", "r2", "short", "short2", "dotted", "async", "n",
+        ] {
+            assert!(svg.contains(&format!(">{text}</text>")), "{text}");
+        }
+    }
+
+    #[test]
     fn renders_notes() {
         let svg = render(
             "@startuml\nA -> B\nnote left of A: l\nnote right of B #red: r\nnote over A: o\n\
