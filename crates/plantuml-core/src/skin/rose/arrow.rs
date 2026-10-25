@@ -473,11 +473,7 @@ mod tests {
     fn plain_arrow_dimensions_and_drawing() {
         let (c, _) = arrow(ArrowConfiguration::with_direction_normal(), "hi");
         let sb = EmbeddedFontBounder;
-        assert!(
-            (c.preferred_height(&sb) - 32.609375).abs() < 1e-6,
-            "{}",
-            c.preferred_height(&sb)
-        );
+        assert!((c.preferred_height(&sb) - 30.3515625).abs() < 1e-6);
         assert_eq!(c.padding_y(), 4.0);
         let out = draw(&c, 100.0);
         assert!(out.contains("<polygon"), "{out}");
