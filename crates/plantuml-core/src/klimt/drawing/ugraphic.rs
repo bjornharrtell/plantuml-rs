@@ -2,7 +2,8 @@
 
 use super::svg::{PathSeg, SvgGraphics, SvgOption, TextAttrs};
 use crate::klimt::color::{HColor, TransparentFillBehavior};
-use crate::klimt::font::{StringBounder, UFont};
+use crate::klimt::font::config::{FontConfiguration, FontStyle};
+use crate::klimt::font::StringBounder;
 
 /// Translation applied to subsequent shapes (`UTranslate`).
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -122,38 +123,6 @@ impl UClip {
             }
         }
         Some((x1 + t0 * dx, y1 + t0 * dy, x1 + t1 * dx, y1 + t1 * dy))
-    }
-}
-
-/// Text decoration flags of a font configuration (`FontStyle`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct FontStyles {
-    pub underline: bool,
-    pub strike: bool,
-    pub wave: bool,
-    pub backcolor: bool,
-}
-
-/// Text style (`FontConfiguration`, reduced to what the SVG driver needs).
-#[derive(Debug, Clone, PartialEq)]
-pub struct FontConfiguration {
-    pub font: UFont,
-    pub color: HColor,
-    /// Color for underline/strike lines or text background.
-    pub extended_color: Option<HColor>,
-    pub styles: FontStyles,
-    pub attributes: Vec<(String, String)>,
-}
-
-impl FontConfiguration {
-    pub fn new(font: UFont, color: HColor) -> Self {
-        Self {
-            font,
-            color,
-            extended_color: None,
-            styles: FontStyles::default(),
-            attributes: Vec::new(),
-        }
     }
 }
 
@@ -354,7 +323,7 @@ pub enum UShape {
     Ellipse(UEllipse),
     Polygon(UPolygon),
     Path(UPath),
-    Text(UText),
+    Text(Box<UText>),
     Comment(String),
 }
 
@@ -364,7 +333,13 @@ macro_rules! impl_from {
     )*};
 }
 impl_from!(URectangle => Rectangle, ULine => Line, UEllipse => Ellipse,
-    UPolygon => Polygon, UPath => Path, UText => Text);
+    UPolygon => Polygon, UPath => Path);
+
+impl From<UText> for UShape {
+    fn from(t: UText) -> Self {
+        UShape::Text(Box::new(t))
+    }
+}
 
 /// Current drawing state (`UParam`).
 #[derive(Debug, Clone)]
@@ -604,45 +579,58 @@ impl<'a> UGraphic<'a> {
             }
         }
         let fc = &t.font;
-        if fc.color.is_transparent() {
+        if fc.color().is_transparent() {
             return;
         }
-        let font = &fc.font;
-        let face = font.face;
-        let bold = face.is_bold();
-        let weight = bold.then(|| face.weight.max(700).to_string());
-        let style = face.italic.then_some("italic");
+        let font = fc.font();
+        let face = fc.font_face();
+        // Explicit bold keeps a heavier face weight; otherwise only non-default weights show.
+        let weight = if fc.contains_style(FontStyle::Bold) {
+            Some(if face.weight >= 700 {
+                face.weight.to_string()
+            } else {
+                "700".to_string()
+            })
+        } else if face.weight != 400 {
+            Some(face.weight.to_string())
+        } else {
+            None
+        };
+        let style = (fc.contains_style(FontStyle::Italic) || face.italic).then_some("italic");
         let mut text = t.text.clone();
         if text.trim().is_empty() {
             text = text.replace(' ', "\u{a0}");
         }
         while text.starts_with(' ') {
-            x += self.bounder.calculate_dimension(font, " ").width;
+            x += self.bounder.calculate_dimension(&font, " ").width;
             text.remove(0);
         }
         let text = text.trim_matches(|c: char| c.is_whitespace() && c != '\u{a0}');
-        let dim = self.bounder.calculate_dimension(font, text);
+        let dim = self.bounder.calculate_dimension(&font, text);
         let mut deco = Vec::new();
         let mut extra_lines: Vec<(HColor, f64)> = Vec::new();
-        if fc.styles.underline {
-            match &fc.extended_color {
+        let ext = fc.extended_color();
+        if fc.contains_style(FontStyle::Underline)
+            && fc.underline_stroke().is_none_or(|s| s.thickness > 0.0)
+        {
+            match ext {
                 None => deco.push("underline"),
                 Some(c) => extra_lines.push((c.clone(), font.size2d() / 14.0)),
             }
         }
-        if fc.styles.strike {
-            match &fc.extended_color {
+        if fc.contains_style(FontStyle::Strike) {
+            match ext {
                 None => deco.push("line-through"),
                 Some(c) => extra_lines.push((c.clone(), -font.size2d() / 4.0)),
             }
         }
-        if fc.styles.wave {
+        if fc.contains_style(FontStyle::Wave) {
             deco.push("wavy underline");
         }
         let decoration = deco.join(" ");
         let mut back = None;
-        if fc.styles.backcolor {
-            if let Some(b) = &fc.extended_color {
+        if fc.contains_style(FontStyle::BackColor) {
+            if let Some(b) = ext {
                 if let HColor::Gradient { c1, c2, policy } = b {
                     let id = self
                         .svg
@@ -663,7 +651,7 @@ impl<'a> UGraphic<'a> {
                 }
             }
         }
-        self.svg.set_fill_color(Some(&fc.color.to_svg()));
+        self.svg.set_fill_color(Some(&fc.color().to_svg()));
         let family = font.svg_family();
         let attrs = TextAttrs {
             family: Some(&family),
@@ -672,7 +660,7 @@ impl<'a> UGraphic<'a> {
             style,
             decoration: (!decoration.is_empty()).then_some(decoration.as_str()),
             text_length: dim.width,
-            extra: fc.attributes.clone(),
+            extra: fc.attributes().to_vec(),
             back_color: back.as_deref(),
             orientation: t.orientation,
         };
@@ -704,7 +692,7 @@ pub fn render_svg(
 mod tests {
     use super::*;
     use crate::klimt::color::Rgba;
-    use crate::klimt::font::EmbeddedFontBounder;
+    use crate::klimt::font::{EmbeddedFontBounder, UFont};
 
     fn svg(f: impl FnOnce(&mut UGraphic<'_>)) -> String {
         render_svg(SvgOption::default(), 0, &EmbeddedFontBounder, f)
@@ -760,21 +748,44 @@ mod tests {
     #[test]
     fn text_and_decorations() {
         let out = svg(|ug| {
-            let mut fc = FontConfiguration::new(UFont::sans_serif(14), HColor::BLACK);
-            fc.styles.underline = true;
-            fc.styles.strike = true;
-            fc.extended_color = Some(HColor::parse("#00FF00").unwrap());
+            let fc = FontConfiguration::black_blue_true(UFont::sans_serif(14))
+                .underline()
+                .add(FontStyle::Strike)
+                .change_extended_color(Some(HColor::parse("#00FF00").unwrap()));
             ug.draw(UText::new("  Hello ", fc));
-            let mut fc = FontConfiguration::new(UFont::sans_serif(14), HColor::BLACK);
-            fc.styles.underline = true;
+            let fc = FontConfiguration::black_blue_true(UFont::sans_serif(14))
+                .underline()
+                .bold()
+                .italic();
             ug.draw(UText::new("Hi", fc.clone()));
-            let mut t = UText::new("T", fc);
-            t.font.color = HColor::TRANSPARENT;
+            let t = UText::new("T", fc.change_color(HColor::TRANSPARENT));
             ug.draw(t);
+            let fc = FontConfiguration::black_blue_true(UFont::sans_serif(14))
+                .add(FontStyle::BackColor)
+                .change_extended_color(Some(HColor::parse("#00FF00").unwrap()));
+            ug.draw(UText::new("B", fc));
+            let g = HColor::Gradient {
+                c1: Rgba::rgb(255, 0, 0),
+                c2: Rgba::rgb(0, 0, 255),
+                policy: '-',
+            };
+            let fc = FontConfiguration::black_blue_true(UFont::sans_serif(14))
+                .add(FontStyle::BackColor)
+                .change_extended_color(Some(g));
+            ug.draw(UText::new("G", fc));
+            ug.draw(UText::new(
+                "   ",
+                FontConfiguration::black_blue_true(UFont::sans_serif(14)),
+            ));
         });
         assert!(out.contains(">Hello</text>"), "{out}");
         assert!(out.contains("<line"), "{out}");
         assert!(out.contains("underline"), "{out}");
+        assert!(
+            out.contains("font-weight=\"700\"") && out.contains("italic"),
+            "{out}"
+        );
+        assert!(out.contains("linearGradient"), "{out}");
     }
 
     #[test]

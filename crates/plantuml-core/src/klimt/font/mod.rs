@@ -1,6 +1,7 @@
 //! Fonts and text measurement, ported from `klimt/font` and
 //! `klimt/drawing/font/StringBounderEmbeddedFont`.
 
+pub mod config;
 mod metrics;
 
 /// Font weight and style (`UFontFace`).
