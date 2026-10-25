@@ -2,6 +2,7 @@
 
 pub mod names;
 pub mod parser;
+pub mod queries;
 pub mod skinparam;
 pub mod value;
 

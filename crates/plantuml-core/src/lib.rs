@@ -2,6 +2,7 @@
 
 pub mod command;
 pub mod klimt;
+pub mod real;
 pub mod regex;
 pub mod skin;
 pub mod style;
