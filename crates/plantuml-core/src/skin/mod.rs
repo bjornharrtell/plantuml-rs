@@ -1,5 +1,6 @@
 //! Skin parameters, ported from `skin/SkinParam` (the settings part).
 
+pub mod actor;
 pub mod arrow;
 pub mod component;
 pub mod rose;
@@ -8,6 +9,7 @@ use crate::klimt::color::colors::{ColorType, Colors};
 use crate::klimt::color::HColor;
 use crate::klimt::creole::{LineBreakStrategy, SkinSimple};
 use crate::klimt::geom::HorizontalAlignment;
+use crate::skin::actor::ActorStyle;
 use crate::stereo::{Guillemet, Stereotype};
 use crate::style::skinparam::FromSkinparamToStyle;
 use crate::style::{Margins, PName, SName, Style, StyleBuilder, StyleQuery};
@@ -280,6 +282,15 @@ impl SkinParam {
             .unwrap_or_else(|| {
                 self.default_text_alignment(override_default.unwrap_or(HorizontalAlignment::Left))
             })
+    }
+
+    /// `skinparam actorStyle` (`actorStyle`).
+    pub fn actor_style(&self) -> ActorStyle {
+        match self.get_value("actorstyle") {
+            Some(v) if v.eq_ignore_ascii_case("awesome") => ActorStyle::Awesome,
+            Some(v) if v.eq_ignore_ascii_case("hollow") => ActorStyle::Hollow,
+            _ => ActorStyle::Stickman,
+        }
     }
 
     pub fn shadowing(&self) -> bool {

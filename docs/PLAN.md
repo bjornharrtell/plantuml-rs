@@ -116,3 +116,4 @@ Exit criterion per diagram type: fidelity harness numbers, plus fixtures reviewe
 - Done: self messages (`ComponentRoseSelfArrow`, `CommunicationTileSelf`), byte-identical to Java on reference cases.
 - Done: groups (alt/loop/opt/par/group/critical/break/partition): `GroupingTile`, `ElseTile`, `Blotter`, rose grouping components, `CommandGrouping`. UGraphic default colors are now transparent like Java.
 - Done: notes (`NoteTile`, `NotesTile`, note-on-message tiles, group end notes, rose note components, `BodyEnhanced`, note commands) and parallel sibling disjoint constraints. Vega SEQUENCE: 45/109 identical.
+- Done: participant figures (actor styles, boundary, control, entity, database, queue). Vega SEQUENCE: 57/109.

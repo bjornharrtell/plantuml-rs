@@ -1,6 +1,7 @@
 //! PlantUML rendering core. Pure library: no I/O, usable on `wasm32-unknown-unknown`.
 
 pub mod command;
+pub mod decoration;
 pub mod diagram;
 pub mod export;
 pub mod klimt;
@@ -10,6 +11,7 @@ pub mod sequencediagram;
 pub mod skin;
 pub mod stereo;
 pub mod style;
+pub mod svek;
 pub mod text;
 pub mod url;
 
@@ -127,6 +129,24 @@ mod tests {
         assert!(svg.contains(">alt</text>") && svg.contains(">[ok]</text>"));
         assert!(svg.contains(">[bad]</text>") && svg.contains(">P1</text>"));
         assert!(svg.contains(">My</text>") && svg.contains(">[label]</text>"));
+    }
+
+    #[test]
+    fn renders_participant_figures() {
+        for style in [
+            "",
+            "skinparam actorStyle awesome",
+            "skinparam actorStyle hollow",
+        ] {
+            let svg = render(&format!(
+                "@startuml\n{style}\nactor A\nboundary B\ncontrol C\nentity D\ndatabase E\nqueue F\ncollections G\nA -> B\nB -> C\nC -> D\nD -> E\nE -> F\nF -> G\n@enduml"
+            ))
+            .unwrap();
+            assert!(
+                svg.contains("<ellipse") && svg.contains(">E</text>"),
+                "{style}"
+            );
+        }
     }
 
     #[test]

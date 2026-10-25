@@ -1,6 +1,7 @@
 //! Default look of sequence diagram components (`skin/rose`).
 
 pub mod arrow;
+pub mod figure;
 pub mod grouping;
 pub mod line;
 pub mod misc;
@@ -19,7 +20,11 @@ use crate::skin::SkinParam;
 use crate::style::{queries, PName, Style};
 use std::rc::Rc;
 
+use crate::klimt::fashion::Fashion;
+use crate::klimt::shape::EmptyBlock;
+use crate::svek::{Boundary, Control, EntityDomain};
 use arrow::ComponentRoseArrow;
+use figure::{ComponentRoseFigure, ComponentRoseQueue};
 use grouping::{
     ComponentRoseGroupingElse, ComponentRoseGroupingHeader, ComponentRoseGroupingSpace,
 };
@@ -49,7 +54,83 @@ impl Rose {
             ctype,
             ComponentType::CollectionsHead | ComponentType::CollectionsTail
         );
-        // Other participant shapes (actor, database, ...) fall back to the box for now.
+        let figure =
+            |style: &Style| ComponentRoseFigure::core(style, &styles[1], display, skin.clone());
+        let head = matches!(
+            ctype,
+            ComponentType::ActorHead
+                | ComponentType::BoundaryHead
+                | ComponentType::ControlHead
+                | ComponentType::EntityHead
+                | ComponentType::DatabaseHead
+        );
+        match ctype {
+            ComponentType::ActorHead | ComponentType::ActorTail => {
+                let fashion = styles[0].symbol_context(None);
+                let core = figure(&styles[0]);
+                return Rc::new(ComponentRoseFigure::new(
+                    core,
+                    skin.actor_style().text_block(fashion),
+                    head,
+                ));
+            }
+            ComponentType::BoundaryHead | ComponentType::BoundaryTail => {
+                let fashion = styles[0].symbol_context(None);
+                return Rc::new(ComponentRoseFigure::new(
+                    figure(&styles[0]),
+                    Rc::new(Boundary {
+                        symbol_context: fashion,
+                    }),
+                    head,
+                ));
+            }
+            ComponentType::ControlHead | ComponentType::ControlTail => {
+                let fashion = styles[0].symbol_context(None);
+                return Rc::new(ComponentRoseFigure::new(
+                    figure(&styles[0]),
+                    Rc::new(Control {
+                        symbol_context: fashion,
+                    }),
+                    head,
+                ));
+            }
+            ComponentType::EntityHead | ComponentType::EntityTail => {
+                let fashion = styles[0].symbol_context(None);
+                return Rc::new(ComponentRoseFigure::new(
+                    figure(&styles[0]),
+                    Rc::new(EntityDomain {
+                        symbol_context: fashion,
+                    }),
+                    head,
+                ));
+            }
+            ComponentType::DatabaseHead | ComponentType::DatabaseTail => {
+                let bi_color = styles[0].symbol_context(None);
+                let fashion = Fashion::new(
+                    bi_color.back_color().cloned(),
+                    bi_color.fore_color().cloned(),
+                )
+                .with_stroke(styles[0].stroke())
+                .with_delta_shadow(bi_color.delta_shadow());
+                let symbol = crate::decoration::symbol::database_small(
+                    Rc::new(EmptyBlock {
+                        width: 16.0,
+                        height: 17.0,
+                    }),
+                    Rc::new(EmptyBlock {
+                        width: 0.0,
+                        height: 0.0,
+                    }),
+                    fashion,
+                );
+                return Rc::new(ComponentRoseFigure::new(figure(&styles[0]), symbol, head));
+            }
+            ComponentType::QueueHead | ComponentType::QueueTail => {
+                let fashion = styles[0].symbol_context(None);
+                return Rc::new(ComponentRoseQueue::new(&figure(&styles[0]), fashion));
+            }
+            _ => {}
+        }
         Rc::new(ComponentRoseParticipant::new(
             &styles[0],
             &styles[1],
