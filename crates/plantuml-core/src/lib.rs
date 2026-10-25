@@ -112,6 +112,12 @@ mod tests {
     }
 
     #[test]
+    fn renders_self_messages() {
+        let svg = render("@startuml\nA -> A: one\nactivate A\nA <- A: two\n@enduml").unwrap();
+        assert!(svg.contains(">one</text>") && svg.contains(">two</text>"));
+    }
+
+    #[test]
     fn syntax_errors_are_reported() {
         let err = render("@startuml\nA -> B: hi\n???\n@enduml").unwrap_err();
         assert!(matches!(err, Error::Syntax(_)));

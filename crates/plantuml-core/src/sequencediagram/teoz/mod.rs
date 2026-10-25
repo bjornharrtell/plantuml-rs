@@ -4,6 +4,7 @@ pub mod communication;
 pub mod lifeevent;
 pub mod living;
 pub mod playing;
+pub mod self_tile;
 pub mod simple;
 
 use super::model::{Event, Participant};

@@ -14,15 +14,16 @@ use crate::skin::SkinParam;
 use crate::style::{Margins, Style};
 use std::rc::Rc;
 
-const ARROW_DELTA_X: f64 = 10.0;
-const ARROW_DELTA_Y: f64 = 4.0;
-const SPACE_CROSS_X: f64 = 6.0;
-const DIAM_CIRCLE: f64 = 8.0;
-const THIN_CIRCLE: f64 = 1.5;
+pub(super) const ARROW_DELTA_X: f64 = 10.0;
+pub(super) const ARROW_DELTA_Y: f64 = 4.0;
+pub(super) const SPACE_CROSS_X: f64 = 6.0;
+pub(super) const DIAM_CIRCLE: f64 = 8.0;
+pub(super) const THIN_CIRCLE: f64 = 1.5;
 
 /// Shared state of the arrow components (`AbstractComponentRoseArrow`).
 pub struct ArrowBase {
     pub core: TextualCore,
+    pub style: Style,
     pub foreground: HColor,
     pub background: HColor,
     pub config: ArrowConfiguration,
@@ -46,6 +47,7 @@ impl ArrowBase {
         );
         let stroke = core.base.stroke();
         Self {
+            style: style.clone(),
             foreground: core.base.color_line(),
             background: core.base.color_back_ground(),
             config: config.with_thickness(stroke.thickness),

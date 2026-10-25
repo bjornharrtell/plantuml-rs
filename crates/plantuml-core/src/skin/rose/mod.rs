@@ -4,6 +4,7 @@ pub mod arrow;
 pub mod line;
 pub mod misc;
 pub mod participant;
+pub mod self_arrow;
 pub mod text;
 
 use crate::klimt::creole::display::Display;
@@ -19,6 +20,7 @@ use arrow::ComponentRoseArrow;
 use line::ComponentRoseLine;
 use misc::{ComponentRoseActiveLine, ComponentRoseDelayLine, ComponentRoseDestroy};
 use participant::ComponentRoseParticipant;
+use self_arrow::ComponentRoseSelfArrow;
 use text::{ComponentRoseDelayText, ComponentRoseDivider, ComponentRoseNewpage};
 
 /// Component factory of the default skin (`Rose`).
@@ -67,6 +69,16 @@ impl Rose {
             skin.max_message_size()
         };
         let direction = config.arrow_direction();
+        if direction == ArrowDirection::SelfArrow {
+            return Rc::new(ComponentRoseSelfArrow::new(
+                style,
+                display,
+                config,
+                skin.clone(),
+                &max_message_size,
+                !skin.strict_uml_style(),
+            ));
+        }
         let text_style = skin
             .style_builder()
             .merged_style(&queries::SEQUENCEDIAG_ARROW)

@@ -113,3 +113,4 @@ Exit criterion per diagram type: fidelity harness numbers, plus fixtures reviewe
 - Done: composable regex (`regex.rs`), source lines (`text.rs`), command framework and parse loop (`command.rs`).
 - Done: skinparam → style conversion (`style/skinparam.rs`) and `SkinParam` settings (`skin/mod.rs`).
 - Next: creole, preprocessor, class parser, svek.
+- Done: self messages (`ComponentRoseSelfArrow`, `CommunicationTileSelf`), byte-identical to Java on reference cases.

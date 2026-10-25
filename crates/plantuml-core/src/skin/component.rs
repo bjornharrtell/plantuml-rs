@@ -75,6 +75,11 @@ pub trait ArrowComponent: Component {
     fn end_point(&self, sb: &dyn StringBounder, dimension_to_use: Dimension) -> (f64, f64);
     fn y_point(&self, sb: &dyn StringBounder) -> f64;
     fn pos_arrow(&self, sb: &dyn StringBounder) -> f64;
+
+    /// Width really covered by the drawing (`getDrawnWidth` of self arrows).
+    fn drawn_width(&self, sb: &dyn StringBounder) -> f64 {
+        self.preferred_width(sb)
+    }
 }
 
 /// Style access shared by components (`AbstractComponent`).
