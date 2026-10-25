@@ -94,7 +94,7 @@ impl RegexResult {
 }
 
 /// A node of the grammar tree (`IRegex`).
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum IRegex {
     Leaf(Leaf),
     Concat(Concat),
@@ -111,7 +111,7 @@ pub enum IRegex {
 }
 
 /// A plain pattern fragment with an optional name.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Leaf {
     pattern: String,
     name: Option<String>,
@@ -119,13 +119,14 @@ pub struct Leaf {
 }
 
 /// A full command pattern: starts with `^` and ends with `$`.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Concat {
     parts: Vec<IRegex>,
     compiled: OnceCellEngine,
     limit_size: usize,
 }
 
+#[derive(Clone)]
 struct OnceCellEngine(OnceCell<Engine>);
 
 impl std::fmt::Debug for OnceCellEngine {

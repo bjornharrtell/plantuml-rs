@@ -166,6 +166,55 @@ impl StyleQuery {
             level: self.level,
         }
     }
+    /// Adds `.name` atoms for each label of the stereotype (`withStereotype(Stereotype)`).
+    pub fn with_stereotype_obj(&self, stereotype: Option<&crate::stereo::Stereotype>) -> Self {
+        let Some(st) = stereotype else {
+            return self.clone();
+        };
+        if st.style_names().is_empty() {
+            return self.clone();
+        }
+        let labels = st.labels(crate::stereo::Guillemet::None);
+        labels
+            .iter()
+            .fold(self.clone(), |q, l| q.with_stereotype(l))
+    }
+
+    /// Query for the `stereotype` element of a stereotyped entity (`forStereotypeItself`).
+    pub fn for_stereotype_itself(&self, stereotype: Option<&crate::stereo::Stereotype>) -> Self {
+        let Some(st) = stereotype else {
+            return self.clone();
+        };
+        if st.style_names().is_empty() {
+            return self.clone();
+        }
+        let labels = st.labels(crate::stereo::Guillemet::None);
+        if labels.is_empty() {
+            return self.clone();
+        }
+        let base = Self {
+            atoms: self.atoms.plus(StyleAtom::Name(SName::Stereotype)),
+            level: self.level,
+        };
+        labels.iter().fold(base, |q, l| q.with_stereotype(l))
+    }
+
+    /// Adds the `clickable` element when the element has a link (`addClickable`).
+    pub fn add_clickable(&self, has_url: bool) -> Self {
+        if has_url {
+            self.add(SName::Clickable)
+        } else {
+            self.clone()
+        }
+    }
+
+    /// Merges the signatures of other styles (`mergeWith(List<Style>)`).
+    pub fn merge_with_styles(&self, others: &[Style]) -> Self {
+        others
+            .iter()
+            .fold(self.clone(), |q, s| q.merge_with(s.query()))
+    }
+
     pub fn add_level(&self, level: i32) -> Self {
         Self {
             atoms: self.atoms.clone(),

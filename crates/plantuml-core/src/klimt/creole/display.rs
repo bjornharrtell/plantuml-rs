@@ -168,6 +168,12 @@ impl Display {
         self.lines[i].text()
     }
 
+    /// Whether a `[[link]]` appears in the text (`hasUrl`).
+    pub fn has_url(&self) -> bool {
+        let b = crate::url::UrlBuilder::new(None, crate::url::UrlMode::Anywhere);
+        self.lines.iter().any(|l| b.url(&l.text()).is_some())
+    }
+
     pub fn natural_alignment(&self) -> Option<HorizontalAlignment> {
         self.natural_alignment
     }
@@ -484,6 +490,72 @@ impl Display {
             0.0,
             0.0,
         )
+    }
+}
+
+/// A display with its placement, used for title, header, legend... (`DisplayPositioned`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct DisplayPositioned {
+    pub display: Display,
+    pub horizontal_alignment: Option<HorizontalAlignment>,
+    pub vertical_alignment: Option<VerticalAlignment>,
+    pub location: Option<crate::text::LineLocation>,
+}
+
+impl DisplayPositioned {
+    pub fn none(h: Option<HorizontalAlignment>, v: Option<VerticalAlignment>) -> Self {
+        Self {
+            display: Display::null(),
+            horizontal_alignment: h,
+            vertical_alignment: v,
+            location: None,
+        }
+    }
+
+    pub fn single(
+        display: Display,
+        h: Option<HorizontalAlignment>,
+        v: Option<VerticalAlignment>,
+    ) -> Self {
+        Self {
+            display,
+            horizontal_alignment: h,
+            vertical_alignment: v,
+            location: None,
+        }
+    }
+
+    pub fn is_null(&self) -> bool {
+        self.display.is_null()
+    }
+
+    pub fn has_url(&self) -> bool {
+        self.display.has_url()
+    }
+
+    pub fn with_display(&self, display: Display) -> Self {
+        Self {
+            display,
+            ..self.clone()
+        }
+    }
+
+    pub fn with_horizontal_alignment(&self, h: HorizontalAlignment) -> Self {
+        Self {
+            horizontal_alignment: Some(h),
+            ..self.clone()
+        }
+    }
+
+    pub fn with_location(&self, location: Option<crate::text::LineLocation>) -> Self {
+        Self {
+            location,
+            ..self.clone()
+        }
+    }
+
+    pub fn with_page(&self, page: usize, last_page: usize) -> Self {
+        self.with_display(self.display.with_page(page, last_page))
     }
 }
 
