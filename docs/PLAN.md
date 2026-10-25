@@ -34,12 +34,26 @@ as a faithful port of [plantuml/plantuml](https://github.com/plantuml/plantuml).
 ## Prior art evaluated
 
 - `graphviz-pure`: adopted. New (Oct 2026), single squashed commit, claims byte-identical output to C Graphviz on
-  its corpora. Smoke-tested only; validate on real PlantUML-generated DOT early (phase 3).
+  its corpora. Validated on 72 real PlantUML DOT inputs (see Spike).
 - `alliecatowo/puml`: not adopted. Independent re-implementation (own AST/renderer/layout), "partial" compatibility.
   Over the Vega fixtures: 89% render without error, label overlap with Java 0.41, sizes within 20% of Java for
   ~0-8% per type; different styling and layout. Useful only as a reference for wasm/LSP API shape.
 - Dagre/Sugiyama crates (`dagre`, `rust-sugiyama`, `graphlay`): rejected, output would not match Graphviz.
 - `elkrs` (ELK port): candidate later for PlantUML's optional ELK layout mode.
+
+## Spike: `graphviz-pure` on real PlantUML DOT (done)
+
+Captured the DOT that Java PlantUML sends to `dot` for the 72 Vega fixtures that use Graphviz (class, state,
+component, object; `scripts/dot-capture.sh` is a `GRAPHVIZ_DOT` wrapper that records it) and ran each through
+`graphviz-pure` 0.2 (Graphviz 16.1.0 port) and system `dot` 14.1.2 (`-Tsvg`).
+
+- 72/72 render without error; 39 are byte-identical to C `dot` (after dropping the header comments).
+- The other 33 contain the same set of SVG lines, only in a different order (cluster elements are emitted in
+  another order; likely a Graphviz 14 vs 16 difference). Geometry is identical.
+- Speed: 72 graphs in 30 ms total.
+- Native `graphviz-pure` prints Graphviz warnings to stderr; the wasm build must route them to `log`.
+
+Conclusion: `graphviz-pure` is good enough to adopt. `svek` must not depend on the order of SVG elements.
 
 ## Architecture
 
@@ -61,7 +75,7 @@ diagram type) so that each Rust file maps to a Java file and can be reviewed aga
    Java's expected SVG. Later add pixel diff. Commit a baseline.
 3. **Foundations**: line/block splitter, preprocessor (`tim`: variables, functions, `!include`, `!theme`),
    colours, skinparam/style cascade, creole text, `klimt` shapes + SVG writer, font metrics trait and embedded fonts.
-   Spike: feed real Java-generated DOT through `graphviz-pure` and compare node/edge geometry with Java's.
+   (The `graphviz-pure` spike is done, see above.)
 4. **Class diagram slice**: parser commands, entities, `svek` DOT generation and SVG-result parsing, edge decoration.
 5. **Other Graphviz types**: object, component/deployment, state, use case.
 6. **Self-layout types**, in order of use: sequence, activity-beta, mindmap, wbs, json/yaml, gantt, salt, timing, chart, packet, others.
@@ -72,7 +86,7 @@ Exit criterion per diagram type: fidelity harness numbers, plus fixtures reviewe
 ## Risks
 
 - Scale: the Java code is very large; rely on the harness and strict Java-file mapping to keep it tractable.
-- `graphviz-pure` maturity; mitigated by pinning and the phase 3 spike. Fallback: Viz.js called from JS.
+- `graphviz-pure` maturity; mitigated by pinning and the spike (see above). Fallback: Viz.js called from JS.
 - Text metrics: Java measures with AWT fonts, so widths will differ slightly; layout drift is expected.
 - Preprocessor and standard library (9 MB in Java): wasm needs on-demand loading of stdlib includes.
 - Regex semantic differences between Java and Rust engines.
