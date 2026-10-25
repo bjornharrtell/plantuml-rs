@@ -373,11 +373,9 @@ impl LiveBoxes {
             match (position, last_message, event) {
                 (Some(_), Some(lm), Event::LifeEvent(le)) => {
                     if event.deals_with(p) {
-                        if le.message.is_none()
-                            || !le.message.is_some_and(|m| parallel_with(events, m, lm))
-                        {
-                            position = potential;
-                        } else if (le.is_activate() && seen_deactivate)
+                        let same_group = le.message.is_some_and(|m| parallel_with(events, m, lm));
+                        if !same_group
+                            || (le.is_activate() && seen_deactivate)
                             || (le.kind == LifeEventType::Deactivate && seen_activate)
                         {
                             position = potential;
