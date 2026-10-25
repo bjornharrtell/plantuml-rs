@@ -4,7 +4,9 @@ use super::svg::{PathSeg, SvgGraphics, SvgOption, TextAttrs};
 use crate::klimt::color::{HColor, TransparentFillBehavior};
 use crate::klimt::font::config::{FontConfiguration, FontStyle};
 use crate::klimt::font::StringBounder;
+use crate::klimt::geom::MinMax;
 use crate::klimt::shape::{Stencil, UHorizontalLine};
+use std::cell::RefCell;
 use std::rc::Rc;
 
 /// Translation applied to subsequent shapes (`UTranslate`).
@@ -276,6 +278,34 @@ impl UPath {
     pub fn is_empty(&self) -> bool {
         self.segments.is_empty()
     }
+    /// Bounding box of all control points (arcs count by their end point).
+    pub fn min_max(&self) -> Option<(f64, f64, f64, f64)> {
+        let mut r: Option<(f64, f64, f64, f64)> = None;
+        let mut add = |x: f64, y: f64| {
+            r = Some(match r {
+                None => (x, y, x, y),
+                Some((a, b, c, d)) => (a.min(x), b.min(y), c.max(x), d.max(y)),
+            });
+        };
+        for s in &self.segments {
+            match *s {
+                PathSeg::MoveTo(a, b) | PathSeg::LineTo(a, b) => add(a, b),
+                PathSeg::QuadTo(a, b, c, d) => {
+                    add(a, b);
+                    add(c, d);
+                }
+                PathSeg::CubicTo(a, b, c, d, e, f) => {
+                    add(a, b);
+                    add(c, d);
+                    add(e, f);
+                }
+                PathSeg::ArcTo(.., x, y) => add(x, y),
+                PathSeg::Close => {}
+            }
+        }
+        r
+    }
+
     pub fn translate(&self, dx: f64, dy: f64) -> Self {
         let segs = self
             .segments
@@ -327,6 +357,8 @@ pub enum UShape {
     Path(UPath),
     Text(Box<UText>),
     HLine(UHorizontalLine),
+    /// Invisible shape only extending the bounds (`UEmpty`).
+    Empty(f64, f64),
     Comment(String),
 }
 
@@ -363,6 +395,10 @@ pub struct UGraphic<'a> {
     param: Param,
     stencil: Option<Rc<StencilLayer>>,
     default_background: HColor,
+    /// When set, drawing only measures bounds (`LimitFinder`).
+    limit: Option<Rc<RefCell<MinMax>>>,
+    /// Whether tiles draw their background layer (`Context2D.isBackground`).
+    background_layer: bool,
 }
 
 /// Stencil installed by [`UGraphic::apply_stencil`] (`UGraphicStencil`).
@@ -389,7 +425,19 @@ impl<'a> UGraphic<'a> {
             },
             stencil: None,
             default_background: HColor::WHITE,
+            limit: None,
+            background_layer: false,
         }
+    }
+
+    pub fn is_background_layer(&self) -> bool {
+        self.background_layer
+    }
+
+    pub fn apply_background_layer(&mut self, background: bool) -> UGraphic<'_> {
+        let mut u = self.scope();
+        u.background_layer = background;
+        u
     }
 
     /// Background assumed when the current back color is transparent.
@@ -419,6 +467,8 @@ impl<'a> UGraphic<'a> {
             param: self.param.clone(),
             stencil: self.stencil.clone(),
             default_background: self.default_background.clone(),
+            limit: self.limit.clone(),
+            background_layer: self.background_layer,
         }
     }
 
@@ -472,9 +522,15 @@ impl<'a> UGraphic<'a> {
     }
 
     pub fn start_group(&mut self, attrs: &[(&str, String)]) {
+        if self.limit.is_some() {
+            return;
+        }
         self.svg.start_group(attrs);
     }
     pub fn close_group(&mut self) {
+        if self.limit.is_some() {
+            return;
+        }
         self.svg.close_group();
     }
 
@@ -514,8 +570,13 @@ impl<'a> UGraphic<'a> {
     /// Draws a shape at the current translation.
     pub fn draw(&mut self, shape: impl Into<UShape>) {
         let (x, y) = (self.translate.dx, self.translate.dy);
+        if let Some(limit) = self.limit.clone() {
+            self.limit_shape(&shape.into(), x, y, &limit);
+            return;
+        }
         self.svg.set_hidden(self.param.hidden);
         match shape.into() {
+            UShape::Empty(..) => {}
             UShape::Rectangle(r) => self.draw_rectangle(&r, x, y),
             UShape::Line(l) => self.draw_line(&l, x, y),
             UShape::Ellipse(e) => self.draw_ellipse(&e, x, y),
@@ -526,6 +587,62 @@ impl<'a> UGraphic<'a> {
             UShape::Comment(c) => self.svg.add_comment(&c),
         }
         self.svg.set_hidden(false);
+    }
+
+    fn limit_shape(&mut self, shape: &UShape, x: f64, y: f64, limit: &RefCell<MinMax>) {
+        let clip = self.param.clip;
+        let add = |px: f64, py: f64| {
+            if clip.is_none_or(|c| c.is_inside(px, py)) {
+                let mut m = limit.borrow_mut();
+                *m = m.add_point(px, py);
+            }
+        };
+        match shape {
+            UShape::Text(t) => {
+                let dim = self.bounder.calculate_dimension(&t.font.font(), &t.text);
+                let y = y - (dim.height - 1.5);
+                add(x, y);
+                add(x, y + dim.height);
+                add(x + dim.width, y);
+                add(x + dim.width, y + dim.height);
+            }
+            UShape::Line(l) => {
+                add(x, y);
+                add(x + l.dx, y + l.dy);
+            }
+            UShape::Ellipse(e) => {
+                add(x, y);
+                add(
+                    x + e.width - 1.0 + e.delta_shadow * 2.0,
+                    y + e.height - 1.0 + e.delta_shadow * 2.0,
+                );
+            }
+            UShape::Polygon(p) => {
+                if let Some((x1, y1, x2, y2)) = p.min_max() {
+                    add(x + x1 - 10.0, y + y1);
+                    add(x + x2 + 10.0, y + y2);
+                }
+            }
+            UShape::Path(p) => {
+                if let Some((x1, y1, x2, y2)) = p.min_max() {
+                    add(x + x1, y + y1);
+                    add(x + x2, y + y2);
+                }
+            }
+            UShape::Rectangle(r) => {
+                add(x - 1.0, y - 1.0);
+                add(
+                    x + r.width - 1.0 + r.delta_shadow * 2.0,
+                    y + r.height - 1.0 + r.delta_shadow * 2.0,
+                );
+            }
+            UShape::Empty(w, h) => {
+                add(x, y);
+                add(x + w, y + h);
+            }
+            UShape::HLine(l) => self.draw_hline(l),
+            UShape::Comment(_) => {}
+        }
     }
 
     fn draw_hline(&mut self, l: &UHorizontalLine) {
@@ -734,6 +851,27 @@ impl<'a> UGraphic<'a> {
     }
 }
 
+/// Bounds of what `f` draws (`LimitFinder`); `init_to_zero` starts the box at the origin.
+pub fn find_limits(
+    bounder: &dyn StringBounder,
+    init_to_zero: bool,
+    f: impl FnOnce(&mut UGraphic<'_>),
+) -> MinMax {
+    let mut scratch = SvgGraphics::new(0, SvgOption::default());
+    let limit = Rc::new(RefCell::new(MinMax::empty(init_to_zero)));
+    {
+        let mut ug = UGraphic::new(&mut scratch, bounder);
+        ug.limit = Some(limit.clone());
+        f(&mut ug);
+    }
+    let m = *limit.borrow();
+    if m.is_infinity() {
+        MinMax::empty(true)
+    } else {
+        m
+    }
+}
+
 /// Convenience: renders a drawing closure into an SVG string.
 pub fn render_svg(
     option: SvgOption,
@@ -889,6 +1027,31 @@ mod tests {
         });
         assert!(out.contains("linearGradient"), "{out}");
         assert!(out.contains(r#"class="x""#), "{out}");
+    }
+
+    #[test]
+    fn limits() {
+        let m = find_limits(&EmbeddedFontBounder, true, |ug| {
+            ug.apply_translate(UTranslate::new(5.0, 6.0))
+                .draw(URectangle::build(10.0, 20.0));
+            ug.draw(UShape::Empty(30.0, 40.0));
+            let mut p = UPath::new();
+            p.move_to(1.0, 1.0);
+            p.line_to(50.0, 2.0);
+            ug.apply_translate(UTranslate::dy(100.0)).draw(p);
+            ug.start_group(&[]);
+            ug.close_group();
+            let fc = FontConfiguration::black_blue_true(UFont::sans_serif(14));
+            ug.apply_translate(UTranslate::new(0.0, 200.0))
+                .draw(UText::new("abc", fc));
+            let mut c = ug.apply_clip(UClip::new(0.0, 0.0, 10.0, 10.0));
+            c.draw(ULine::new(500.0, 500.0));
+        });
+        assert_eq!(m.min_x, 0.0);
+        assert!(m.max_y >= 200.0 && m.max_y < 220.0, "{m:?}");
+        assert!(m.max_x >= 50.0);
+        let none = find_limits(&EmbeddedFontBounder, false, |_| {});
+        assert_eq!(none, MinMax::empty(true));
     }
 
     #[test]

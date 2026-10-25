@@ -110,6 +110,11 @@ impl MinMax {
         }
     }
 
+    /// True while no point was added to a box created with `empty(false)`.
+    pub fn is_infinity(&self) -> bool {
+        self.min_x == f64::MAX || self.max_x == -f64::MAX
+    }
+
     pub fn width(&self) -> f64 {
         self.max_x - self.min_x
     }
