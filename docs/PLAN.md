@@ -123,3 +123,4 @@ Exit criterion per diagram type: fidelity harness numbers, plus fixtures reviewe
 - Done: preprocessor (`tim`: comments, variables, expressions, functions/procedures, conditionals, loops, includes, subs, options, builtins), source block splitting (`preproc.rs`), `json.rs`, HSLuv. Vega SEQUENCE: 101/109.
 - Done: diagram registry (`psystem.rs`), packet diagrams (56/56 Vega fixtures identical), `skin` command and bundled skins.
 - Done: wasm package and playground (`site/`, `scripts/build-site.sh`, `.github/workflows/pages.yml`; enable Pages with source "GitHub Actions" in the repository settings).
+- Done: chart diagrams (`chart/`: axes, bar/line/area/scatter series, legend, annotations). Vega CHART: 35/35 identical.
