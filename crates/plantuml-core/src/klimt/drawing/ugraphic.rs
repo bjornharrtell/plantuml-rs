@@ -392,6 +392,7 @@ struct SvgHandle(Rc<RefCell<SvgGraphics>>);
 
 macro_rules! svg_forward {
     ($($name:ident($($arg:ident: $ty:ty),*) $(-> $ret:ty)?;)*) => {
+        #[allow(clippy::too_many_arguments)]
         impl SvgHandle {
             $(fn $name(&self, $($arg: $ty),*) $(-> $ret)? {
                 self.0.borrow_mut().$name($($arg),*)
