@@ -186,6 +186,19 @@ impl SkinParam {
         }
     }
 
+    pub fn circled_character_radius(&self) -> f64 {
+        let v = self.as_int("circledcharacterradius", -1);
+        if v == -1 {
+            f64::from(self.as_int("circledcharacterfontsize", 17) / 3 + 6)
+        } else {
+            f64::from(v)
+        }
+    }
+
+    pub fn class_attribute_icon_size(&self) -> i32 {
+        self.as_int("classattributeiconsize", 10)
+    }
+
     pub fn strict_uml_style(&self) -> bool {
         self.value_is("style", "strictuml")
     }
