@@ -26,6 +26,8 @@ for dp, _, fs in sorted(os.walk(ROOT)):
         ref = p[:-5] + ".svg"
         if not os.path.exists(ref) or FILTER not in p:
             continue
+        mt = re.search(r'data-diagram-type="([^"]+)"', open(ref, encoding="utf-8").read())
+        top = mt.group(1) if mt else "?"
         src = open(p, encoding="utf-8").read()
         m = re.search(r"^@start", src, re.M)
         if not m:
@@ -34,9 +36,9 @@ for dp, _, fs in sorted(os.walk(ROOT)):
         out_fmt = re.search(r"^output:\s*(\S+)", head, re.M)
         if out_fmt and out_fmt.group(1) != "svg":
             continue
+        if os.environ.get("TYPE") and os.environ["TYPE"] != top:
+            continue
         r = subprocess.run([CLI, "-"], input=src[m.start():].encode(), capture_output=True, timeout=30)
-        mt = re.search(r'data-diagram-type="([^"]+)"', open(ref, encoding="utf-8").read())
-        top = mt.group(1) if mt else "?"
         stats = results.setdefault(top, [0, 0, 0, []])
         stats[0] += 1
         if r.returncode != 0:

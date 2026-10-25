@@ -4,6 +4,7 @@ pub mod communication;
 pub mod lifeevent;
 pub mod living;
 pub mod playing;
+pub mod simple;
 
 use super::model::{Event, Participant};
 use crate::klimt::drawing::ugraphic::UGraphic;

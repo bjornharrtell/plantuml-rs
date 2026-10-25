@@ -4,6 +4,7 @@
 use super::communication::CommunicationTile;
 use super::lifeevent::LifeEventTile;
 use super::living::{LivingSpace, LivingSpaces};
+use super::simple::{DelayTile, DividerTile, HSpaceTile, NewpageTile};
 use super::{Bordered, Model, Tile, TileArguments, YGauge};
 use crate::klimt::drawing::ugraphic::{find_limits, UGraphic, UTranslate};
 use crate::klimt::font::{Dimension, StringBounder};
@@ -23,6 +24,14 @@ fn build_one(args: &Rc<TileArguments>, event: usize, current_y: &YGauge) -> Vec<
         }
         Event::LifeEvent(_) => {
             vec![LifeEventTile::new(args.clone(), event, current_y) as Rc<dyn Tile>]
+        }
+        Event::Divider { .. } => {
+            vec![DividerTile::new(args.clone(), event, current_y) as Rc<dyn Tile>]
+        }
+        Event::Delay { .. } => vec![DelayTile::new(args.clone(), event, current_y) as Rc<dyn Tile>],
+        Event::HSpace(_) => vec![HSpaceTile::new(args.clone(), event, current_y) as Rc<dyn Tile>],
+        Event::Newpage { .. } => {
+            vec![NewpageTile::new(args.clone(), event, current_y) as Rc<dyn Tile>]
         }
         other => {
             log::warn!("TileBuilder: ignoring {:?}", std::mem::discriminant(other));

@@ -811,6 +811,98 @@ fn execute_return(
     CommandExecutionResult::ok()
 }
 
+fn layout_commands() -> Vec<Cmd> {
+    vec![
+        simple(
+            IRegex::concat(vec![
+                IRegex::start(),
+                IRegex::leaf("=="),
+                IRegex::space_zero_or_more(),
+                IRegex::named("LABEL", "(.*)"),
+                IRegex::space_zero_or_more(),
+                IRegex::leaf("=="),
+                IRegex::end(),
+            ]),
+            |d, _, arg| {
+                d.divider(Display::with_newlines(arg.get("LABEL", 0)));
+                CommandExecutionResult::ok()
+            },
+        ),
+        simple(
+            IRegex::concat(vec![
+                IRegex::start(),
+                IRegex::leaf(r"\|\|"),
+                IRegex::named("VALUE", r"(\d+)?"),
+                IRegex::leaf(r"\|+"),
+                IRegex::end(),
+            ]),
+            |d, _, arg| {
+                match arg.get("VALUE", 0).filter(|v| !v.is_empty()) {
+                    Some(v) => d.hspace(v.parse().unwrap_or(25)),
+                    None => d.hspace(25),
+                }
+                CommandExecutionResult::ok()
+            },
+        ),
+        simple(
+            IRegex::concat(vec![
+                IRegex::start(),
+                IRegex::leaf("(?:\\.{3}|\u{2026})"),
+                IRegex::optional(IRegex::named("LABEL", "(.*)(?:\\.{3}|\u{2026})")),
+                IRegex::end(),
+            ]),
+            |d, _, arg| {
+                let strings = match arg.get("LABEL", 0) {
+                    None => Display::empty(),
+                    Some(l) => Display::with_newlines(Some(l)),
+                };
+                d.delay(strings);
+                CommandExecutionResult::ok()
+            },
+        ),
+        simple(
+            IRegex::concat(vec![
+                IRegex::start(),
+                IRegex::leaf("ignore"),
+                IRegex::space_zero_or_more(),
+                IRegex::leaf("newpage"),
+                IRegex::end(),
+            ]),
+            |d, _, _| {
+                d.ignore_newpage();
+                CommandExecutionResult::ok()
+            },
+        ),
+        simple(
+            IRegex::concat(vec![
+                IRegex::start(),
+                IRegex::leaf("@?"),
+                IRegex::leaf("newpage"),
+                IRegex::optional(IRegex::group(vec![
+                    IRegex::leaf("(?:[%s]*:[%s]*|[%s]+)"),
+                    IRegex::named("LABEL", "(.*[%pLN_.].*)"),
+                ])),
+                IRegex::end(),
+            ]),
+            |d, loc, arg| {
+                let strings = match arg.get("LABEL", 0) {
+                    None => Display::null(),
+                    Some(l) => Display::with_newlines(Some(l)),
+                };
+                d.newpage(crate::klimt::creole::display::DisplayPositioned {
+                    location: loc,
+                    ..crate::klimt::creole::display::DisplayPositioned::single(
+                        strings,
+                        Some(crate::klimt::geom::HorizontalAlignment::Center),
+                        Some(crate::klimt::geom::VerticalAlignment::Top),
+                    )
+                });
+                CommandExecutionResult::ok()
+            },
+        ),
+    ]
+}
+
 /// All commands of the sequence diagram, in matching order (`initCommandsList`, partial).
 pub fn commands() -> Vec<Cmd> {
     let mut cmds: Vec<Cmd> = Vec::new();
@@ -821,6 +913,7 @@ pub fn commands() -> Vec<Cmd> {
         |d, loc, arg, _: ParserPass| execute_arrow(d, loc, arg),
     )));
     cmds.extend(lifeline_commands());
+    cmds.extend(layout_commands());
     cmds.push(autonumber_command());
     cmds
 }

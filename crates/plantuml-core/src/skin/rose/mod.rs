@@ -4,6 +4,7 @@ pub mod arrow;
 pub mod line;
 pub mod misc;
 pub mod participant;
+pub mod text;
 
 use crate::klimt::creole::display::Display;
 use crate::klimt::geom::HorizontalAlignment;
@@ -18,6 +19,7 @@ use arrow::ComponentRoseArrow;
 use line::ComponentRoseLine;
 use misc::{ComponentRoseActiveLine, ComponentRoseDelayLine, ComponentRoseDestroy};
 use participant::ComponentRoseParticipant;
+use text::{ComponentRoseDelayText, ComponentRoseDivider, ComponentRoseNewpage};
 
 /// Component factory of the default skin (`Rose`).
 pub struct Rose;
@@ -134,6 +136,17 @@ impl Rose {
             ComponentType::ActivationBoxOpenOpen => {
                 Rc::new(ComponentRoseActiveLine::new(style, false, false, display))
             }
+            ComponentType::Divider => Rc::new(ComponentRoseDivider::new(
+                style,
+                display.expect("divider text"),
+                skin.clone(),
+            )),
+            ComponentType::DelayText => Rc::new(ComponentRoseDelayText::new(
+                style,
+                display.expect("delay text"),
+                skin.clone(),
+            )),
+            ComponentType::Newpage => Rc::new(ComponentRoseNewpage::new(style, skin.clone())),
             ComponentType::DelayLine => Rc::new(ComponentRoseDelayLine::new(style, skin.clone())),
             ComponentType::Destroy => Rc::new(ComponentRoseDestroy::new(style, skin.clone())),
             other => unimplemented!("component {other:?}"),
