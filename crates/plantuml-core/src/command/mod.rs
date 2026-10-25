@@ -535,6 +535,11 @@ pub struct UmlSource {
 }
 
 impl UmlSource {
+    /// Builds a source from already located lines.
+    pub fn from_lines(lines: Vec<StringLocated>) -> Self {
+        Self { lines }
+    }
+
     /// Builds a source from text; lines are numbered from 0 like Java's locations.
     pub fn from_text(text: &str) -> Self {
         Self {

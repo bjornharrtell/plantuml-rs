@@ -5,7 +5,9 @@ pub mod command;
 pub mod decoration;
 pub mod diagram;
 pub mod export;
+pub mod json;
 pub mod klimt;
+pub mod preproc;
 pub mod real;
 pub mod regex;
 pub mod sequencediagram;
@@ -15,7 +17,11 @@ pub mod string_utils;
 pub mod style;
 pub mod svek;
 pub mod text;
+pub mod tim;
 pub mod url;
+
+/// Version reported by `%version()`.
+pub const VERSION: &str = "1.2026.0";
 
 use std::fmt;
 
@@ -54,8 +60,16 @@ fn diagram_kind(source: &str) -> Option<&str> {
     Some(&rest[..end])
 }
 
-/// Renders the first diagram in `source` to SVG.
+/// Renders the first diagram in `source` to SVG; nothing outside the source can be included.
 pub fn render(source: &str) -> Result<String, Error> {
+    render_with(source, std::rc::Rc::new(crate::tim::resolver::NoResolver))
+}
+
+/// Renders the first diagram in `source`, resolving includes and themes with `resolver`.
+pub fn render_with(
+    source: &str,
+    resolver: std::rc::Rc<dyn crate::tim::resolver::Resolver>,
+) -> Result<String, Error> {
     use crate::command::{create_system, UmlSource};
     use crate::export::{export_svg, ExportOptions};
     use crate::klimt::font::TableFontBounder;
@@ -63,30 +77,50 @@ pub fn render(source: &str) -> Result<String, Error> {
     use crate::sequencediagram::teoz::playing::SequenceBlock;
     use crate::sequencediagram::{commands, SequenceDiagram};
     use crate::style::Margins;
+    use crate::tim::context::OptionKey;
+    use crate::tim::loader::{preprocess, Defines};
     use std::rc::Rc;
 
-    let kind = diagram_kind(source).ok_or(Error::NoDiagram)?;
+    let blocks = crate::preproc::split_blocks(source, &[]);
+    let block = blocks.into_iter().next().ok_or(Error::NoDiagram)?;
+    let first_line = block
+        .first()
+        .map(|l| l.string().to_string())
+        .unwrap_or_default();
+    let kind = diagram_kind(&first_line)
+        .ok_or(Error::NoDiagram)?
+        .to_string();
     log::debug!("diagram kind: {kind}");
     if !(kind.is_empty() || kind == "uml") {
-        return Err(Error::Unsupported(kind.to_string()));
+        return Err(Error::Unsupported(kind));
     }
-    let start = source
-        .lines()
-        .position(|l| l.trim_start().starts_with("@start"))
-        .ok_or(Error::NoDiagram)?;
-    let text: String = source.lines().skip(start).collect::<Vec<_>>().join("\n");
-    let source = UmlSource::from_text(&text);
-    let diagram = create_system(
+    let pre = preprocess(
+        block,
+        &Defines::new(),
+        resolver,
+        std::collections::HashMap::new(),
+    );
+    if let Some(e) = pre.error {
+        let line = e.location.location().map_or(0, |l| l.position);
+        return Err(Error::Syntax(format!("{} (line {line})", e.message)));
+    }
+    let source = UmlSource::from_lines(pre.lines);
+    let mut diagram = create_system(
         &commands::commands(),
         SequenceDiagram::from_source(source.clone()),
         &source,
     )
     .map_err(|e| Error::Syntax(e.to_string()))?;
+    for w in &pre.artifact.warnings {
+        diagram.base.add_warning(w.clone());
+    }
     let sb: Rc<dyn crate::klimt::font::StringBounder> = Rc::new(TableFontBounder);
     let skin = Rc::new(diagram.base.skin_param.clone());
     let block = SequenceBlock::new(&diagram, sb.clone(), skin.clone());
     let mut opts = ExportOptions::new(&skin, diagram.base.diagram_type, Margins::same(5.0));
     opts.back_color = diagram.base.calculate_back_color();
+    opts.svg_title = pre.artifact.options.get(&OptionKey::SvgTitle).cloned();
+    opts.svg_desc = pre.artifact.options.get(&OptionKey::SvgDesc).cloned();
     let block: Rc<dyn TextBlock> = Rc::new(block);
     let block = crate::chrome::create(block, &diagram.base, &skin, &diagram.base.title);
     Ok(export_svg(block.as_ref(), sb, &opts))

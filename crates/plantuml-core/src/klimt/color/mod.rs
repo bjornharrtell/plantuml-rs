@@ -1,6 +1,7 @@
 //! Colors, ported from `klimt/color` (`HColorSet`, `HColorSimple`, `HSLColor`, ...).
 
 pub mod colors;
+pub mod husl;
 mod named;
 pub mod parser;
 
@@ -199,6 +200,19 @@ impl HColor {
             }
             _ => String::new(),
         }
+    }
+
+    /// Channel-wise inversion (`reverse`).
+    pub fn reverse(&self) -> HColor {
+        let c = self.rgba();
+        HColor::simple(Rgba::rgb(255 - c.r, 255 - c.g, 255 - c.b))
+    }
+
+    /// Lightness inversion in HSLuv space (`reverseHsluv`).
+    pub fn reverse_hsluv(&self) -> HColor {
+        let c = self.rgba();
+        let (r, g, b) = husl::reverse_hsluv(c.r, c.g, c.b);
+        HColor::simple(Rgba::rgb(r, g, b))
     }
 
     pub fn lighten(&self, ratio: i32) -> HColor {

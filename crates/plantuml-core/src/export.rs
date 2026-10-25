@@ -22,6 +22,8 @@ pub struct ExportOptions {
     pub preserve_aspect_ratio: String,
     pub dimension_style: bool,
     pub length_adjust: LengthAdjust,
+    pub svg_title: Option<String>,
+    pub svg_desc: Option<String>,
 }
 
 impl ExportOptions {
@@ -35,6 +37,8 @@ impl ExportOptions {
             diagram_type: Some(diagram_type),
             preserve_aspect_ratio: skin.preserve_aspect_ratio(),
             dimension_style: skin.svg_dimension_style(),
+            svg_title: None,
+            svg_desc: None,
             length_adjust: match skin.get_value("lengthAdjust") {
                 Some(v) if v.eq_ignore_ascii_case("spacingAndGlyphs") => {
                     LengthAdjust::SpacingAndGlyphs
@@ -77,6 +81,8 @@ pub fn export_svg(
         length_adjust: opts.length_adjust,
         preserve_aspect_ratio: opts.preserve_aspect_ratio.clone(),
         dimension_style: opts.dimension_style,
+        title: opts.svg_title.clone(),
+        desc: opts.svg_desc.clone(),
         ..SvgOption::default()
     };
     if let Some(t) = opts.diagram_type {

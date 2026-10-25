@@ -95,6 +95,7 @@ pub struct SvgOption {
     pub preserve_aspect_ratio: String,
     pub dimension_style: bool,
     pub title: Option<String>,
+    pub desc: Option<String>,
     pub root_attributes: Vec<(String, String)>,
 }
 
@@ -110,6 +111,7 @@ impl Default for SvgOption {
             preserve_aspect_ratio: "none".into(),
             dimension_style: true,
             title: None,
+            desc: None,
             root_attributes: Vec::new(),
         }
     }
@@ -174,6 +176,11 @@ impl SvgGraphics {
         root.set("version", "1.1");
         if let Some(t) = &option.title {
             let mut n = XmlNode::new("title");
+            n.set_text(t);
+            root.push(n);
+        }
+        if let Some(t) = &option.desc {
+            let mut n = XmlNode::new("desc");
             n.set_text(t);
             root.push(n);
         }
