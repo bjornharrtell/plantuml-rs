@@ -9,7 +9,7 @@ pub mod member;
 
 pub use bodier::Bodier;
 pub use entity::Entity;
-pub use link::{Link, LinkArg};
+pub use link::{Link, LinkArg, LinkConstraint};
 pub use member::Member;
 
 use crate::klimt::color::colors::Colors;

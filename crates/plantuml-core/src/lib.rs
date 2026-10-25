@@ -4,6 +4,7 @@ pub mod chart;
 pub mod abel;
 pub mod chrome;
 pub mod command;
+pub mod cucadiagram;
 pub mod decoration;
 pub mod diagram;
 pub mod export;
