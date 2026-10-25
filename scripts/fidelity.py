@@ -6,6 +6,7 @@ import svgdiff
 ROOT = os.environ.get("VEGA_DIR", "/home/bjorn/code/plantuml/src/test/resources/vega")
 PUML = sys.argv[1]  # renderer command reading a diagram on stdin
 TOL = float(os.environ.get("SVG_TOL", "0.5"))  # coordinate tolerance in pixels
+LAYOUT_TOL = float(os.environ.get("LAYOUT_TOL", "0.03"))  # relative to the canvas
 out = []
 for dp, _, fs in os.walk(ROOT):
     for f in fs:
@@ -50,6 +51,15 @@ for dp, _, fs in os.walk(ROOT):
             except Exception:
                 return None
 
+        def layout_match(ref_text, got_text):
+            """Share of reference elements whose relative position matches, font-agnostic."""
+            try:
+                share, mean = svgdiff.layout(
+                    ET.fromstring(ref_text), ET.fromstring(got_text), LAYOUT_TOL)
+                return share, mean
+            except Exception:
+                return None, None
+
         tr, tg = texts(ref), texts(got)
         inter = sum((tr & tg).values())
         uni = sum((tr | tg).values()) or 1
@@ -57,22 +67,26 @@ for dp, _, fs in os.walk(ROOT):
         wr = hr = None
         if dr and dg and dr[0] and dr[1]:
             wr, hr = dg[0] / dr[0], dg[1] / dr[1]
+        lay = layout_match(ref, got) if ok else (None, None)
         out.append(dict(file=os.path.relpath(p, ROOT), type=typ, ok=ok,
                         text_jaccard=inter / uni, wr=wr, hr=hr,
-                        diffs=struct_diffs(ref, got) if ok else None))
+                        diffs=struct_diffs(ref, got) if ok else None,
+                        layout=lay[0], layout_error=lay[1]))
 
 json.dump(out, open(os.environ.get("FIDELITY_JSON", "fidelity.json"), "w"))
 by = collections.defaultdict(list)
 for o in out:
     by[o["type"]].append(o)
-print("type n ok% text_jaccard_mean size_within20% identical%")
+print("type n ok% text_jaccard_mean size_within20% layout_mean identical%")
 for k, v in sorted(by.items(), key=lambda kv: -len(kv[1])):
     n = len(v)
     ok = sum(o["ok"] for o in v) / n
     tj = sum(o["text_jaccard"] for o in v) / n
     sz = sum(1 for o in v if o["wr"] and abs(o["wr"] - 1) < .2 and abs(o["hr"] - 1) < .2) / n
     ident = sum(1 for o in v if o["diffs"] == 0) / n
-    print(f"{k:14s} {n:4d} {ok*100:5.0f} {tj:5.2f} {sz*100:5.0f} {ident*100:5.0f}")
+    lay = sum(o["layout"] or 0 for o in v) / n
+    print(f"{k:14s} {n:4d} {ok*100:5.0f} {tj:5.2f} {sz*100:5.0f} {lay:5.2f} {ident*100:5.0f}")
 n = len(out)
 print("TOTAL", n, sum(o["ok"] for o in out) / n, sum(o["text_jaccard"] for o in out) / n,
+      f"layout={sum(o['layout'] or 0 for o in out) / n:.2f}",
       f"identical={sum(1 for o in out if o['diffs'] == 0)}")

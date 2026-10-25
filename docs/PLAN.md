@@ -8,7 +8,7 @@ as a faithful port of [plantuml/plantuml](https://github.com/plantuml/plantuml).
 | Topic | Decision |
 |---|---|
 | Approach | Faithful port of the Java code by default, so behavior matches the Vega fixtures. Re-implement idiomatically only where the Java is a workaround for Java or its dependencies (Graphviz process and SVG round trip, TeaVM/Smetana/Elk paths, legacy strategies, AWT/image plumbing) or an infrastructure-heavy area (stdlib/theme loading, Creole, activity). Judge by behavior and the fixtures, not by the Java structure |
-| Fidelity | Visually identical to Java's SVG; text width differences accepted (no byte-exact goal) |
+| Fidelity | Same diagram, not same file: content, arrangement and styling match Java; text metrics, glyph shapes and exact coordinates do not. See [Fidelity target](#fidelity-target) |
 | Output | SVG only. No PNG, PDF, EPS, AWT, GUI, servers |
 | Layout | [`graphviz-pure`](https://github.com/graphviz-pure/graphviz-pure) (pure-Rust Graphviz 16.1.0 port, wasm-capable, EPL-2.0). Pin the version. Java's Smetana is not ported |
 | Text metrics | Embedded font metrics only (deterministic, no browser canvas) |
@@ -17,6 +17,39 @@ as a faithful port of [plantuml/plantuml](https://github.com/plantuml/plantuml).
 | C4 models | A desired supported type, and not a diagram type of its own: C4-PlantUML is a stdlib macro library (`!include <C4/C4_Container>`) that expands to DESCRIPTION (component) statements. Supporting C4 therefore means bundled stdlib includes plus the DESCRIPTION diagram type |
 | Regex | `fancy-regex` (Java patterns use lookaround); port `ubrex` only if needed |
 | Logging | `log` facade only (see `AGENTS.md`) |
+
+## Fidelity target
+
+The goal is the same diagram, not the same file. A ported type is accepted when a reader cannot tell the two
+renderings apart at a glance and the harness scores below agree. Byte, element and pixel identity are explicitly
+not goals; do not tune code to close text-metric gaps.
+
+Must match:
+
+- content: the same entities, members, labels, stereotypes, links and decorations, with the same text;
+- arrangement: the same relative layout, group nesting, reading order and label placement;
+- styling: the same colours, line styles, font family/weights and font sizes.
+
+Accepted differences, not defects:
+
+- text metrics and glyph shapes: Java measures strings with AWT fonts, the port uses embedded metrics
+  (`klimt/font`), so widths differ and canvas sizes, boxes and label positions drift with them;
+- absolute coordinates, canvas size, element order and attribute formatting in the SVG;
+- whitespace inside generated paths, and decimal rounding.
+
+Measured, not eyeballed (`scripts/fidelity.py`):
+
+| Metric | Meaning | Target |
+|---|---|---|
+| `ok%` | renderer exits 0 with an `<svg` document | 100%, or a documented per-type exception list |
+| `text_jaccard` | overlap of the text contents with Java's SVG | >= 0.95 |
+| `layout_mean` | share of reference elements that have the same tag, class and text within 3% of the canvas diagonal (`svgdiff.layout`, `LAYOUT_TOL`) | >= 0.90 |
+| `size_within20%` | width and height ratio | informational: font metrics alone move it |
+| `identical%` | full structural diff at 0.5 px (`svgdiff.differences`, `SVG_TOL`) | diagnostic only, never a gate |
+| visual review | the type's fixtures side by side with Java's SVG | sign off and record the accepted differences |
+
+Known exceptions to the layout target: fixtures using `!pragma layout smetana` (or another non-Graphviz layout mode)
+cannot match in arrangement by construction; they are excluded and listed per type.
 
 ## Source analysis (Java, `/home/bjorn/code/plantuml`)
 
@@ -75,8 +108,9 @@ diagram type) so that each Rust file maps to a Java file and can be reviewed aga
 
 1. **Scaffold**: workspace, CI (fmt, clippy, tests, `wasm32-unknown-unknown` build), coverage gate (80% patch).
 2. **Fidelity harness**: `scripts/fidelity.py <renderer>` runs the renderer (diagram on stdin, SVG on stdout) over
-   the Vega fixtures (`VEGA_DIR`) and reports, per diagram type, render success, label overlap and size ratio against
-   Java's expected SVG. Later add pixel diff. Commit a baseline.
+   the Vega fixtures (`VEGA_DIR`) and reports, per diagram type: render success, text overlap, relative element
+   placement (`layout_mean`), size ratio and the structural diff count. Acceptance is defined in
+   [Fidelity target](#fidelity-target); pixel and byte identity are not goals.
 3. **Foundations**: line/block splitter, preprocessor (`tim`: variables, functions, `!include`, `!theme`),
    colours, skinparam/style cascade, creole text, `klimt` shapes + SVG writer, font metrics trait and embedded fonts.
    (The `graphviz-pure` spike is done, see above.)
@@ -87,7 +121,9 @@ diagram type) so that each Rust file maps to a Java file and can be reviewed aga
 7. **Self-layout types**, in order of use: sequence, activity-beta, mindmap, wbs, json/yaml, gantt, salt, timing, chart, packet, others.
 8. **wasm packaging**: size budget, npm package, demo page, size/speed comparison against the TeaVM build.
 
-Exit criterion per diagram type: fidelity harness numbers, plus fixtures reviewed visually side by side.
+Exit criterion per diagram type: `ok%` at 100% (or a documented exception list), `text_jaccard` >= 0.95 and
+`layout_mean` >= 0.90 on that type's Vega fixtures, plus a side-by-side review that records the accepted differences.
+`identical%` is reported for regression tracking but is not a gate.
 
 ## C4 model support
 
@@ -114,17 +150,22 @@ What that needs, and where the port stands:
 | Stereotype styles, creole headings, legend chrome | present (`style`, `klimt/creole`, `chrome.rs`), so the C4 look is mostly a matter of the DESCRIPTION image |
 
 Exit criterion for C4: the canonical samples (`samples/` in C4-PlantUML: context, container, component, deployment,
-dynamic) render and match Java within `svgdiff.py` tolerance; `Person`, `System`, `Container`, `Component`,
-`*_Boundary`, `Rel` first, then sprites and `$baseShape` variants.
+dynamic) render, reach `text_jaccard` >= 0.95 and `layout_mean` >= 0.90 against the generated Java references, and are
+reviewed side by side; `Person`, `System`, `Container`, `Component`, `*_Boundary`, `Rel` first, then sprites and
+`$baseShape` variants.
 
 Oracle: no C4 sources exist in the Vega fixtures (0 of 431 reference C4), so C4 needs generated references: render the
-samples with the Java jar built from base commit `e6c3adc` and compare with `scripts/svgdiff.py`.
+samples with the Java jar built from base commit `e6c3adc` and score them with `scripts/fidelity.py` (or
+`scripts/svgdiff.py layout` for one pair).
 
 ## Risks
 
 - Scale: the Java code is very large; rely on the harness and strict Java-file mapping to keep it tractable.
 - `graphviz-pure` maturity; mitigated by pinning and the spike (see above). Fallback: Viz.js called from JS.
-- Text metrics: Java measures with AWT fonts, so widths will differ slightly; layout drift is expected.
+- Text metrics: Java measures with AWT fonts, so string widths differ and boxes, canvases and label positions follow.
+  This is an accepted difference (see [Fidelity target](#fidelity-target)), not a bug to chase.
+- Chasing exact SVG equality: element order, attribute formatting and coordinates differ by construction; `identical%`
+  is a regression signal only.
 - Preprocessor and standard library (9 MB in Java): wasm needs on-demand loading of stdlib includes.
 - Regex semantic differences between Java and Rust engines.
 - Licensing: ported code derives from PlantUML under its MIT option; `graphviz-pure` is EPL-2.0 (dependency).
@@ -145,6 +186,9 @@ samples with the Java jar built from base commit `e6c3adc` and compare with `scr
 - Class-diagram vertical slice: 4-6 weeks.
 
 ## Progress
+
+Fixture counts in this log are historical. "Identical" means the exact-structure diagnostic matched byte for byte at the
+time; it is a regression signal, not the acceptance bar (see [Fidelity target](#fidelity-target)).
 
 - Done: colors, embedded font metrics (PlantUML's own Liberation Sans tables, `metrics.bin`), XML writer, SVG backend (`klimt/drawing`).
 - Done: `UGraphic` context, shapes (rect, line, ellipse, polygon, path, text) and SVG drivers (`klimt/drawing/ugraphic.rs`).
@@ -169,27 +213,32 @@ samples with the Java jar built from base commit `e6c3adc` and compare with `scr
 
 ## Measured fidelity (2026-10-25)
 
-graphviz-pure stands in for `dot`; `!pragma layout smetana` fixtures are unmatchable by construction.
+graphviz-pure stands in for `dot`. Scored against the targets in [Fidelity target](#fidelity-target);
+`!pragma layout smetana` fixtures are excluded from the layout target by construction.
 
-| type | n | renders | text jaccard | size within 20% | structurally identical |
-|---|---|---|---|---|---|
-| SEQUENCE | 149 | 97% | 0.95 | 95% | 93% |
-| PACKET | 57 | 100% | 1.00 | 100% | 100% |
-| CHART | 35 | 100% | 1.00 | 100% | 100% |
-| CLASS | 53 | 62% (33; 12 of them empty) | 0.30 | 21% | 0% |
-| STATE | 48 | 0% | - | - | 0% |
-| ACTIVITY | 36 | 0% | - | - | 0% |
-| GANTT | 16 | 0% | - | - | 0% |
-| SALT | 10 | 0% | - | - | 0% |
-| WBS | 7 | 0% | - | - | 0% |
-| DESCRIPTION | 6 | 0% | - | - | 0% |
-| MINDMAP, CHEN_EER | 4 each | 0% | - | - | 0% |
-| TIMING | 3 | 0% | - | - | 0% |
-| BPM, JSON, YAML | 1 each | 0% | - | - | 0% |
+| type | n | ok% | text jaccard | layout | exact structure (diagnostic) | meets target |
+|---|---|---|---|---|---|---|
+| SEQUENCE | 149 | 97% | 0.95 | 0.94 | 93% | yes |
+| PACKET | 57 | 100% | 1.00 | 1.00 | 100% | yes |
+| CHART | 35 | 100% | 1.00 | 1.00 | 100% | yes |
+| CLASS | 53 | 62% (33, 12 empty) | 0.39 | 0.11 | 0% | no |
+| STATE | 48 | 0% | - | 0.00 | 0% | no |
+| ACTIVITY | 36 | 0% | - | 0.00 | 0% | no |
+| GANTT | 16 | 0% | - | 0.00 | 0% | no |
+| SALT | 10 | 0% | - | 0.00 | 0% | no |
+| WBS | 7 | 0% | - | 0.00 | 0% | no |
+| DESCRIPTION | 6 | 0% | - | 0.00 | 0% | no |
+| MINDMAP, CHEN_EER | 4 each | 0% | - | 0.00 | 0% | no |
+| TIMING | 3 | 0% | - | 0.00 | 0% | no |
+| BPM, JSON, YAML | 1 each | 0% | - | 0.00 | 0% | no |
 
-All 431 fixtures: 58% render, 230 (53%) structurally identical. CLASS renders 33 of 53 after `set separator`, `hide`/`show`, direction, `package`/`namespace` and `!pragma`; 12 of those are empty because grouped entities are not laid out yet, 20 still fail (association classes, notes on members, object/description diagrams).
+All 431 fixtures: 62% render, `layout_mean` 0.55, text jaccard 0.59, 230 exact structures. Sequence, packet and chart
+meet the target. CLASS renders 33 of 53 after `set separator`, `hide`/`show`, direction, `package`/`namespace` and
+`!pragma`; 12 of those are empty because grouped entities are not laid out yet, and 20 still fail (association
+classes, notes on members, object/description diagrams).
 
-Columns: `renders` = exit 0 with an `<svg` document; `text jaccard` = overlap of the text contents; `size within 20%` = both width and height; `structurally identical` = `scripts/svgdiff.py` reports no difference with 0.5 px coordinate tolerance (`SVG_TOL`).
+`size_within20%` is reported per fixture in the JSON but not tabulated here: it moves with font metrics and is not a
+signal of correctness.
 
 Reproduce:
 
