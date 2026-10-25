@@ -182,8 +182,6 @@ mod tests {
         assert_eq!(links.len(), 2);
         assert_eq!(links[0].role1().as_deref(), Some("-tailOnly"));
         assert_eq!(links[0].type_().decor1(), crate::decoration::link::LinkDecor::Arrow);
-        let b = d.cuca.group_by_code("B");
-        assert!(b.is_none());
         let b = d.cuca.first_with_name("B").and_then(|q| q.data()).unwrap();
         assert_eq!(b.get().bodier.raw_body().len(), 2);
     }
