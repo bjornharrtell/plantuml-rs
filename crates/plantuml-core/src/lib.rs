@@ -261,6 +261,23 @@ mod tests {
     }
 
     #[test]
+    fn renders_a_class_diagram() {
+        let svg = render(
+            "@startuml\nclass A {\n  + int x\n  - run()\n}\nclass B\nA <|-- B : extends\n@enduml",
+        )
+        .unwrap();
+        assert!(svg.contains("data-diagram-type=\"CLASS\""));
+        assert!(svg.contains("<!--class A-->") && svg.contains("<!--class B-->"));
+        assert!(svg.contains(">A</text>") && svg.contains(">B</text>"));
+        assert!(svg.contains(">int x</text>") && svg.contains(">run()</text>"));
+        assert!(svg.contains("data-visibility-modifier=\"PUBLIC_FIELD\""));
+        assert!(svg.contains("data-visibility-modifier=\"PRIVATE_METHOD\""));
+        assert!(svg.contains("data-link-type=\"extension\""));
+        assert!(svg.contains(">extends</text>"));
+        assert!(svg.contains("<polygon"), "arrow end of the extension link");
+    }
+
+    #[test]
     fn renders_notes() {
         let svg = render(
             "@startuml\nA -> B\nnote left of A: l\nnote right of B #red: r\nnote over A: o\n\
