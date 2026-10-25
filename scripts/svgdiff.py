@@ -51,12 +51,18 @@ def walk(a, b, path, tol, out):
         out.append(f"{path}: {len(ca)} children in ref, {len(cb)} in got")
 
 
+def differences(ref_root, got_root, tol=0.002):
+    """Structural differences between two SVG element trees; empty means identical."""
+    out = []
+    walk(ref_root, got_root, "", tol, out)
+    return out
+
+
 def main():
     ref = ET.parse(sys.argv[1]).getroot()
     got = ET.parse(sys.argv[2]).getroot()
     tol = float(sys.argv[3]) if len(sys.argv) > 3 else 0.002
-    out = []
-    walk(ref, got, "", tol, out)
+    out = differences(ref, got, tol)
     for line in out[:40]:
         print(line)
     print("IDENTICAL" if not out else f"{len(out)} differences")

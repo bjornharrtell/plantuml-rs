@@ -127,7 +127,37 @@ Exit criterion per diagram type: fidelity harness numbers, plus fixtures reviewe
 - Done: diagram registry (`psystem.rs`), packet diagrams (56/56 Vega fixtures identical), `skin` command and bundled skins.
 - Done: wasm package and playground (`site/`, `scripts/build-site.sh`, `.github/workflows/pages.yml`; enable Pages with source "GitHub Actions" in the repository settings).
 - Done: chart diagrams (`chart/`: axes, bar/line/area/scatter series, legend, annotations). Vega CHART: 35/35 identical.
-- Done: wasm package and playground (`site/`, `scripts/build-site.sh`, `.github/workflows/pages.yml`; enable Pages with source "GitHub Actions" in the repository settings).
-- Done: chart diagrams (35/35 Vega fixtures identical).
-- In progress: class diagrams. Ported: `abel` model, `plasma`, `cucadiagram`, link decorations, visibility icons, class/link commands (parse only), `DotPath`, svek types/node/role labels/extremities. Draft, not yet compiled in: `svek/bibliotekon.rs`, `svek/cluster.rs`. Next: `SvekEdge`, `DotStringFactory` (graphviz-pure), `EntityImageClass`, `ClusterDotString`, then render and compare with Vega CLASS fixtures. Class diagrams still render an empty image.
-- Class diagrams render end to end (parse, Graphviz layout via graphviz-pure, class boxes, links, arrow ends) but 0/53 Vega CLASS fixtures are identical yet: 37 fail on unported commands (packages/namespaces, notes, hide/show, association classes, direction keywords). Remaining diffs on the rest are in overall offsets (LimitFinder/degenerate single-entity margins). Several fixtures use `!pragma layout smetana`, so Graphviz output cannot match them exactly.
+- In progress: class diagrams. Ported: `abel` model, `plasma`, `cucadiagram`, link decorations, visibility icons, class/link commands, `DotPath`, `svek` (types, node, role labels, extremities, bibliotekon, cluster), `SvekEdge`, `DotStringFactory` on graphviz-pure, `EntityImageClass`. Class diagrams render end to end (parse, layout, boxes, links, arrow ends); see the measured table below for what still differs.
+
+## Measured fidelity (2026-10-25)
+
+graphviz-pure stands in for `dot`; `!pragma layout smetana` fixtures are unmatchable by construction.
+
+| type | n | renders | text jaccard | size within 20% | structurally identical |
+|---|---|---|---|---|---|
+| SEQUENCE | 149 | 97% | 0.95 | 95% | 93% |
+| PACKET | 57 | 100% | 1.00 | 100% | 100% |
+| CHART | 35 | 100% | 1.00 | 100% | 100% |
+| CLASS | 53 | 30% | 0.30 | 21% | 0% |
+| STATE | 48 | 0% | - | - | 0% |
+| ACTIVITY | 36 | 0% | - | - | 0% |
+| GANTT | 16 | 0% | - | - | 0% |
+| SALT | 10 | 0% | - | - | 0% |
+| WBS | 7 | 0% | - | - | 0% |
+| DESCRIPTION | 6 | 0% | - | - | 0% |
+| MINDMAP, CHEN_EER | 4 each | 0% | - | - | 0% |
+| TIMING | 3 | 0% | - | - | 0% |
+| BPM, JSON, YAML | 1 each | 0% | - | - | 0% |
+
+All 431 fixtures: 58% render, 230 (53%) structurally identical. CLASS renders 16 of 53; the 37 failures are unported commands (packages/namespaces, notes, hide/show, association classes, direction keywords).
+
+Columns: `renders` = exit 0 with an `<svg` document; `text jaccard` = overlap of the text contents; `size within 20%` = both width and height; `structurally identical` = `scripts/svgdiff.py` reports no difference with 0.5 px coordinate tolerance (`SVG_TOL`).
+
+Reproduce:
+
+```sh
+git clone https://github.com/plantuml/plantuml && git -C plantuml checkout e6c3adc
+cargo build -p plantuml-cli
+VEGA_DIR=plantuml/src/test/resources/vega FIDELITY_JSON=fidelity.json \
+  python3 scripts/fidelity.py target/debug/plantuml-cli
+```

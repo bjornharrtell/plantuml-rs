@@ -1,7 +1,11 @@
-import os, re, subprocess, json, sys, html, collections
+import os, re, subprocess, json, sys, html, collections, xml.etree.ElementTree as ET
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import svgdiff
 
 ROOT = os.environ.get("VEGA_DIR", "/home/bjorn/code/plantuml/src/test/resources/vega")
 PUML = sys.argv[1]  # renderer command reading a diagram on stdin
+TOL = float(os.environ.get("SVG_TOL", "0.5"))  # coordinate tolerance in pixels
 out = []
 for dp, _, fs in os.walk(ROOT):
     for f in fs:
@@ -38,6 +42,14 @@ for dp, _, fs in os.walk(ROOT):
             h = re.search(r'<svg[^>]*?\sheight="([\d.]+)', s)
             return (float(w.group(1)), float(h.group(1))) if w and h else None
 
+        def struct_diffs(ref_text, got_text):
+            """Number of structural differences from the reference SVG, None if unparsable."""
+            try:
+                return len(svgdiff.differences(
+                    ET.fromstring(ref_text), ET.fromstring(got_text), TOL))
+            except Exception:
+                return None
+
         tr, tg = texts(ref), texts(got)
         inter = sum((tr & tg).values())
         uni = sum((tr | tg).values()) or 1
@@ -46,18 +58,21 @@ for dp, _, fs in os.walk(ROOT):
         if dr and dg and dr[0] and dr[1]:
             wr, hr = dg[0] / dr[0], dg[1] / dr[1]
         out.append(dict(file=os.path.relpath(p, ROOT), type=typ, ok=ok,
-                        text_jaccard=inter / uni, wr=wr, hr=hr))
+                        text_jaccard=inter / uni, wr=wr, hr=hr,
+                        diffs=struct_diffs(ref, got) if ok else None))
 
 json.dump(out, open(os.environ.get("FIDELITY_JSON", "fidelity.json"), "w"))
 by = collections.defaultdict(list)
 for o in out:
     by[o["type"]].append(o)
-print("type n ok% text_jaccard_mean size_within20%")
+print("type n ok% text_jaccard_mean size_within20% identical%")
 for k, v in sorted(by.items(), key=lambda kv: -len(kv[1])):
     n = len(v)
     ok = sum(o["ok"] for o in v) / n
     tj = sum(o["text_jaccard"] for o in v) / n
     sz = sum(1 for o in v if o["wr"] and abs(o["wr"] - 1) < .2 and abs(o["hr"] - 1) < .2) / n
-    print(f"{k:14s} {n:4d} {ok*100:5.0f} {tj:5.2f} {sz*100:5.0f}")
+    ident = sum(1 for o in v if o["diffs"] == 0) / n
+    print(f"{k:14s} {n:4d} {ok*100:5.0f} {tj:5.2f} {sz*100:5.0f} {ident*100:5.0f}")
 n = len(out)
-print("TOTAL", n, sum(o["ok"] for o in out) / n, sum(o["text_jaccard"] for o in out) / n)
+print("TOTAL", n, sum(o["ok"] for o in out) / n, sum(o["text_jaccard"] for o in out) / n,
+      f"identical={sum(1 for o in out if o['diffs'] == 0)}")
