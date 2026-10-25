@@ -8,5 +8,6 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+fancy-regex = "0.20.0"
 log.workspace = true
 regex = { version = "1", default-features = false, features = ["std", "unicode-perl", "unicode-case", "unicode-gencat", "perf"] }
