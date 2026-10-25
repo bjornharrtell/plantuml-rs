@@ -517,6 +517,16 @@ impl UGraphic {
         self
     }
 
+    /// Current line/text color (`getParam().getColor()`).
+    pub fn color(&self) -> &HColor {
+        &self.param.color
+    }
+
+    /// Current stroke (`getParam().getStroke()`).
+    pub fn stroke(&self) -> UStroke {
+        self.param.stroke
+    }
+
     pub fn back_color(&self) -> &HColor {
         &self.param.backcolor
     }

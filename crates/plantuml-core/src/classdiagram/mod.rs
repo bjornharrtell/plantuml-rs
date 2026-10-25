@@ -123,7 +123,12 @@ impl CommandDiagram for ClassDiagram {
                 }
             }
         }
-        if self.cuca.base.pragma.get("useintermediatepackages").map(String::as_str)
+        if self
+            .cuca
+            .base
+            .pragma
+            .get("useintermediatepackages")
+            .map(String::as_str)
             == Some("false")
         {
             self.pack_some_package();
@@ -141,7 +146,10 @@ impl Diagram for ClassDiagram {
     }
 
     fn text_block(&self, _sb: &Rc<dyn StringBounder>, _skin: &Rc<SkinParam>) -> Rc<dyn TextBlock> {
-        Rc::new(EmptyBlock { width: 10.0, height: 10.0 })
+        Rc::new(EmptyBlock {
+            width: 10.0,
+            height: 10.0,
+        })
     }
 }
 
@@ -168,8 +176,12 @@ mod tests {
 
     fn parse(text: &str) -> ClassDiagram {
         let source = UmlSource::from_text(text);
-        create_system(&commands::commands(), ClassDiagram::new(source.clone()), &source)
-            .unwrap_or_else(|e| panic!("{e:?}"))
+        create_system(
+            &commands::commands(),
+            ClassDiagram::new(source.clone()),
+            &source,
+        )
+        .unwrap_or_else(|e| panic!("{e:?}"))
     }
 
     #[test]
@@ -181,7 +193,10 @@ mod tests {
         let links = d.links();
         assert_eq!(links.len(), 2);
         assert_eq!(links[0].role1().as_deref(), Some("-tailOnly"));
-        assert_eq!(links[0].type_().decor1(), crate::decoration::link::LinkDecor::Arrow);
+        assert_eq!(
+            links[0].type_().decor1(),
+            crate::decoration::link::LinkDecor::Arrow
+        );
         let b = d.cuca.first_with_name("B").and_then(|q| q.data()).unwrap();
         assert_eq!(b.get().bodier.raw_body().len(), 2);
     }

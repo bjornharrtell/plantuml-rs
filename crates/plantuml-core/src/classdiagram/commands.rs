@@ -5,7 +5,6 @@ use crate::abel::{LeafType, Link, LinkArg, LinkArrow, Stereotag};
 use crate::command::{
     Command, CommandExecutionResult, MultiLineCommand, ParserPass, SingleLineCommand, Trim,
 };
-use crate::text::{BlocLines, MultilinesStrategy};
 use crate::decoration::link::{LinkDecor, LinkMiddleDecor, LinkType};
 use crate::klimt::color::colors::{ColorType, Colors};
 use crate::klimt::color::parser::ColorParser;
@@ -17,6 +16,7 @@ use crate::skin::visibility::VisibilityModifier;
 use crate::stereo::Stereotype;
 use crate::string_utils::{eventually_remove_starting_and_ending_double_quote as unquote, trin};
 use crate::text::LineLocation;
+use crate::text::{BlocLines, MultilinesStrategy};
 use crate::url::{UrlBuilder, UrlMode};
 
 type Cmd = Box<dyn Command<ClassDiagram>>;
@@ -172,10 +172,7 @@ fn manage_extends(
         let uid = d.cuca.unique_sequence("lnk");
         let link_arg = LinkArg::no_display(2)
             .with_quantifier(None, None)
-            .with_distance_angle(
-                Some(d.cuca.label_distance()),
-                Some(d.cuca.label_angle()),
-            );
+            .with_distance_angle(Some(d.cuca.label_distance()), Some(d.cuca.label_angle()));
         let link = Link::new(location, uid, cl2, entity.clone(), type_link, link_arg);
         d.cuca.add_link(link);
     }
@@ -286,7 +283,10 @@ fn class_regex(with_map_and_circle: bool, multi: bool) -> IRegex {
         IRegex::start(),
         IRegex::named(
             "VISIBILITY",
-            &format!("({})?", VisibilityModifier::regex_for_visibility_character()),
+            &format!(
+                "({})?",
+                VisibilityModifier::regex_for_visibility_character()
+            ),
         ),
         IRegex::space_zero_or_more(),
         IRegex::named("TYPE", &format!("({types})")),
@@ -486,8 +486,16 @@ fn get_queue_length(arg: &RegexResult) -> i32 {
 }
 
 fn get_link_type(arg: &RegexResult) -> LinkType {
-    let decors1 = LinkDecor::lookup1(Some(&arrow_head(arg, "ARROW_HEAD1")).filter(|s| !s.is_empty()).map(String::as_str));
-    let decors2 = LinkDecor::lookup2(Some(&arrow_head(arg, "ARROW_HEAD2")).filter(|s| !s.is_empty()).map(String::as_str));
+    let decors1 = LinkDecor::lookup1(
+        Some(&arrow_head(arg, "ARROW_HEAD1"))
+            .filter(|s| !s.is_empty())
+            .map(String::as_str),
+    );
+    let decors2 = LinkDecor::lookup2(
+        Some(&arrow_head(arg, "ARROW_HEAD2"))
+            .filter(|s| !s.is_empty())
+            .map(String::as_str),
+    );
     let mut result = LinkType::new(decors2, decors1);
     if not_null(arg.get("ARROW_BODY1", 0)).contains('.')
         || not_null(arg.get("ARROW_BODY2", 0)).contains('.')
@@ -636,10 +644,7 @@ fn link_regex() -> IRegex {
             IRegex::named("ARROW_HEAD1", &LinkDecor::regex_decors1()),
             IRegex::named("ARROW_BODY1", "([-=.]+)"),
             IRegex::named("ARROW_STYLE1", &format!(r"(?:\[({ls})\])?")),
-            IRegex::named(
-                "ARROW_DIRECTION",
-                "(left|right|up|down|le?|ri?|up?|do?)?",
-            ),
+            IRegex::named("ARROW_DIRECTION", "(left|right|up|down|le?|ri?|up?|do?)?"),
             IRegex::optional(IRegex::named("INSIDE", r"(0|\(0\)|\(0|0\))(?=[-=.~])")),
             IRegex::named("ARROW_STYLE2", &format!(r"(?:\[({ls})\])?")),
             IRegex::named("ARROW_BODY2", "([-=.]*)"),
