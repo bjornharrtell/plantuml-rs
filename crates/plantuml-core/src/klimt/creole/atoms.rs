@@ -244,7 +244,7 @@ impl AtomText {
         )
     }
 
-    fn draw(&self, ug: &mut UGraphic<'_>) {
+    fn draw(&self, ug: &UGraphic) {
         let back = if ug.back_color().is_transparent() {
             ug.default_background().clone()
         } else {
@@ -252,8 +252,8 @@ impl AtomText {
         };
         let fc = self.fc.adjust_color_for_background(&back);
         let sb = ug.string_bounder();
-        let mut ug = if self.margin_left == DelayedDouble::Zero {
-            ug.scope()
+        let ug = if self.margin_left == DelayedDouble::Zero {
+            ug.clone()
         } else {
             ug.apply_translate(UTranslate::dx(self.margin_left.get(sb)))
         };
@@ -374,7 +374,7 @@ impl Atom {
         }
     }
 
-    pub fn draw(&self, ug: &mut UGraphic<'_>) {
+    pub fn draw(&self, ug: &UGraphic) {
         match self {
             Atom::Text(t) => t.draw(ug),
             Atom::HLine { title, style } => {
@@ -390,9 +390,9 @@ impl Atom {
             Atom::Space(_) | Atom::Blank(_) => {}
             Atom::Bullet(fc, order) => {
                 let color = fc.color().clone();
-                let mut u = ug.apply_color(color.clone());
-                let mut u = u.apply_back_color(color);
-                let mut u = u.apply_stroke(UStroke::with_thickness(0.0));
+                let u = ug.apply_color(color.clone());
+                let u = u.apply_back_color(color);
+                let u = u.apply_stroke(UStroke::with_thickness(0.0));
                 if *order == 0 {
                     u.apply_translate(UTranslate::dx(3.0))
                         .draw(UEllipse::build(5.0, 5.0));
@@ -407,9 +407,7 @@ impl Atom {
                 let mut x = 0.0;
                 for a in all {
                     let dim = a.dimension(sb);
-                    a.draw(
-                        &mut ug.apply_translate(UTranslate::new(x, alt - a.starting_altitude())),
-                    );
+                    a.draw(&ug.apply_translate(UTranslate::new(x, alt - a.starting_altitude())));
                     x += dim.width;
                 }
             }

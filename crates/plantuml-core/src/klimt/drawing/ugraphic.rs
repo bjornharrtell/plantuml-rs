@@ -386,11 +386,45 @@ struct Param {
     hidden: bool,
 }
 
+/// Shared handle on the SVG output; every drawing context created by `apply_*` writes to it.
+#[derive(Clone)]
+struct SvgHandle(Rc<RefCell<SvgGraphics>>);
+
+macro_rules! svg_forward {
+    ($($name:ident($($arg:ident: $ty:ty),*) $(-> $ret:ty)?;)*) => {
+        impl SvgHandle {
+            $(fn $name(&self, $($arg: $ty),*) $(-> $ret)? {
+                self.0.borrow_mut().$name($($arg),*)
+            })*
+        }
+    };
+}
+
+svg_forward! {
+    start_group(attrs: &[(&str, String)]);
+    close_group();
+    create_gradient(c1: &str, c2: &str, policy: char) -> String;
+    set_fill_color(fill: Option<&str>);
+    set_fill_color_opacity(fill: &str);
+    set_stroke_color(stroke: Option<&str>);
+    set_stroke_width(width: f64, dash: Option<(f64, f64)>);
+    set_hidden(hidden: bool);
+    add_comment(comment: &str);
+    rectangle(x: f64, y: f64, w: f64, h: f64, rx: f64, ry: f64, shadow: f64);
+    ellipse(cx: f64, cy: f64, rx: f64, ry: f64, shadow: f64);
+    arc_ellipse(rx: f64, ry: f64, x1: f64, y1: f64, x2: f64, y2: f64);
+    line(x1: f64, y1: f64, x2: f64, y2: f64, shadow: f64);
+    polygon(shadow: f64, points: &[f64]);
+    path(x: f64, y: f64, segs: &[PathSeg], shadow: f64);
+    text(text: &str, x: f64, y: f64, attrs: &TextAttrs);
+}
+
 /// Drawing context writing SVG (`UGraphicSvg`). `apply_*` methods return modified copies
 /// sharing the same output through [`UGraphic::scope`].
-pub struct UGraphic<'a> {
-    svg: &'a mut SvgGraphics,
-    bounder: &'a dyn StringBounder,
+#[derive(Clone)]
+pub struct UGraphic {
+    svg: SvgHandle,
+    bounder: Rc<dyn StringBounder>,
     translate: UTranslate,
     param: Param,
     stencil: Option<Rc<StencilLayer>>,
@@ -410,10 +444,10 @@ struct StencilLayer {
     parent: Option<Rc<StencilLayer>>,
 }
 
-impl<'a> UGraphic<'a> {
-    pub fn new(svg: &'a mut SvgGraphics, bounder: &'a dyn StringBounder) -> Self {
+impl UGraphic {
+    pub fn new(svg: Rc<RefCell<SvgGraphics>>, bounder: Rc<dyn StringBounder>) -> Self {
         Self {
-            svg,
+            svg: SvgHandle(svg),
             bounder,
             translate: UTranslate::default(),
             param: Param {
@@ -434,8 +468,8 @@ impl<'a> UGraphic<'a> {
         self.background_layer
     }
 
-    pub fn apply_background_layer(&mut self, background: bool) -> UGraphic<'_> {
-        let mut u = self.scope();
+    pub fn apply_background_layer(&self, background: bool) -> UGraphic {
+        let mut u = self.clone();
         u.background_layer = background;
         u
     }
@@ -454,64 +488,46 @@ impl<'a> UGraphic<'a> {
         &self.param.backcolor
     }
 
-    pub fn string_bounder(&self) -> &'a dyn StringBounder {
-        self.bounder
+    pub fn string_bounder(&self) -> &dyn StringBounder {
+        self.bounder.as_ref()
     }
 
-    /// Reborrow with independent state, like Java's immutable `apply`.
-    pub fn scope(&mut self) -> UGraphic<'_> {
-        UGraphic {
-            svg: self.svg,
-            bounder: self.bounder,
-            translate: self.translate,
-            param: self.param.clone(),
-            stencil: self.stencil.clone(),
-            default_background: self.default_background.clone(),
-            limit: self.limit.clone(),
-            background_layer: self.background_layer,
-        }
-    }
-
-    pub fn apply_translate(&mut self, t: UTranslate) -> UGraphic<'_> {
-        let mut u = self.scope();
+    pub fn apply_translate(&self, t: UTranslate) -> UGraphic {
+        let mut u = self.clone();
         u.translate = u.translate.compose(t);
         u
     }
-    pub fn apply_color(&mut self, c: HColor) -> UGraphic<'_> {
-        let mut u = self.scope();
+    pub fn apply_color(&self, c: HColor) -> UGraphic {
+        let mut u = self.clone();
         u.param.color = c;
         u
     }
-    pub fn apply_back_color(&mut self, c: HColor) -> UGraphic<'_> {
-        let mut u = self.scope();
+    pub fn apply_back_color(&self, c: HColor) -> UGraphic {
+        let mut u = self.clone();
         u.param.backcolor = c;
         u
     }
-    pub fn apply_stroke(&mut self, s: UStroke) -> UGraphic<'_> {
-        let mut u = self.scope();
+    pub fn apply_stroke(&self, s: UStroke) -> UGraphic {
+        let mut u = self.clone();
         u.param.stroke = s;
         u
     }
     /// Clip is given in the current (translated) coordinates.
-    pub fn apply_clip(&mut self, c: UClip) -> UGraphic<'_> {
-        let mut u = self.scope();
+    pub fn apply_clip(&self, c: UClip) -> UGraphic {
+        let mut u = self.clone();
         u.param.clip = Some(c.translate(u.translate));
         u
     }
-    pub fn apply_hidden(&mut self, hidden: bool) -> UGraphic<'_> {
-        let mut u = self.scope();
+    pub fn apply_hidden(&self, hidden: bool) -> UGraphic {
+        let mut u = self.clone();
         u.param.hidden = hidden;
         u
     }
 
     /// Makes horizontal lines span `stencil` from the current position on.
-    pub fn apply_stencil(
-        &mut self,
-        stencil: Rc<dyn Stencil>,
-        default_stroke: UStroke,
-    ) -> UGraphic<'_> {
+    pub fn apply_stencil(&self, stencil: Rc<dyn Stencil>, default_stroke: UStroke) -> UGraphic {
         let parent = self.stencil.clone();
-        let mut u = self.scope();
+        let mut u = self.clone();
         u.stencil = Some(Rc::new(StencilLayer {
             stencil,
             default_stroke,
@@ -521,20 +537,20 @@ impl<'a> UGraphic<'a> {
         u
     }
 
-    pub fn start_group(&mut self, attrs: &[(&str, String)]) {
+    pub fn start_group(&self, attrs: &[(&str, String)]) {
         if self.limit.is_some() {
             return;
         }
         self.svg.start_group(attrs);
     }
-    pub fn close_group(&mut self) {
+    pub fn close_group(&self) {
         if self.limit.is_some() {
             return;
         }
         self.svg.close_group();
     }
 
-    fn apply_fill(&mut self, color: &HColor) {
+    fn apply_fill(&self, color: &HColor) {
         match color {
             HColor::Gradient { c1, c2, policy } => {
                 let id = self
@@ -550,7 +566,7 @@ impl<'a> UGraphic<'a> {
         }
     }
 
-    fn apply_stroke_color(&mut self, color: &HColor) {
+    fn apply_stroke_color(&self, color: &HColor) {
         match color {
             HColor::Gradient { c1, c2, policy } => {
                 let id = self
@@ -562,13 +578,13 @@ impl<'a> UGraphic<'a> {
         }
     }
 
-    fn apply_stroke_width(&mut self) {
+    fn apply_stroke_width(&self) {
         let s = self.param.stroke;
         self.svg.set_stroke_width(s.thickness, s.dasharray());
     }
 
     /// Draws a shape at the current translation.
-    pub fn draw(&mut self, shape: impl Into<UShape>) {
+    pub fn draw(&self, shape: impl Into<UShape>) {
         let (x, y) = (self.translate.dx, self.translate.dy);
         if let Some(limit) = self.limit.clone() {
             self.limit_shape(&shape.into(), x, y, &limit);
@@ -589,7 +605,7 @@ impl<'a> UGraphic<'a> {
         self.svg.set_hidden(false);
     }
 
-    fn limit_shape(&mut self, shape: &UShape, x: f64, y: f64, limit: &RefCell<MinMax>) {
+    fn limit_shape(&self, shape: &UShape, x: f64, y: f64, limit: &RefCell<MinMax>) {
         let clip = self.param.clip;
         let add = |px: f64, py: f64| {
             if clip.is_none_or(|c| c.is_inside(px, py)) {
@@ -645,18 +661,18 @@ impl<'a> UGraphic<'a> {
         }
     }
 
-    fn draw_hline(&mut self, l: &UHorizontalLine) {
+    fn draw_hline(&self, l: &UHorizontalLine) {
         let Some(layer) = self.stencil.clone() else {
             return;
         };
         let y = self.translate.dy - layer.origin.dy;
-        let mut u = self.scope();
+        let mut u = self.clone();
         u.translate = layer.origin;
         u.stencil = layer.parent.clone();
-        l.draw_line_internal(&mut u, layer.stencil.as_ref(), y, layer.default_stroke);
+        l.draw_line_internal(&u, layer.stencil.as_ref(), y, layer.default_stroke);
     }
 
-    fn draw_rectangle(&mut self, r: &URectangle, mut x: f64, mut y: f64) {
+    fn draw_rectangle(&self, r: &URectangle, mut x: f64, mut y: f64) {
         let (mut w, mut h) = (r.width, r.height);
         let (c, b) = (self.param.color.clone(), self.param.backcolor.clone());
         self.apply_fill(&b);
@@ -672,7 +688,7 @@ impl<'a> UGraphic<'a> {
             .rectangle(x, y, w, h, r.rx / 2.0, r.ry / 2.0, r.delta_shadow);
     }
 
-    fn draw_line(&mut self, l: &ULine, x: f64, y: f64) {
+    fn draw_line(&self, l: &ULine, x: f64, y: f64) {
         let mut line = (x, y, x + l.dx, y + l.dy);
         if let Some(clip) = self.param.clip {
             match clip.clipped_line(line) {
@@ -687,7 +703,7 @@ impl<'a> UGraphic<'a> {
             .line(line.0, line.1, line.2, line.3, l.delta_shadow);
     }
 
-    fn draw_ellipse(&mut self, e: &UEllipse, x: f64, y: f64) {
+    fn draw_ellipse(&self, e: &UEllipse, x: f64, y: f64) {
         let (w, h) = (e.width, e.height);
         if let Some(clip) = self.param.clip {
             if !clip.is_inside(x, y) || !clip.is_inside(x + w, y + h) {
@@ -717,7 +733,7 @@ impl<'a> UGraphic<'a> {
             .arc_ellipse(w / 2.0, h / 2.0, p1.0, p1.1, p2.0, p2.1);
     }
 
-    fn draw_polygon(&mut self, p: &UPolygon, x: f64, y: f64) {
+    fn draw_polygon(&self, p: &UPolygon, x: f64, y: f64) {
         let pts: Vec<f64> = p.points.iter().flat_map(|&(a, b)| [a + x, b + y]).collect();
         if let Some(clip) = self.param.clip {
             if pts.chunks_exact(2).any(|c| !clip.is_inside(c[0], c[1])) {
@@ -731,7 +747,7 @@ impl<'a> UGraphic<'a> {
         self.svg.polygon(p.delta_shadow, &pts);
     }
 
-    fn draw_path(&mut self, p: &UPath, x: f64, y: f64) {
+    fn draw_path(&self, p: &UPath, x: f64, y: f64) {
         if let Some(clip) = self.param.clip {
             if !clip.is_inside(x, y) {
                 return;
@@ -750,7 +766,7 @@ impl<'a> UGraphic<'a> {
         self.svg.path(x, y, &p.segments, p.delta_shadow);
     }
 
-    fn draw_text(&mut self, t: &UText, mut x: f64, y: f64) {
+    fn draw_text(&self, t: &UText, mut x: f64, y: f64) {
         if let Some(clip) = self.param.clip {
             if !clip.is_inside(x, y) {
                 return;
@@ -853,16 +869,16 @@ impl<'a> UGraphic<'a> {
 
 /// Bounds of what `f` draws (`LimitFinder`); `init_to_zero` starts the box at the origin.
 pub fn find_limits(
-    bounder: &dyn StringBounder,
+    bounder: Rc<dyn StringBounder>,
     init_to_zero: bool,
-    f: impl FnOnce(&mut UGraphic<'_>),
+    f: impl FnOnce(&UGraphic),
 ) -> MinMax {
-    let mut scratch = SvgGraphics::new(0, SvgOption::default());
+    let scratch = Rc::new(RefCell::new(SvgGraphics::new(0, SvgOption::default())));
     let limit = Rc::new(RefCell::new(MinMax::empty(init_to_zero)));
     {
-        let mut ug = UGraphic::new(&mut scratch, bounder);
+        let mut ug = UGraphic::new(scratch, bounder);
         ug.limit = Some(limit.clone());
-        f(&mut ug);
+        f(&ug);
     }
     let m = *limit.borrow();
     if m.is_infinity() {
@@ -876,14 +892,14 @@ pub fn find_limits(
 pub fn render_svg(
     option: SvgOption,
     seed: i64,
-    bounder: &dyn StringBounder,
-    f: impl FnOnce(&mut UGraphic<'_>),
+    bounder: Rc<dyn StringBounder>,
+    f: impl FnOnce(&UGraphic),
 ) -> String {
-    let mut svg = SvgGraphics::new(seed, option);
-    {
-        let mut ug = UGraphic::new(&mut svg, bounder);
-        f(&mut ug);
-    }
+    let svg = Rc::new(RefCell::new(SvgGraphics::new(seed, option)));
+    f(&UGraphic::new(svg.clone(), bounder));
+    let svg = Rc::try_unwrap(svg)
+        .unwrap_or_else(|_| panic!("drawing context still in use"))
+        .into_inner();
     svg.to_svg()
 }
 
@@ -893,17 +909,17 @@ mod tests {
     use crate::klimt::color::Rgba;
     use crate::klimt::font::{EmbeddedFontBounder, UFont};
 
-    fn svg(f: impl FnOnce(&mut UGraphic<'_>)) -> String {
-        render_svg(SvgOption::default(), 0, &EmbeddedFontBounder, f)
+    fn svg(f: impl FnOnce(&UGraphic)) -> String {
+        render_svg(SvgOption::default(), 0, Rc::new(EmbeddedFontBounder), f)
     }
 
     #[test]
     fn rectangle_with_translate_and_colors() {
         let out = svg(|ug| {
             let red = HColor::parse("#FF0000").unwrap();
-            let mut u = ug.apply_color(HColor::BLACK);
-            let mut u = u.apply_back_color(red);
-            let mut u = u.apply_translate(UTranslate::new(5.0, 6.0));
+            let u = ug.apply_color(HColor::BLACK);
+            let u = u.apply_back_color(red);
+            let u = u.apply_translate(UTranslate::new(5.0, 6.0));
             u.draw(URectangle::build(10.0, 20.0).rounded(10.0));
         });
         assert!(out.contains(r##"<rect fill="#F00" height="20""##), "{out}");
@@ -990,7 +1006,7 @@ mod tests {
     #[test]
     fn clipping_and_hidden() {
         let out = svg(|ug| {
-            let mut u = ug.apply_clip(UClip::new(0.0, 0.0, 10.0, 10.0));
+            let u = ug.apply_clip(UClip::new(0.0, 0.0, 10.0, 10.0));
             u.draw(URectangle::build(100.0, 100.0));
             u.draw(URectangle::build(100.0, 0.0));
             u.draw(ULine::new(100.0, 0.0));
@@ -1001,7 +1017,7 @@ mod tests {
             p.add_point(50.0, 50.0);
             u.draw(p);
             u.draw(UPath::new());
-            let mut h = ug.apply_hidden(true);
+            let h = ug.apply_hidden(true);
             h.draw(URectangle::build(5.0, 5.0));
         });
         assert!(out.contains(r#"width="10""#), "{out}");
@@ -1018,8 +1034,8 @@ mod tests {
                 policy: '|',
             };
             ug.start_group(&[("class", "x".into())]);
-            let mut u = ug.apply_back_color(g.clone());
-            let mut u = u.apply_color(g.clone());
+            let u = ug.apply_back_color(g.clone());
+            let u = u.apply_color(g.clone());
             u.draw(URectangle::build(5.0, 5.0));
             u.draw(UEllipse::build(5.0, 5.0));
             u.draw(UPath::new());
@@ -1031,7 +1047,7 @@ mod tests {
 
     #[test]
     fn limits() {
-        let m = find_limits(&EmbeddedFontBounder, true, |ug| {
+        let m = find_limits(Rc::new(EmbeddedFontBounder), true, |ug| {
             ug.apply_translate(UTranslate::new(5.0, 6.0))
                 .draw(URectangle::build(10.0, 20.0));
             ug.draw(UShape::Empty(30.0, 40.0));
@@ -1044,13 +1060,13 @@ mod tests {
             let fc = FontConfiguration::black_blue_true(UFont::sans_serif(14));
             ug.apply_translate(UTranslate::new(0.0, 200.0))
                 .draw(UText::new("abc", fc));
-            let mut c = ug.apply_clip(UClip::new(0.0, 0.0, 10.0, 10.0));
+            let c = ug.apply_clip(UClip::new(0.0, 0.0, 10.0, 10.0));
             c.draw(ULine::new(500.0, 500.0));
         });
         assert_eq!(m.min_x, 0.0);
         assert!(m.max_y >= 200.0 && m.max_y < 220.0, "{m:?}");
         assert!(m.max_x >= 50.0);
-        let none = find_limits(&EmbeddedFontBounder, false, |_| {});
+        let none = find_limits(Rc::new(EmbeddedFontBounder), false, |_| {});
         assert_eq!(none, MinMax::empty(true));
     }
 

@@ -1,5 +1,6 @@
 //! Colors, ported from `klimt/color` (`HColorSet`, `HColorSimple`, `HSLColor`, ...).
 
+pub mod colors;
 mod named;
 
 /// 8-bit RGBA color (`XColor`).

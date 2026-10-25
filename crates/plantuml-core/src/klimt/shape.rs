@@ -10,7 +10,7 @@ use std::rc::Rc;
 /// Something with a size that can draw itself (`TextBlock`).
 pub trait TextBlock {
     fn calculate_dimension(&self, sb: &dyn StringBounder) -> Dimension;
-    fn draw(&self, ug: &mut UGraphic<'_>);
+    fn draw(&self, ug: &UGraphic);
     /// Background announced to a containing vertical block.
     fn backcolor(&self) -> Option<HColor> {
         None
@@ -112,7 +112,7 @@ impl UHorizontalLine {
     /// Draws the line at height `y` of `ug` (`drawLineInternal`).
     pub fn draw_line_internal(
         &self,
-        ug: &mut UGraphic<'_>,
+        ug: &UGraphic,
         stencil: &dyn Stencil,
         y: f64,
         default_stroke: UStroke,
@@ -128,9 +128,9 @@ impl UHorizontalLine {
             self.stroke()
         };
         let sb = ug.string_bounder();
-        let mut ug_stroke = ug.apply_stroke(stroke);
+        let ug_stroke = ug.apply_stroke(stroke);
         let Some(title) = &self.title else {
-            self.draw_hline(&mut ug_stroke, &stencil, y);
+            self.draw_hline(&ug_stroke, &stencil, y);
             return;
         };
         let dim = title.calculate_dimension(sb);
@@ -139,7 +139,7 @@ impl UHorizontalLine {
             title_width: dim.width,
             second: false,
         };
-        self.draw_hline(&mut ug_stroke, &first, y);
+        self.draw_hline(&ug_stroke, &first, y);
         let sx = stencil.starting_x(sb, y);
         let ex = stencil.ending_x(sb, y);
         drop(ug_stroke);
@@ -149,32 +149,32 @@ impl UHorizontalLine {
             title_width: dim.width,
             second: true,
         };
-        let mut ug_stroke = ug.apply_stroke(stroke);
-        self.draw_hline(&mut ug_stroke, &second, y);
+        let ug_stroke = ug.apply_stroke(stroke);
+        self.draw_hline(&ug_stroke, &second, y);
     }
 
-    fn draw_hline(&self, ug: &mut UGraphic<'_>, stencil: &dyn Stencil, y: f64) {
+    fn draw_hline(&self, ug: &UGraphic, stencil: &dyn Stencil, y: f64) {
         self.simple_hline(ug, stencil, y);
         if self.is_double() {
             self.simple_hline(ug, stencil, y + 2.0);
         }
     }
 
-    fn simple_hline(&self, ug: &mut UGraphic<'_>, stencil: &dyn Stencil, y: f64) {
+    fn simple_hline(&self, ug: &UGraphic, stencil: &dyn Stencil, y: f64) {
         let sx = stencil.starting_x(ug.string_bounder(), y);
         let ex = stencil.ending_x(ug.string_bounder(), y);
         ug.apply_translate(UTranslate::new(sx, y))
             .draw(ULine::hline(ex - sx));
     }
 
-    fn draw_title(&self, ug: &mut UGraphic<'_>, start_x: f64, end_x: f64, y: f64) {
+    fn draw_title(&self, ug: &UGraphic, start_x: f64, end_x: f64, y: f64) {
         let Some(title) = &self.title else {
             return;
         };
         let dim = title.calculate_dimension(ug.string_bounder());
         let x1 = start_x + ((end_x - start_x) - dim.width) / 2.0;
         let y1 = y - dim.height / 2.0 - 0.5;
-        title.draw(&mut ug.apply_translate(UTranslate::new(x1, y1)));
+        title.draw(&ug.apply_translate(UTranslate::new(x1, y1)));
     }
 }
 
@@ -207,7 +207,7 @@ impl TextBlock for EmptyBlock {
     fn calculate_dimension(&self, _: &dyn StringBounder) -> Dimension {
         Dimension::new(self.width, self.height)
     }
-    fn draw(&self, _: &mut UGraphic<'_>) {}
+    fn draw(&self, _: &UGraphic) {}
 }
 
 /// Adds space around a block (`TextBlockMarged`).
@@ -224,12 +224,11 @@ impl TextBlock for MargedBlock {
             self.margins.top + self.margins.bottom,
         )
     }
-    fn draw(&self, ug: &mut UGraphic<'_>) {
+    fn draw(&self, ug: &UGraphic) {
         let dim = self.calculate_dimension(ug.string_bounder());
         if dim.width > 0.0 {
-            self.inner.draw(
-                &mut ug.apply_translate(UTranslate::new(self.margins.left, self.margins.top)),
-            );
+            self.inner
+                .draw(&ug.apply_translate(UTranslate::new(self.margins.left, self.margins.top)));
         }
     }
 }
@@ -259,16 +258,16 @@ impl TextBlock for VerticalBlock {
         })
     }
 
-    fn draw(&self, ug: &mut UGraphic<'_>) {
+    fn draw(&self, ug: &UGraphic) {
         let total = self.calculate_dimension(ug.string_bounder());
         let mut y = 0.0;
         for block in &self.blocks {
             let dim = block.calculate_dimension(ug.string_bounder());
             if let Some(back) = block.backcolor() {
                 if !back.is_transparent() {
-                    let mut u = ug.apply_translate(UTranslate::dy(y));
-                    let mut u = u.apply_color(back.clone());
-                    let mut u = u.apply_back_color(back);
+                    let u = ug.apply_translate(UTranslate::dy(y));
+                    let u = u.apply_color(back.clone());
+                    let u = u.apply_back_color(back);
                     u.draw(URectangle::build(total.width, dim.height));
                 }
             }
@@ -277,7 +276,7 @@ impl TextBlock for VerticalBlock {
                 HorizontalAlignment::Center => (total.width - dim.width) / 2.0,
                 HorizontalAlignment::Right => total.width - dim.width,
             };
-            block.draw(&mut ug.apply_translate(UTranslate::new(dx, y)));
+            block.draw(&ug.apply_translate(UTranslate::new(dx, y)));
             y += dim.height;
         }
     }
@@ -300,7 +299,7 @@ impl TextBlock for HorizontalBlock {
         })
     }
 
-    fn draw(&self, ug: &mut UGraphic<'_>) {
+    fn draw(&self, ug: &UGraphic) {
         let total = self.calculate_dimension(ug.string_bounder());
         let mut x = 0.0;
         for block in &self.blocks {
@@ -310,7 +309,7 @@ impl TextBlock for HorizontalBlock {
                 VerticalAlignment::Bottom => total.height - dim.height,
                 VerticalAlignment::Top => 0.0,
             };
-            block.draw(&mut ug.apply_translate(UTranslate::new(x, dy)));
+            block.draw(&ug.apply_translate(UTranslate::new(x, dy)));
             x += dim.width;
         }
     }
@@ -329,7 +328,7 @@ impl TextBlock for MinWidthBlock {
             .calculate_dimension(sb)
             .at_least(self.min_width, 0.0)
     }
-    fn draw(&self, ug: &mut UGraphic<'_>) {
+    fn draw(&self, ug: &UGraphic) {
         let inner = self.inner.calculate_dimension(ug.string_bounder());
         let full = self.calculate_dimension(ug.string_bounder());
         let diff = full.width - inner.width;
@@ -338,6 +337,6 @@ impl TextBlock for MinWidthBlock {
             HorizontalAlignment::Center => diff / 2.0,
             HorizontalAlignment::Right => diff,
         };
-        self.inner.draw(&mut ug.apply_translate(UTranslate::dx(dx)));
+        self.inner.draw(&ug.apply_translate(UTranslate::dx(dx)));
     }
 }

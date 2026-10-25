@@ -281,16 +281,16 @@ impl SheetInner {
         d.delta(extra, extra)
     }
 
-    fn draw(&self, ug: &mut UGraphic<'_>) {
+    fn draw(&self, ug: &UGraphic) {
         let l = self.layout(ug.string_bounder());
-        let mut ug = if self.padding.left > 0.0 || self.padding.top > 0.0 {
+        let ug = if self.padding.left > 0.0 || self.padding.top > 0.0 {
             ug.apply_translate(UTranslate::new(self.padding.left, self.padding.top))
         } else {
-            ug.scope()
+            ug.clone()
         };
         for (stripe, pos) in l.stripes.iter().zip(&l.positions) {
             for (atom, p) in stripe.atoms.iter().zip(pos) {
-                atom.draw(&mut ug.apply_translate(UTranslate::new(p.x, p.y)));
+                atom.draw(&ug.apply_translate(UTranslate::new(p.x, p.y)));
             }
         }
     }
@@ -381,13 +381,13 @@ impl TextBlock for SheetBlock {
         self.inner.dimension(sb)
     }
 
-    fn draw(&self, ug: &mut UGraphic<'_>) {
+    fn draw(&self, ug: &UGraphic) {
         let stencil = Rc::new(Enlarged {
             inner: self.inner.clone(),
             left: self.enlarge.0,
             right: self.enlarge.1,
         });
-        let mut ug = ug.apply_stencil(stencil, self.default_stroke);
+        let ug = ug.apply_stencil(stencil, self.default_stroke);
         let min = self.inner.minimum_width;
         let dx = if min > 0.0 && self.alignment() != HorizontalAlignment::Left {
             let w = self.inner.dimension(ug.string_bounder()).width;
@@ -398,7 +398,7 @@ impl TextBlock for SheetBlock {
         } else {
             0.0
         };
-        self.inner.draw(&mut ug.apply_translate(UTranslate::dx(dx)));
+        self.inner.draw(&ug.apply_translate(UTranslate::dx(dx)));
     }
 }
 
@@ -418,7 +418,8 @@ pub fn create_text_block(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::klimt::drawing::svg::{SvgGraphics, SvgOption};
+    use crate::klimt::drawing::svg::SvgOption;
+    use crate::klimt::drawing::ugraphic::render_svg;
     use crate::klimt::font::{EmbeddedFontBounder, UFont};
 
     fn fc() -> FontConfiguration {
@@ -438,12 +439,14 @@ mod tests {
     }
 
     fn render(b: &dyn TextBlock) -> String {
-        let mut svg = SvgGraphics::new(0, SvgOption::default());
-        {
-            let mut ug = UGraphic::new(&mut svg, &EmbeddedFontBounder);
-            b.draw(&mut ug);
-        }
-        svg.to_svg()
+        render_svg(
+            SvgOption::default(),
+            0,
+            Rc::new(EmbeddedFontBounder),
+            |ug| {
+                b.draw(ug);
+            },
+        )
     }
 
     #[test]
