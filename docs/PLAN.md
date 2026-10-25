@@ -125,3 +125,5 @@ Exit criterion per diagram type: fidelity harness numbers, plus fixtures reviewe
 - Done: wasm package and playground (`site/`, `scripts/build-site.sh`, `.github/workflows/pages.yml`; enable Pages with source "GitHub Actions" in the repository settings).
 - Done: chart diagrams (`chart/`: axes, bar/line/area/scatter series, legend, annotations). Vega CHART: 35/35 identical.
 - Done: wasm package and playground (`site/`, `scripts/build-site.sh`, `.github/workflows/pages.yml`; enable Pages with source "GitHub Actions" in the repository settings).
+- Done: chart diagrams (35/35 Vega fixtures identical).
+- In progress: class diagrams. Ported: `abel` model, `plasma`, `cucadiagram`, link decorations, visibility icons, class/link commands (parse only), `DotPath`, svek types/node/role labels/extremities. Draft, not yet compiled in: `svek/bibliotekon.rs`, `svek/cluster.rs`. Next: `SvekEdge`, `DotStringFactory` (graphviz-pure), `EntityImageClass`, `ClusterDotString`, then render and compare with Vega CLASS fixtures. Class diagrams still render an empty image.

@@ -2,6 +2,7 @@
 
 pub mod color;
 pub mod creole;
+pub mod dotpath;
 pub mod drawing;
 pub mod fashion;
 pub mod font;

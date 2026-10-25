@@ -61,6 +61,13 @@ pub fn get_uid(prefix: &str, n: i32) -> String {
     format!("{prefix}{n:04}")
 }
 
+/// Lowercase hexadecimal MD5 of a text (`SignatureUtils.getMD5Hex`).
+pub fn md5_hex(s: &str) -> String {
+    use md5::{Digest, Md5};
+    let digest = Md5::digest(s.as_bytes());
+    digest.iter().map(|b| format!("{b:02x}")).collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
