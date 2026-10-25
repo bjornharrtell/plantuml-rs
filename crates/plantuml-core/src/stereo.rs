@@ -1,6 +1,7 @@
 //! Stereotypes (`<<...>>`), ported from the `stereo` package.
 
 use crate::klimt::color::HColor;
+use crate::regex::IRegex;
 use regex::Regex;
 use std::sync::LazyLock;
 
@@ -249,6 +250,32 @@ fn cut_labels(label: &str, guillemet: Guillemet) -> Vec<String> {
         .collect()
 }
 
+/// Optional ` <<stereotype>> ` group in a command regex (`StereotypePattern.optional`).
+pub fn optional_pattern(param: &str) -> IRegex {
+    IRegex::group(vec![
+        IRegex::space_zero_or_more(),
+        IRegex::optional(IRegex::named(param, r"(\<\<.+?\>\>)")),
+        IRegex::space_zero_or_more(),
+    ])
+}
+
+/// `<<name>>` restricted to word characters and dashes (`optionalArchimate`).
+pub fn optional_archimate(param: &str) -> IRegex {
+    IRegex::group(vec![
+        IRegex::space_zero_or_more(),
+        IRegex::optional(IRegex::named(param, r"(\<\<[-\w]+?\>\>)")),
+        IRegex::space_zero_or_more(),
+    ])
+}
+
+/// Strips `<<` and `>>` (`removeChevronBrackets`).
+pub fn remove_chevron_brackets(stereo: &str) -> &str {
+    match stereo.strip_prefix("<<").and_then(|s| s.strip_suffix(">>")) {
+        Some(inner) => inner,
+        None => stereo,
+    }
+}
+
 /// `<<<name>>>` style references (`Stereostyles`).
 pub fn stereostyles(label: &str) -> Vec<String> {
     static P: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<{3}(.*?)>{3}").expect("valid"));
@@ -325,6 +352,30 @@ mod tests {
         );
         assert_eq!(Guillemet::None.manage_strict("<<a>>"), "a");
         assert_eq!(stereostyles("<<<a>>> <<<b>>> <<<a>>>"), ["a", "b"]);
+    }
+
+    #[test]
+    fn patterns() {
+        let r = IRegex::concat(vec![
+            IRegex::start(),
+            IRegex::leaf("a"),
+            optional_pattern("S"),
+            IRegex::end(),
+        ]);
+        assert_eq!(
+            r.matcher("a <<foo>> ").unwrap().get("S", 0),
+            Some("<<foo>>")
+        );
+        let r = IRegex::concat(vec![
+            IRegex::start(),
+            IRegex::leaf("a"),
+            optional_archimate("S"),
+            IRegex::end(),
+        ]);
+        assert!(r.matcher("a<<foo-bar>>").unwrap().get("S", 0).is_some());
+        assert!(r.matcher("a<<foo bar>>").is_none());
+        assert_eq!(remove_chevron_brackets("<<x>>"), "x");
+        assert_eq!(remove_chevron_brackets("x"), "x");
     }
 
     #[test]

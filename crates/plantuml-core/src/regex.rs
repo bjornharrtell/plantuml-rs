@@ -5,8 +5,32 @@
 use fancy_regex::Regex as Engine;
 use std::cell::OnceCell;
 
+/// Java treats `\<` and `\>` as literal characters; the regex engine uses them as
+/// word-boundary assertions, so they are unescaped first.
+fn unescape_angle_brackets(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    let mut it = input.chars().peekable();
+    while let Some(c) = it.next() {
+        if c == '\\' {
+            match it.peek() {
+                Some('<') | Some('>') => out.push(it.next().expect("peeked")),
+                Some(_) => {
+                    out.push(c);
+                    out.push(it.next().expect("peeked"));
+                }
+                None => out.push(c),
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
 /// Expands the PlantUML shorthands (`Pattern2.transform`).
 pub fn transform(input: &str) -> String {
+    let input = unescape_angle_brackets(input);
+    let input = input.as_str();
     let mut out = String::with_capacity(input.len() + 16);
     let mut rest = input;
     while let Some(i) = rest.find('%') {
@@ -322,6 +346,19 @@ mod tests {
             ])),
             IRegex::end(),
         ])
+    }
+
+    #[test]
+    fn angle_brackets_are_literal() {
+        assert_eq!(transform(r"\<a\>"), "<a>");
+        assert_eq!(transform(r"\\<"), r"\\<");
+        assert_eq!(transform(r"x\"), r"x\");
+        let r = IRegex::concat(vec![
+            IRegex::start(),
+            IRegex::leaf(r"\<\<x\>\>"),
+            IRegex::end(),
+        ]);
+        assert!(r.is_match("<<x>>"));
     }
 
     #[test]

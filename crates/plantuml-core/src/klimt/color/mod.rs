@@ -2,6 +2,7 @@
 
 pub mod colors;
 mod named;
+pub mod parser;
 
 /// 8-bit RGBA color (`XColor`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

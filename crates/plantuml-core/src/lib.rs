@@ -8,6 +8,7 @@ pub mod skin;
 pub mod stereo;
 pub mod style;
 pub mod text;
+pub mod url;
 
 use std::fmt;
 
