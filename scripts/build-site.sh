@@ -5,8 +5,6 @@ cd "$(dirname "$0")/.."
 cargo build -p plantuml-wasm --target wasm32-unknown-unknown --release
 wasm-bindgen --target web --no-typescript --out-dir site/pkg \
   target/wasm32-unknown-unknown/release/plantuml_wasm.wasm
-if command -v wasm-opt >/dev/null 2>&1; then
-  wasm-opt -Oz -o site/pkg/plantuml_wasm_bg.wasm site/pkg/plantuml_wasm_bg.wasm
-fi
+# wasm-opt -Oz shrinks the raw file (4.4 MB to 3.8 MB) but the gzipped size grows (1.48 MB to 1.56 MB), so it is not used.
 git rev-parse --short HEAD > site/pkg/version.txt 2>/dev/null || echo dev > site/pkg/version.txt
 ls -l site/pkg
