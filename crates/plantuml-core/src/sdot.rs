@@ -287,10 +287,6 @@ fn collect_groups(
         if cuca.is_entity_removed(&g) {
             continue;
         }
-        if cuca.is_empty(&g) && g.group_type() == Some(crate::abel::GroupType::Package) {
-            log::warn!("empty package {} is not drawn", g.name());
-            continue;
-        }
         if nested && g.group_type() == Some(crate::abel::GroupType::ConcurrentState) {
             continue;
         }
@@ -677,6 +673,25 @@ fn layout_from(
             pos,
             Dimension::new(max_x - min_x, max_y - min_y),
         ));
+    }
+    // Graphviz gives no bounding box to a cluster that holds nothing (`package foo { }`, or a C4
+    // `System_Boundary(x, "y") { }`), so such a frame would not be drawn at all. Give it the size
+    // of its own title and stack it below the laid out content.
+    {
+        const MARGIN: f64 = 16.0;
+        let missing: Vec<Cluster> = all_clusters
+            .iter()
+            .filter(|cl| cl.parent().is_some())
+            .filter(|cl| !cluster_boxes.iter().any(|(placed, _)| placed == *cl))
+            .cloned()
+            .collect();
+        let mut bottom = -MARGIN;
+        for cluster in missing {
+            let width = cluster.title_and_attribute_width() + 2.0 * MARGIN;
+            let height = cluster.title_and_attribute_height() + 2.0 * MARGIN;
+            cluster_boxes.push((cluster, ((0.0, bottom - height), (width, bottom))));
+            bottom -= height + MARGIN;
+        }
     }
     orient_ports(&placed, &cluster_boxes);
     let mut mm = MinMax::empty(false);

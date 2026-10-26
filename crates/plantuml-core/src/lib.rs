@@ -280,6 +280,24 @@ mod tests {
     }
 
     #[test]
+    fn empty_packages_and_boundaries_are_drawn() {
+        let svg = render("@startuml\npackage foo {\n}\n@enduml").unwrap();
+        assert!(svg.contains("class=\"cluster\""));
+        assert!(svg.contains(">foo</text>"));
+        let svg =
+            render("@startuml\nrectangle \"== Domain 2 ==\" <<boundary>> as domain2 {\n}\n@enduml")
+                .unwrap();
+        assert!(svg.contains(">Domain 2</text>"));
+        let svg = render(
+            "@startuml\n!include <C4/C4_Component>\nContainer(api, \"API\", \"Rust\", \"Serves\")\n\
+             System_Boundary(domain2, \"Domain 2\") {\n}\nRel(api, domain2, \"calls\")\n@enduml",
+        )
+        .unwrap();
+        assert!(svg.contains(">Domain 2</text>"));
+        assert!(svg.contains(">calls</text>"));
+    }
+
+    #[test]
     fn empty_packet_diagrams_do_not_panic() {
         // Java divides by zero on these two and shows an error diagram; the port draws them.
         assert!(render("@startpacketdiag\n4-3: error\n@endpacketdiag").is_ok());
