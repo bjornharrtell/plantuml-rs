@@ -114,8 +114,12 @@ mod tests {
 
     fn parse(text: &str) -> ChenDiagram {
         let source = UmlSource::from_text(text);
-        create_system(&commands::commands(), ChenDiagram::new(source.clone()), &source)
-            .unwrap_or_else(|e| panic!("{e:?}"))
+        create_system(
+            &commands::commands(),
+            ChenDiagram::new(source.clone()),
+            &source,
+        )
+        .unwrap_or_else(|e| panic!("{e:?}"))
     }
 
     #[test]
@@ -161,6 +165,11 @@ mod tests {
     #[test]
     fn attribute_outside_owner_is_an_error() {
         let source = UmlSource::from_text("@startchen\nName\n@endchen");
-        assert!(create_system(&commands::commands(), ChenDiagram::new(source.clone()), &source).is_err());
+        assert!(create_system(
+            &commands::commands(),
+            ChenDiagram::new(source.clone()),
+            &source
+        )
+        .is_err());
     }
 }

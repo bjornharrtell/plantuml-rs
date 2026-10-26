@@ -20,8 +20,8 @@ pub mod swimlanes;
 
 use crate::command::common::HasBase;
 use crate::command::{create_system, CommandDiagram, CommandExecutionResult, ErrorUml, UmlSource};
-use crate::diagram::{Diagram, DiagramBase, DiagramFactory, DiagramType};
 use crate::decoration::usymbol::USymbol;
+use crate::diagram::{Diagram, DiagramBase, DiagramFactory, DiagramType};
 use crate::klimt::color::HColor;
 use crate::klimt::creole::display::Display;
 use crate::klimt::font::StringBounder;
@@ -210,11 +210,7 @@ impl ActivityDiagram3 {
     }
 
     /// Starts a `switch` (`startSwitch`).
-    pub fn start_switch(
-        &mut self,
-        test: Display,
-        back_color: Option<crate::klimt::color::HColor>,
-    ) {
+    pub fn start_switch(&mut self, test: Display, back_color: Option<crate::klimt::color::HColor>) {
         self.manage_swimlane_strategy();
         let switch = InstructionSwitch::new(
             test,
@@ -369,11 +365,7 @@ impl ActivityDiagram3 {
     }
 
     /// Starts a `while` loop (`doWhile`).
-    pub fn do_while(
-        &mut self,
-        test: Display,
-        back_color: Option<crate::klimt::color::HColor>,
-    ) {
+    pub fn do_while(&mut self, test: Display, back_color: Option<crate::klimt::color::HColor>) {
         self.manage_swimlane_strategy();
         let while_ = InstructionWhile::new(
             test,
@@ -465,11 +457,7 @@ impl ActivityDiagram3 {
 
     /// Closes the current group or partition (`closeGroup`).
     pub fn close_group(&mut self) -> CommandExecutionResult {
-        let is_group = self
-            .current()
-            .borrow()
-            .as_any()
-            .is::<InstructionGroup>();
+        let is_group = self.current().borrow().as_any().is::<InstructionGroup>();
         if !is_group {
             return CommandExecutionResult::error("Cannot find group");
         }

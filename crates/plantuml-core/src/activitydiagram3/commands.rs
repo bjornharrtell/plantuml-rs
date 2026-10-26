@@ -5,14 +5,14 @@ use super::rainbow::Rainbow;
 use super::stereogroup::Stereogroup;
 use super::ActivityDiagram3;
 use crate::command::{Command, CommandExecutionResult, MultiLineCommand, SingleLineCommand};
+use crate::decoration::usymbol::USymbol;
 use crate::klimt::color::colors::ColorType;
 use crate::klimt::color::parser::ColorParser;
 use crate::klimt::creole::display::Display;
 use crate::regex::{IRegex, RegexResult};
-use crate::decoration::usymbol::USymbol;
 use crate::stereo;
-use crate::text::{BlocLines, MultilinesStrategy};
 use crate::style::{queries, SName};
+use crate::text::{BlocLines, MultilinesStrategy};
 use crate::url::{self, UrlBuilder, UrlMode};
 use std::rc::Rc;
 
@@ -191,14 +191,16 @@ fn open_group() -> Cmd {
             let Some(colors) = parser.colors(arg) else {
                 return CommandExecutionResult::bad_color();
             };
-            let stereotype = arg
-                .get("STEREO", 0)
-                .map(crate::stereo::Stereotype::build);
+            let stereotype = arg.get("STEREO", 0).map(crate::stereo::Stereotype::build);
             let query = queries::ACTIVITYDIAG
                 .add_all(&symbol.snames())
                 .add(SName::Composite)
                 .with_stereotype_obj(stereotype.as_ref());
-            let style = d.skin().style_builder().merged_style(&query).expect("group style");
+            let style = d
+                .skin()
+                .style_builder()
+                .merged_style(&query)
+                .expect("group style");
             let back = colors
                 .color(ColorType::Back)
                 .cloned()
@@ -440,9 +442,7 @@ fn else_branch() -> Cmd {
             IRegex::leaf(";?"),
             IRegex::end(),
         ],
-        |d, arg| {
-            d.else_branch(arg.get("WHEN", 0).map(|w| Display::with_newlines(Some(w))))
-        },
+        |d, arg| d.else_branch(arg.get("WHEN", 0).map(|w| Display::with_newlines(Some(w)))),
     )
 }
 
@@ -601,10 +601,7 @@ fn while_start() -> Cmd {
             }
             let colors = Stereogroup::build(arg).inner_colors();
             let back = colors.color(ColorType::Back).cloned();
-            d.do_while(
-                Display::with_newlines(arg.get("TEST", 0)),
-                back,
-            );
+            d.do_while(Display::with_newlines(arg.get("TEST", 0)), back);
             CommandExecutionResult::ok()
         },
     )

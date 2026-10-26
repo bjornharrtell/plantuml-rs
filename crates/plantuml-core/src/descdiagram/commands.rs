@@ -12,9 +12,7 @@ use crate::klimt::color::HColor;
 use crate::klimt::creole::display::Display;
 use crate::regex::{IRegex, RegexResult};
 use crate::stereo::Stereotype;
-use crate::string_utils::{
-    eventually_remove_starting_and_ending_double_quote as unquote, trin,
-};
+use crate::string_utils::{eventually_remove_starting_and_ending_double_quote as unquote, trin};
 use crate::text::{BlocLines, MultilinesStrategy};
 use crate::url::{UrlBuilder, UrlMode};
 
@@ -25,12 +23,9 @@ const ALL_TYPES: &str = "person|artifact|actor/|actor|folder|card|file|package|r
 
 const CODE: &str =
     r"([%pLN_.]+|\(\)[%s]*[%pLN_.]+|\(\)[%s]*[%g][^%g]+[%g]|:[^:]+:/?|\([^()]+\)/?|\[[^\[\]]+\])";
-const CODE_WITH_QUOTE: &str =
-    r"([%pLN_.]+|\(\)[%s]*[%pLN_.]+|\(\)[%s]*[%g][^%g]+[%g]|:[^:]+:/?|\([^()]+\)/?|\[[^\[\]]+\]|[%g].+?[%g])";
-const DISPLAY: &str =
-    r"([%g].+?[%g]|:[^:]+:/?|\([^()]+\)/?|\[[^\[\]]+\])";
-const DISPLAY_WITHOUT_QUOTE: &str =
-    r"([%g].+?[%g]|:[^:]+:/?|\([^()]+\)/?|\[[^\[\]]+\]|[%pLN_.]+)";
+const CODE_WITH_QUOTE: &str = r"([%pLN_.]+|\(\)[%s]*[%pLN_.]+|\(\)[%s]*[%g][^%g]+[%g]|:[^:]+:/?|\([^()]+\)/?|\[[^\[\]]+\]|[%g].+?[%g])";
+const DISPLAY: &str = r"([%g].+?[%g]|:[^:]+:/?|\([^()]+\)/?|\[[^\[\]]+\])";
+const DISPLAY_WITHOUT_QUOTE: &str = r"([%g].+?[%g]|:[^:]+:/?|\([^()]+\)/?|\[[^\[\]]+\]|[%pLN_.]+)";
 
 fn code_char(s: &str) -> char {
     if s.chars().count() > 2 {
@@ -64,10 +59,7 @@ fn forbidden_line(line: &str) -> bool {
 fn create_element_full_pattern() -> IRegex {
     let mut parts = vec![
         IRegex::start(),
-        IRegex::named(
-            "SYMBOL",
-            &format!("(?:((?:{ALL_TYPES})|\\(\\))[%s]+)?"),
-        ),
+        IRegex::named("SYMBOL", &format!("(?:((?:{ALL_TYPES})|\\(\\))[%s]+)?")),
         color2().regex(),
         IRegex::space_zero_or_more(),
         IRegex::or(vec![
@@ -112,7 +104,10 @@ fn create_element_full_pattern() -> IRegex {
 fn full_symbol(
     d: &ClassDiagram,
     symbol: Option<&str>,
-) -> (LeafType, Option<std::rc::Rc<dyn crate::decoration::usymbol::USymbol>>) {
+) -> (
+    LeafType,
+    Option<std::rc::Rc<dyn crate::decoration::usymbol::USymbol>>,
+) {
     let skin = &d.cuca.base.skin_param;
     let actor = skin.actor_style().to_usymbol();
     match symbol {
@@ -125,11 +120,7 @@ fn full_symbol(
         Some(s) if s.eq_ignore_ascii_case("circle") => (LeafType::Circle, None),
         Some(s) => (
             LeafType::Description,
-            crate::decoration::usymbol::from_keyword(
-                s,
-                skin.actor_style(),
-                skin.component_style(),
-            ),
+            crate::decoration::usymbol::from_keyword(s, skin.actor_style(), skin.component_style()),
         ),
     }
 }
@@ -284,10 +275,7 @@ fn create_element_multilines_pattern(multiline_type: usize) -> IRegex {
             IRegex::named("DESC", "([^%g]*)"),
         ]);
     } else {
-        parts.extend([
-            IRegex::leaf(r"\["),
-            IRegex::named("DESC", "(.*)"),
-        ]);
+        parts.extend([IRegex::leaf(r"\["), IRegex::named("DESC", "(.*)")]);
     }
     parts.push(IRegex::end());
     IRegex::concat(parts)
@@ -296,7 +284,10 @@ fn create_element_multilines_pattern(multiline_type: usize) -> IRegex {
 fn multiline_type_usymbol(
     d: &ClassDiagram,
     symbol: &str,
-) -> (LeafType, Option<std::rc::Rc<dyn crate::decoration::usymbol::USymbol>>) {
+) -> (
+    LeafType,
+    Option<std::rc::Rc<dyn crate::decoration::usymbol::USymbol>>,
+) {
     let skin = &d.cuca.base.skin_param;
     if symbol.eq_ignore_ascii_case("usecase") {
         (
@@ -380,13 +371,10 @@ fn execute_create_element_multilines(
     }
     let result = match quark.data() {
         Some(e) => e,
-        None => d.cuca.really_create_leaf_with(
-            location,
-            quark.clone(),
-            display,
-            leaf_type,
-            usymbol,
-        ),
+        None => {
+            d.cuca
+                .really_create_leaf_with(location, quark.clone(), display, leaf_type, usymbol)
+        }
     };
 
     if let Some(st) = line0.get("STEREO", 0) {
@@ -494,19 +482,16 @@ fn execute_package_with_usymbol(
     } else {
         code_arg.clone()
     };
-    let id_short = d
-        .cuca
-        .clean_id(Some(&code_or_unique))
-        .unwrap_or_default();
+    let id_short = d.cuca.clean_id(Some(&code_or_unique)).unwrap_or_default();
     let quark = match d.cuca.quark_in_context(false, &id_short) {
         Ok(q) => q,
         Err((m, s)) => return CommandExecutionResult::error_with_score(m, s),
     };
     let display = match &code_arg {
         c if c.is_empty() => None,
-        _ => Some(
-            unquote(arg.get_lazzy("DISPLAY", 0).unwrap_or_else(|| quark.name())),
-        ),
+        _ => Some(unquote(
+            arg.get_lazzy("DISPLAY", 0).unwrap_or_else(|| quark.name()),
+        )),
     };
     let symbol = arg.get("SYMBOL", 0).unwrap_or("package");
     let skin = &d.cuca.base.skin_param;
@@ -636,21 +621,32 @@ pub fn commands() -> Vec<Cmd> {
     let mut cmds: Vec<Cmd> = Vec::new();
     cmds.extend(crate::command::common::common_commands());
     cmds.push(crate::classdiagram::commands_misc::rank_dir::<ClassDiagram>());
-    cmds.push(crate::classdiagram::commands_misc::remove_restore::<ClassDiagram>());
-    cmds.push(crate::classdiagram::commands_misc::url_command::<ClassDiagram>());
+    cmds.push(crate::classdiagram::commands_misc::remove_restore::<
+        ClassDiagram,
+    >());
+    cmds.push(crate::classdiagram::commands_misc::url_command::<
+        ClassDiagram,
+    >());
     cmds.push(crate::classdiagram::commands::hide_show2::<ClassDiagram>());
     cmds.push(package_with_usymbol());
     cmds.push(together());
     cmds.push(end_group());
-    cmds.extend(crate::classdiagram::commands_note::floating_commands::<ClassDiagram>());
+    cmds.extend(crate::classdiagram::commands_note::floating_commands::<
+        ClassDiagram,
+    >());
     cmds.push(create_element_full());
     cmds.push(create_element_multilines(0));
     cmds.push(create_element_multilines(1));
-    cmds.extend(crate::classdiagram::commands_note::on_entity_commands_for::<
-        ClassDiagram,
-    >(CODE_NOTE, ParserPass::One));
+    cmds.extend(
+        crate::classdiagram::commands_note::on_entity_commands_for::<ClassDiagram>(
+            CODE_NOTE,
+            ParserPass::One,
+        ),
+    );
     cmds.push(link_element());
-    cmds.extend(crate::classdiagram::commands_note::multi_commands::<ClassDiagram>());
+    cmds.extend(crate::classdiagram::commands_note::multi_commands::<
+        ClassDiagram,
+    >());
     cmds
 }
 

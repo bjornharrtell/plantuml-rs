@@ -122,12 +122,7 @@ impl Ftile for FtileGroup {
                 orig.out_y() + title,
             )
         } else {
-            FtileGeometry::new(
-                orig.width + supp,
-                height,
-                left,
-                orig.in_y() + title,
-            )
+            FtileGeometry::new(orig.width + supp, height, left, orig.in_y() + title)
         }
     }
 
@@ -169,8 +164,6 @@ impl Ftile for FtileGroup {
             self.supp_width(sb) / 2.0 + HORIZONTAL_MARGIN,
             self.title_height(sb),
         );
-        g.apply_translate(offset)
-            .draw_ftile(self.inner.as_ref());
+        g.apply_translate(offset).draw_ftile(self.inner.as_ref());
     }
 }
-

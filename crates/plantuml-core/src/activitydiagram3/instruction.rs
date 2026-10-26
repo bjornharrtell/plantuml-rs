@@ -12,10 +12,10 @@ use super::ftile::wrap::FtileDecorate;
 use super::rainbow::LinkRendering;
 use super::swimlanes::Swimlane;
 use crate::command::CommandExecutionResult;
+use crate::decoration::usymbol::USymbol;
 use crate::klimt::color::colors::Colors;
 use crate::klimt::color::HColor;
 use crate::klimt::creole::display::Display;
-use crate::decoration::usymbol::USymbol;
 use crate::stereo::Stereotype;
 use crate::style::{Style, StyleBuilder};
 use crate::url::Url;
@@ -390,9 +390,7 @@ impl Instruction for InstructionFork {
     }
 
     fn kill(&mut self) -> bool {
-        self.branches
-            .last_mut()
-            .is_some_and(|b| b.kill())
+        self.branches.last_mut().is_some_and(|b| b.kill())
     }
 
     fn in_link_rendering(&self) -> LinkRendering {
@@ -606,11 +604,7 @@ impl Instruction for InstructionIf {
     }
 
     fn add(&mut self, other: InsRef) -> CommandExecutionResult {
-        self.branches
-            .last_mut()
-            .expect("one branch")
-            .0
-            .add(other)
+        self.branches.last_mut().expect("one branch").0.add(other)
     }
 
     fn kill(&mut self) -> bool {

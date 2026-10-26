@@ -75,10 +75,7 @@ impl FtileRepeat {
     fn width(&self, sb: &dyn StringBounder) -> f64 {
         let body = self.body.calculate_dimension(sb);
         let start = self.start_dim(sb);
-        self.condition_width(sb)
-            .max(body.width)
-            .max(start.0)
-            + 2.0 * LOOP_MARGIN
+        self.condition_width(sb).max(body.width).max(start.0) + 2.0 * LOOP_MARGIN
     }
 
     fn start_offset(&self, sb: &dyn StringBounder) -> (f64, f64) {
@@ -89,10 +86,7 @@ impl FtileRepeat {
     fn body_offset(&self, sb: &dyn StringBounder) -> (f64, f64) {
         let body = self.body.calculate_dimension(sb);
         let start = self.start_dim(sb);
-        (
-            (self.width(sb) - body.width) / 2.0,
-            start.1 + SPACE_AROUND,
-        )
+        ((self.width(sb) - body.width) / 2.0, start.1 + SPACE_AROUND)
     }
 
     fn condition_offset(&self, sb: &dyn StringBounder) -> (f64, f64) {
@@ -186,19 +180,31 @@ impl Ftile for FtileRepeat {
         let condition_middle = cy + self.condition.height / 2.0;
 
         // start to body
-        let mut down = Snake::create(&self.skin, color.clone(), Some(arrows.as_to(Direction::Down)));
+        let mut down = Snake::create(
+            &self.skin,
+            color.clone(),
+            Some(arrows.as_to(Direction::Down)),
+        );
         down.add_point(sx + sdx / 2.0, sdy);
         down.add_point(bx + body.width / 2.0, by);
         g.draw_snake(down);
 
         // body to condition
-        let mut down = Snake::create(&self.skin, color.clone(), Some(arrows.as_to(Direction::Down)));
+        let mut down = Snake::create(
+            &self.skin,
+            color.clone(),
+            Some(arrows.as_to(Direction::Down)),
+        );
         down.add_point(bx + body.width / 2.0, by + body.height);
         down.add_point(cx + cw / 2.0, cy);
         g.draw_snake(down);
 
         // condition back to the start
-        let mut back = Snake::create(&self.skin, color.clone(), Some(arrows.as_to(Direction::Left)));
+        let mut back = Snake::create(
+            &self.skin,
+            color.clone(),
+            Some(arrows.as_to(Direction::Left)),
+        );
         back.add_point(cx + cw, condition_middle);
         back.add_point(width, condition_middle);
         back.add_point(width, start_middle);

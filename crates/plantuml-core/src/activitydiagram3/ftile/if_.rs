@@ -201,7 +201,11 @@ impl Ftile for FtileIf {
             let bw = self.branch_width(i, sb);
             let bh = self.branches[i].tile.calculate_dimension(sb).height;
             let center = bx + bw / 2.0;
-            let mut down = Snake::create(&self.skin, color.clone(), Some(arrows.as_to(Direction::Down)));
+            let mut down = Snake::create(
+                &self.skin,
+                color.clone(),
+                Some(arrows.as_to(Direction::Down)),
+            );
             if i == 0 {
                 down.add_point(dx, middle);
                 down.add_point(center, middle);
@@ -221,10 +225,10 @@ impl Ftile for FtileIf {
                 } else {
                     (self.condition.height + by - dim.height) / 2.0
                 };
-                label.draw(&g.ug().apply_translate(UTranslate::new(
-                    center - dim.width / 2.0,
-                    y,
-                )));
+                label.draw(
+                    &g.ug()
+                        .apply_translate(UTranslate::new(center - dim.width / 2.0, y)),
+                );
             }
 
             let to = if i == 0 {

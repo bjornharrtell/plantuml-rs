@@ -202,13 +202,21 @@ impl Ftile for FtileWhile {
         let arrows = Arrows::from_skin(&self.skin);
 
         // condition to body
-        let mut down = Snake::create(&self.skin, color.clone(), Some(arrows.as_to(Direction::Down)));
+        let mut down = Snake::create(
+            &self.skin,
+            color.clone(),
+            Some(arrows.as_to(Direction::Down)),
+        );
         down.add_point(bx + body.width / 2.0, self.diamond.height);
         down.add_point(bx + body.width / 2.0, by);
         g.draw_snake(down);
 
         // body back to the diamond (the loop)
-        let mut back = Snake::create(&self.skin, color.clone(), Some(arrows.as_to(Direction::Left)));
+        let mut back = Snake::create(
+            &self.skin,
+            color.clone(),
+            Some(arrows.as_to(Direction::Left)),
+        );
         back.add_point(bx + body.width / 2.0, by + body.height);
         back.add_point(bx + body.width / 2.0, by + body.height + BOTTOM_GAP);
         back.add_point(width, by + body.height + BOTTOM_GAP);

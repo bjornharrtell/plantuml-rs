@@ -109,7 +109,14 @@ impl CucaDiagram {
         for (from, to, len) in links {
             let uid = self.unique_sequence("lnk");
             let link_type = LinkType::new(LinkDecor::None, LinkDecor::None).invisible();
-            self.add_link(Link::new(None, uid, from, to, link_type, LinkArg::no_display(len)));
+            self.add_link(Link::new(
+                None,
+                uid,
+                from,
+                to,
+                link_type,
+                LinkArg::no_display(len),
+            ));
         }
     }
 }

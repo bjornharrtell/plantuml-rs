@@ -105,8 +105,7 @@ pub struct EntityImageChenEntity {
 
 impl EntityImageChenEntity {
     pub fn new(entity: Entity, cuca: &CucaDiagram, skin: &SkinParam) -> EntityImageChenEntity {
-        let (title, style) =
-            title_block(&entity, skin, &queries::CHENEER_ENTITY_TITLE, false);
+        let (title, style) = title_block(&entity, skin, &queries::CHENEER_ENTITY_TITLE, false);
         EntityImageChenEntity {
             hidden: cuca.is_entity_hidden(&entity),
             is_weak: has_stereotype(&entity, "<<weak>>"),
@@ -139,14 +138,15 @@ impl TextBlock for EntityImageChenEntity {
             .apply_stroke(stroke);
         ug.draw(URectangle::build(dim_total.width, dim_total.height));
         if self.is_weak {
-            ug.apply_translate(UTranslate::new(3.0, 3.0)).draw(
-                URectangle::build(dim_total.width - 6.0, dim_total.height - 6.0),
-            );
+            ug.apply_translate(UTranslate::new(3.0, 3.0))
+                .draw(URectangle::build(
+                    dim_total.width - 6.0,
+                    dim_total.height - 6.0,
+                ));
         }
         let x = (dim_total.width - dim_title.width) / 2.0;
         let y = MARGIN + MARGIN_LINE;
-        self.title
-            .draw(&ug.apply_translate(UTranslate::new(x, y)));
+        self.title.draw(&ug.apply_translate(UTranslate::new(x, y)));
         ug.close_group();
     }
 }
@@ -175,7 +175,11 @@ pub struct EntityImageChenRelationship {
 }
 
 impl EntityImageChenRelationship {
-    pub fn new(entity: Entity, cuca: &CucaDiagram, skin: &SkinParam) -> EntityImageChenRelationship {
+    pub fn new(
+        entity: Entity,
+        cuca: &CucaDiagram,
+        skin: &SkinParam,
+    ) -> EntityImageChenRelationship {
         let (title, style) =
             title_block(&entity, skin, &queries::CHENEER_RELATIONSHIP_TITLE, false);
         EntityImageChenRelationship {
@@ -201,10 +205,7 @@ impl TextBlock for EntityImageChenRelationship {
     fn calculate_dimension(&self, sb: &dyn StringBounder) -> Dimension {
         let dim = self.title.calculate_dimension(sb);
         let diagonal = (dim.width + 2.0 * dim.height) / 5.0f64.sqrt() + 2.0 * MARGIN;
-        Dimension::new(
-            diagonal * 5.0f64.sqrt(),
-            diagonal * 5.0f64.sqrt() / 2.0,
-        )
+        Dimension::new(diagonal * 5.0f64.sqrt(), diagonal * 5.0f64.sqrt() / 2.0)
     }
 
     fn draw(&self, ug: &UGraphic) {
@@ -221,12 +222,14 @@ impl TextBlock for EntityImageChenRelationship {
         ug.draw(Self::polygon(dim_total.width, dim_total.height));
         if self.is_identifying {
             ug.apply_translate(UTranslate::new(10.0, 5.0))
-                .draw(Self::polygon(dim_total.width - 20.0, dim_total.height - 10.0));
+                .draw(Self::polygon(
+                    dim_total.width - 20.0,
+                    dim_total.height - 10.0,
+                ));
         }
         let x = (dim_total.width - dim_title.width) / 2.0;
         let y = (dim_total.height - dim_title.height) / 2.0;
-        self.title
-            .draw(&ug.apply_translate(UTranslate::new(x, y)));
+        self.title.draw(&ug.apply_translate(UTranslate::new(x, y)));
         ug.close_group();
     }
 }
@@ -293,12 +296,7 @@ pub struct EntityImageChenAttribute {
 impl EntityImageChenAttribute {
     pub fn new(entity: Entity, cuca: &CucaDiagram, skin: &SkinParam) -> EntityImageChenAttribute {
         let (is_key, is_multi, is_derived, _) = attributes(&entity);
-        let (title, style) = title_block(
-            &entity,
-            skin,
-            &queries::CHENEER_ATTRIBUTE_TITLE,
-            is_key,
-        );
+        let (title, style) = title_block(&entity, skin, &queries::CHENEER_ATTRIBUTE_TITLE, is_key);
         EntityImageChenAttribute {
             hidden: cuca.is_entity_hidden(&entity),
             entity,
@@ -367,8 +365,7 @@ pub struct EntityImageChenCircle {
 impl EntityImageChenCircle {
     pub fn new(entity: Entity, cuca: &CucaDiagram, skin: &SkinParam) -> EntityImageChenCircle {
         let (is_key, is_multi, is_derived, _) = attributes(&entity);
-        let (title, style) =
-            title_block(&entity, skin, &queries::CHENEER_CIRCLE_TITLE, is_key);
+        let (title, style) = title_block(&entity, skin, &queries::CHENEER_CIRCLE_TITLE, is_key);
         EntityImageChenCircle {
             hidden: cuca.is_entity_hidden(&entity),
             entity,
@@ -418,4 +415,3 @@ impl IEntityImage for EntityImageChenCircle {
         self
     }
 }
-

@@ -39,42 +39,30 @@ pub(crate) fn create_entity_image(
         ) => {
             use crate::abel::LeafType;
             let image: Rc<dyn IEntityImage> = match entity.leaf_type() {
-                Some(LeafType::ChenEntity) => {
-                    Rc::new(super::image_chen::EntityImageChenEntity::new(
-                        entity.clone(), cuca, skin,
-                    ))
-                }
-                Some(LeafType::ChenRelationship) => {
-                    Rc::new(super::image_chen::EntityImageChenRelationship::new(
-                        entity.clone(), cuca, skin,
-                    ))
-                }
-                Some(LeafType::ChenAttribute) => {
-                    Rc::new(super::image_chen::EntityImageChenAttribute::new(
-                        entity.clone(), cuca, skin,
-                    ))
-                }
+                Some(LeafType::ChenEntity) => Rc::new(
+                    super::image_chen::EntityImageChenEntity::new(entity.clone(), cuca, skin),
+                ),
+                Some(LeafType::ChenRelationship) => Rc::new(
+                    super::image_chen::EntityImageChenRelationship::new(entity.clone(), cuca, skin),
+                ),
+                Some(LeafType::ChenAttribute) => Rc::new(
+                    super::image_chen::EntityImageChenAttribute::new(entity.clone(), cuca, skin),
+                ),
                 _ => Rc::new(super::image_chen::EntityImageChenCircle::new(
-                    entity.clone(), cuca, skin,
+                    entity.clone(),
+                    cuca,
+                    skin,
                 )),
             };
             image
         }
-        Some(crate::abel::LeafType::Object) => {
-            Rc::new(super::image_object::EntityImageObject::new(
-                entity.clone(),
-                cuca,
-                skin,
-            ))
-        }
+        Some(crate::abel::LeafType::Object) => Rc::new(
+            super::image_object::EntityImageObject::new(entity.clone(), cuca, skin),
+        ),
         Some(t) if t.is_like_class() => Rc::new(EntityImageClass::new(entity.clone(), cuca, skin)),
-        Some(crate::abel::LeafType::Portin | crate::abel::LeafType::Portout) => {
-            Rc::new(super::image_port::EntityImagePort::new(
-                entity.clone(),
-                cuca,
-                skin,
-            ))
-        }
+        Some(crate::abel::LeafType::Portin | crate::abel::LeafType::Portout) => Rc::new(
+            super::image_port::EntityImagePort::new(entity.clone(), cuca, skin),
+        ),
         Some(
             crate::abel::LeafType::Description
             | crate::abel::LeafType::Usecase

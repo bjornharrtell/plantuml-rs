@@ -15,8 +15,7 @@ type Cmd = Box<dyn Command<ChenDiagram>>;
 
 fn single(
     parts: Vec<IRegex>,
-    f: impl Fn(&mut ChenDiagram, Option<LineLocation>, &RegexResult) -> CommandExecutionResult
-        + 'static,
+    f: impl Fn(&mut ChenDiagram, Option<LineLocation>, &RegexResult) -> CommandExecutionResult + 'static,
 ) -> Cmd {
     Box::new(SingleLineCommand::new(
         IRegex::concat(parts),
@@ -66,14 +65,7 @@ fn add_link(
     colors: Colors,
 ) {
     let uid = d.cuca.unique_sequence("lnk");
-    let link = Link::new(
-        location,
-        uid,
-        entity1.clone(),
-        entity2.clone(),
-        type_,
-        arg,
-    );
+    let link = Link::new(location, uid, entity1.clone(), entity2.clone(), type_, arg);
     link.set_colors(colors);
     d.cuca.add_link(link);
 }
@@ -248,15 +240,7 @@ fn associate() -> Cmd {
             let Some(colors) = line_color().colors(arg) else {
                 return CommandExecutionResult::bad_color();
             };
-            add_link(
-                d,
-                loc,
-                &entity1,
-                &entity2,
-                link_type,
-                link_arg,
-                colors,
-            );
+            add_link(d, loc, &entity1, &entity2, link_type, link_arg, colors);
             if let Some(link) = d.cuca.links().last() {
                 link.set_port_members(
                     d.cuca.port_id(&entity1.name()),
@@ -430,8 +414,7 @@ fn multi_subclass() -> Cmd {
                 };
                 let mut subclass_link_type = LinkType::new(LinkDecor::None, LinkDecor::None);
                 if symbol != "U" {
-                    subclass_link_type =
-                        subclass_link_type.with_middle(LinkMiddleDecor::Superset);
+                    subclass_link_type = subclass_link_type.with_middle(LinkMiddleDecor::Superset);
                 }
                 add_link(
                     d,

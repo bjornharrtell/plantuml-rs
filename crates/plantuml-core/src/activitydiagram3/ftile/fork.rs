@@ -63,9 +63,7 @@ impl FtileParallel {
     }
 
     fn x_offset(&self, i: usize, sb: &dyn StringBounder) -> f64 {
-        (0..i)
-            .map(|k| self.branch_width(k, sb))
-            .sum::<f64>()
+        (0..i).map(|k| self.branch_width(k, sb)).sum::<f64>()
     }
 
     fn max_height(&self, sb: &dyn StringBounder) -> f64 {
@@ -100,10 +98,7 @@ impl FtileParallel {
     }
 
     fn branch_height(&self, sb: &dyn StringBounder) -> f64 {
-        self.max_height(sb)
-            + 2.0 * SPACE_AROUND_BAR
-            + self.supp_top(sb)
-            + self.supp_bottom(sb)
+        self.max_height(sb) + 2.0 * SPACE_AROUND_BAR + self.supp_top(sb) + self.supp_bottom(sb)
     }
 
     fn bar_width(&self, sb: &dyn StringBounder) -> f64 {
@@ -123,12 +118,9 @@ impl FtileParallel {
 
     fn branch_content_offset(&self, i: usize, sb: &dyn StringBounder) -> (f64, f64) {
         let dim = self.branches[i].calculate_dimension(sb);
-        let dy = self.supp_top(sb)
-            + SPACE_AROUND_BAR
-            + (self.max_height(sb) - dim.height) / 2.0;
+        let dy = self.supp_top(sb) + SPACE_AROUND_BAR + (self.max_height(sb) - dim.height) / 2.0;
         (self.x_offset(i, sb) + BRANCH_MARGIN, dy)
     }
-
 }
 
 impl Ftile for FtileParallel {
@@ -201,8 +193,7 @@ impl Ftile for FtileParallel {
             let dim = branch.calculate_dimension(sb);
             let color = in_link_rendering_color(&self.skin, branch.as_ref());
             let x = dx + dim.left();
-            let top_label =
-                arrow_text_block(&self.skin, branch.in_link_rendering().display());
+            let top_label = arrow_text_block(&self.skin, branch.in_link_rendering().display());
             let top = ConnectionVerticalDown::new(
                 branch.clone(),
                 branch.clone(),
@@ -212,8 +203,7 @@ impl Ftile for FtileParallel {
                 top_label,
             );
             g.draw_connection(&top);
-            let bottom_label =
-                arrow_text_block(&self.skin, branch.out_link_rendering().display());
+            let bottom_label = arrow_text_block(&self.skin, branch.out_link_rendering().display());
             let bottom = ConnectionVerticalDown::new(
                 branch.clone(),
                 branch.clone(),

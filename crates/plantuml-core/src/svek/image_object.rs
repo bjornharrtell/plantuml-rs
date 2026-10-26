@@ -43,10 +43,7 @@ impl ObjectHeader {
     fn dimension(&self, sb: &dyn StringBounder) -> Dimension {
         let name = self.name.calculate_dimension(sb);
         let stereo = self.stereo.calculate_dimension(sb);
-        Dimension::new(
-            name.width.max(stereo.width),
-            name.height + stereo.height,
-        )
+        Dimension::new(name.width.max(stereo.width), name.height + stereo.height)
     }
 
     fn draw(&self, ug: &UGraphic, width: f64, height: f64) {
@@ -99,7 +96,10 @@ impl EntityImageObject {
         );
         let name = with_margin(name, style.padding());
 
-        let stereo = match (&entity.stereotype(), cuca.visible_stereotype_labels(&entity)) {
+        let stereo = match (
+            &entity.stereotype(),
+            cuca.visible_stereotype_labels(&entity),
+        ) {
             (Some(st), Some(labels))
                 if st.label(Guillemet::DoubleComparator).is_some() && !labels.is_empty() =>
             {
@@ -237,8 +237,7 @@ impl EntityImageObject {
         } else {
             ug.apply_stroke(stroke).draw(rect);
         }
-        self.header
-            .draw(&ug, width_total, dim_header.height);
+        self.header.draw(&ug, width_total, dim_header.height);
         if let Some(body) = &self.body {
             let ug2 = ug.apply_stencil(Rc::new(ClassStencil(width_total)), stroke);
             body.draw(&ug2.apply_translate(UTranslate::dy(dim_header.height)));

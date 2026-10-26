@@ -96,8 +96,7 @@ impl TextBlock for EntityImagePort {
         }
         attrs.push(("id", self.entity.uid()));
         ug.start_group(&attrs);
-        self.desc
-            .draw(&ug.apply_translate(UTranslate::new(x, y)));
+        self.desc.draw(&ug.apply_translate(UTranslate::new(x, y)));
         ug.apply_color(self.border.clone())
             .apply_back_color(self.back.clone())
             .apply_stroke(UStroke::with_thickness(1.5))

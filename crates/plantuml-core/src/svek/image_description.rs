@@ -42,10 +42,12 @@ pub fn entity_symbol(entity: &Entity, skin: &SkinParam) -> Rc<dyn USymbol> {
 
 fn symbol_shape(symbol: &Rc<dyn USymbol>, hide_text: bool) -> ShapeType {
     let names = symbol.snames();
-    if names
-        .iter()
-        .any(|n| matches!(n, SName::Folder | SName::Package | SName::Frame | SName::Node))
-    {
+    if names.iter().any(|n| {
+        matches!(
+            n,
+            SName::Folder | SName::Package | SName::Frame | SName::Node
+        )
+    }) {
         ShapeType::Folder
     } else if names.iter().any(|n| matches!(n, SName::Hexagon)) {
         ShapeType::Hexagon
@@ -84,33 +86,33 @@ impl EntityImageDescription {
         let style_title = style_title.override_colors(&entity.colors());
         let skin_simple = skin.skin_simple();
 
-        let desc = entity
-            .display()
-            .create_block(
-                &style.font_configuration(Some(&entity.colors())),
-                HorizontalAlignment::Center,
-                &skin_simple,
-                &style.wrap_width(),
-                CreoleMode::Full,
-                None,
-                None,
-                0.0,
-                0.0,
-            );
-        let name = Display::with_newlines(Some(&entity.name()))
-            .create_block(
-                &style_title.font_configuration(Some(&entity.colors())),
-                HorizontalAlignment::Center,
-                &skin_simple,
-                &style_title.wrap_width(),
-                CreoleMode::Full,
-                None,
-                None,
-                0.0,
-                0.0,
-            );
+        let desc = entity.display().create_block(
+            &style.font_configuration(Some(&entity.colors())),
+            HorizontalAlignment::Center,
+            &skin_simple,
+            &style.wrap_width(),
+            CreoleMode::Full,
+            None,
+            None,
+            0.0,
+            0.0,
+        );
+        let name = Display::with_newlines(Some(&entity.name())).create_block(
+            &style_title.font_configuration(Some(&entity.colors())),
+            HorizontalAlignment::Center,
+            &skin_simple,
+            &style_title.wrap_width(),
+            CreoleMode::Full,
+            None,
+            None,
+            0.0,
+            0.0,
+        );
 
-        let stereo = match (&entity.stereotype(), cuca.visible_stereotype_labels(&entity)) {
+        let stereo = match (
+            &entity.stereotype(),
+            cuca.visible_stereotype_labels(&entity),
+        ) {
             (Some(st), Some(labels))
                 if st.label(Guillemet::DoubleComparator).is_some() && !labels.is_empty() =>
             {
@@ -205,9 +207,8 @@ impl TextBlock for EntityImageDescription {
             let stereo = self.stereo.calculate_dimension(sb);
             let space = 8.0;
             let posx1 = (small.width - desc.width) / 2.0;
-            self.desc.draw(
-                &ug.apply_translate(UTranslate::new(posx1, space + small.height)),
-            );
+            self.desc
+                .draw(&ug.apply_translate(UTranslate::new(posx1, space + small.height)));
             let posx2 = (small.width - stereo.width) / 2.0;
             self.stereo
                 .draw(&ug.apply_translate(UTranslate::new(posx2, -space - stereo.height)));
