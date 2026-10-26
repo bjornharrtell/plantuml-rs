@@ -3,7 +3,7 @@
 mod boxes;
 mod cloud;
 mod common;
-mod figures;
+pub(crate) mod figures;
 mod folder;
 mod hline;
 pub mod usymbols;

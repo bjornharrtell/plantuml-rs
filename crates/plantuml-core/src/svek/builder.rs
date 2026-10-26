@@ -31,6 +31,35 @@ pub(crate) fn create_entity_image(
             }
             Rc::new(EntityImageSimpleEmpty)
         }
+        Some(
+            crate::abel::LeafType::ChenEntity
+            | crate::abel::LeafType::ChenRelationship
+            | crate::abel::LeafType::ChenAttribute
+            | crate::abel::LeafType::ChenCircle,
+        ) => {
+            use crate::abel::LeafType;
+            let image: Rc<dyn IEntityImage> = match entity.leaf_type() {
+                Some(LeafType::ChenEntity) => {
+                    Rc::new(super::image_chen::EntityImageChenEntity::new(
+                        entity.clone(), cuca, skin,
+                    ))
+                }
+                Some(LeafType::ChenRelationship) => {
+                    Rc::new(super::image_chen::EntityImageChenRelationship::new(
+                        entity.clone(), cuca, skin,
+                    ))
+                }
+                Some(LeafType::ChenAttribute) => {
+                    Rc::new(super::image_chen::EntityImageChenAttribute::new(
+                        entity.clone(), cuca, skin,
+                    ))
+                }
+                _ => Rc::new(super::image_chen::EntityImageChenCircle::new(
+                    entity.clone(), cuca, skin,
+                )),
+            };
+            image
+        }
         Some(crate::abel::LeafType::Object) => {
             Rc::new(super::image_object::EntityImageObject::new(
                 entity.clone(),

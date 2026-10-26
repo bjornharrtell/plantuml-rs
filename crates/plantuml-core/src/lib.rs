@@ -3,6 +3,7 @@
 pub mod abel;
 pub mod activitydiagram3;
 pub mod chart;
+pub mod cheneer;
 pub mod chrome;
 pub mod classdiagram;
 pub mod command;

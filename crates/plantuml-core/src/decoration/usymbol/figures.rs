@@ -395,14 +395,14 @@ impl ContainingEllipse {
 }
 
 /// Text inside an ellipse that just contains it (`TextBlockInEllipse`).
-struct TextBlockInEllipse {
+pub(crate) struct TextBlockInEllipse {
     text: Rc<dyn TextBlock>,
     ellipse: UEllipse,
     center: (f64, f64),
 }
 
 impl TextBlockInEllipse {
-    fn new(text: Rc<dyn TextBlock>, sb: &dyn StringBounder) -> Self {
+    pub(crate) fn new(text: Rc<dyn TextBlock>, sb: &dyn StringBounder) -> Self {
         let dim = text.calculate_dimension(sb);
         let alpha = (dim.height / dim.width).clamp(0.2, 0.8);
         let drawn = text.clone();
@@ -418,7 +418,7 @@ impl TextBlockInEllipse {
         }
     }
 
-    fn draw(&self, ug: &UGraphic) {
+    pub(crate) fn draw(&self, ug: &UGraphic) {
         let dx = self.ellipse.width / 2.0 - self.center.0;
         let dy = self.ellipse.height / 2.0 - self.center.1;
         ug.draw(self.ellipse.clone());
@@ -426,7 +426,7 @@ impl TextBlockInEllipse {
             .draw(&ug.apply_translate(UTranslate::new(dx, dy - 2.0)));
     }
 
-    fn dimension(&self) -> Dimension {
+    pub(crate) fn dimension(&self) -> Dimension {
         Dimension::new(self.ellipse.width, self.ellipse.height)
     }
 }

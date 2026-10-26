@@ -8,6 +8,7 @@ pub mod decorate;
 pub mod edge;
 pub mod extremity;
 pub mod image;
+pub mod image_chen;
 pub mod image_class;
 pub mod image_description;
 pub mod image_misc;
