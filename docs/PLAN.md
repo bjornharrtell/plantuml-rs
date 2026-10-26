@@ -242,11 +242,11 @@ and measured but not held to the targets.
 
 | type | n | ok% | text jaccard | layout | exact structure | pass | accepted |
 |---|---|---|---|---|---|---|---|
-| SEQUENCE | 149 | 100% | 0.99 | 0.98 | 96% | 145/149 | 0 |
+| SEQUENCE | 149 | 100% | 0.99 | 0.98 | 96% | 145/146 | 3 |
 | PACKET | 57 | 100% | 1.00 | 1.00 | 100% | 57/57 | 0 |
 | CLASS | 53 | 100% | 1.00 | 0.96 | 60% | 48/52 | 1 |
 | STATE | 48 | 100% | 1.00 | 0.95 | 33% | 44/47 | 1 |
-| ACTIVITY | 36 | 100% | 0.92 | 0.62 | 17% | 12/17 | 19 |
+| ACTIVITY | 36 | 100% | 0.92 | 0.62 | 17% | 12/15 | 21 |
 | CHART | 35 | 100% | 1.00 | 1.00 | 100% | 35/35 | 0 |
 | GANTT | 16 | 100% | 1.00 | 1.00 | 94% | 16/16 | 0 |
 | SALT | 10 | 100% | 0.96 | 0.99 | 60% | 9/10 | 0 |
@@ -259,8 +259,9 @@ and measured but not held to the targets.
 | JSON | 1 | 100% | 1.00 | 0.92 | 0% | 1/1 | 0 |
 | YAML | 1 | 100% | 1.00 | 0.90 | 0% | 1/1 | 0 |
 
-All 431 fixtures render. **390 of 410 scored fixtures pass (95%)**, 20 fail, 21 accepted; `layout_mean` 0.95, text
-jaccard 0.99, 327 exact structures. 13 of 16 types are fully green; activity, description and Chen EER are not.
+All 431 fixtures render. **390 of 405 scored fixtures pass (96%)**, 15 fail, 26 accepted; `layout_mean` 0.95, text
+jaccard 0.99, 327 exact structures. 13 of 16 types are fully green; class, state, activity, description, Chen EER and salt
+have singles left (see [Remaining work](#remaining-work)).
 
 `size_within20%` is reported per fixture in the JSON but not tabulated here: it moves with font metrics and is not a
 signal of correctness.
@@ -276,12 +277,11 @@ VEGA_DIR=plantuml/src/test/resources/vega FIDELITY_JSON=fidelity.json \
 
 ## Remaining work
 
-### In-scope fixture failures (20 of 410)
+### In-scope fixture failures (15 of 405)
 
 | Area | Fixtures | Cause |
 |---|---|---|
 | Activity misc | 3 | `style-block-unclosed-at-eof`, `partition_no_bracket`, `A0004` |
-| Embedded `{{ ... }}` diagrams with `scale` | 5 | 3 `tikz/tikz-scale-*` (SEQUENCE), 2 `tikz/tikz-1926*` (ACTIVITY): the embedded diagram and its scale are not laid out |
 | Class package cluster geometry | 2 (`group2938/dot_separator`, `double_backslash_separator`) | layout 0.89: the two leaves inside a package come out left/right swapped; Java's in-cluster order is not creation order here |
 | Class id edge cases | 1 (`group2846/dollar_sign_code`) | `$` in package and class ids, coloured nested packages |
 | Class bucket outlier | 1 (`svg/id/component_01`) | description syntax filed under CLASS |
@@ -300,6 +300,7 @@ reports them as `accepted` instead of counting them as failures.
 | Set | Fixtures | Why accepted |
 |---|---|---|
 | `nonreg/activity-deprecated-color/*`, `nonreg/activity-color-prefix/*` | 19 | Activity control blocks with a colour or stereotype prefix (`#F1F1F1:while`, `elseif … <<#palegreen>>`, `while … <<#palegreen>>`). `FtileWhile` and the branch tiles are an approximation of Java's connection-based tiles; matching them needs constants from a running Java build, which is not available here. The diagrams render and the text matches (jaccard 0.92 on the type); only the arrangement is off |
+| `tikz/*` | 5 | Embedded `{{ … }}` diagrams with `scale`: out of scope (see [Out of scope](#out-of-scope)), so these fixtures are rendered and measured but not held to the target |
 | `!pragma layout smetana` fixtures still missing the target | 2 of 38 | Non-Graphviz layout engine; arrangement cannot match by construction. The other 36 already pass |
 
 ### Known limitation behind the accepted activity set
@@ -318,12 +319,30 @@ Reproducing it needs the Java reference to calibrate the constants: the referenc
 tile height, which does not match the current Java source arithmetic exactly, so the constants have to be checked
 against a running Java build rather than derived from one SVG. Until then these fixtures stay in the accepted set.
 
-### Unported diagram types
+### In scope, not done
 
-No Vega fixture covers these, so they are unmeasured. All currently return `Unsupported`: `@startebnf`, `@startregex`,
-`@startwire`, `@startboard`, `@startgit`, `@startfiles`, `@startditaa`, `@startdot`, `@startmath`, `@startlatex`,
-`@startjcckit`, plus `@startflow`/`@startdef` and the help/sprites pages. Legacy (non-beta) activity diagrams are
-not ported either.
+- **EBNF diagrams** (`@startebnf`): the only unported diagram type still in scope. A faithful port of
+  `net.sourceforge.plantuml.ebnf` is being added under `crates/plantuml-core/src/ebnf/`; no Vega fixture covers it, so it
+  is validated by unit tests and by rendering the documented grammar examples.
+
+### Out of scope
+
+Explicitly dropped from the target; not counted as remaining work.
+
+- **npm package and publishing**: the wasm crate, the demo page and `scripts/build-site.sh` stay, but no npm package is
+  produced or published, and no size/speed comparison against the TeaVM build is made part of the deliverable.
+- **Unported diagram types other than EBNF**: `@startregex`, `@startwire`, `@startboard`, `@startgit`, `@startfiles`,
+  `@startditaa`, `@startdot`, `@startmath`, `@startlatex`, `@startjcckit`, `@startflow`/`@startdef` and the
+  help/sprites pages. They keep returning `Unsupported` with a clear message; legacy (non-beta) activity diagrams are
+  dropped as well.
+- **Embedded diagrams** (`{{ … }}` blocks, including the `tikz/*` fixtures): not rendered; the block stays as text. This
+  would need a scale transform in the drawing layer, which the SVG writer does not have.
+
+### Packaging
+
+- wasm size budget: the release wasm is 6.5 MB raw before `wasm-bindgen` (5.1 MB before the diagram types landed), so the
+  size work is still open. Render speed has not been re-measured here (the CLI is a debug build, so its process time is
+  not representative).
 
 ### Foundations
 
@@ -334,10 +353,3 @@ not ported either.
   icons parse but are not drawn, the C4 `themes/` folder is not bundled, and the sequence-mode sample still fails.
 - Creole gaps: tables, trees, code blocks, images, sprites, emoji, math, and links as `<a>`.
 - Handwritten mode (`!option handwritten`, `skinparam handwritten`).
-
-### Packaging
-
-- wasm size budget: the release wasm is 6.5 MB raw before `wasm-bindgen` (5.1 MB before the diagram types landed), so the
-  size work is still open. npm package, demo page and the speed comparison against the TeaVM baseline are also open;
-  render speed itself has not been re-measured here (the CLI is a debug build, so its process time is not
-  representative).

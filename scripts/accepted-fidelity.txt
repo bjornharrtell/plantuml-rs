@@ -2,3 +2,4 @@
 # One glob per line, relative to VEGA_DIR; text after '#' is the reason.
 nonreg/activity-deprecated-color/*  # activity control-block colour/stereotype prefix: FtileWhile and branch tiles are an approximation
 nonreg/activity-color-prefix/*     # same, with the colour written before the keyword
+tikz/*                              # embedded {{ ... }} diagrams with scale: not rendered, out of scope
