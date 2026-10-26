@@ -4,7 +4,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import svgdiff
 
 ROOT = os.environ.get("VEGA_DIR", "/home/bjorn/code/plantuml/src/test/resources/vega")
-PUML = sys.argv[1]  # renderer command reading a diagram on stdin
+PUML = os.path.abspath(sys.argv[1])  # renderer command reading a diagram on stdin
 TOL = float(os.environ.get("SVG_TOL", "0.5"))  # coordinate tolerance in pixels
 LAYOUT_TOL = float(os.environ.get("LAYOUT_TOL", "0.03"))  # relative to the canvas
 out = []
@@ -25,7 +25,8 @@ for dp, _, fs in os.walk(ROOT):
         t = re.search(r'data-diagram-type="([^"]+)"', ref)
         typ = t.group(1) if t else "?"
         try:
-            r = subprocess.run([PUML, "-"], input=body.encode(), capture_output=True, timeout=20)
+            r = subprocess.run([PUML, "-"], input=body.encode(), capture_output=True, timeout=20,
+                               cwd=os.path.dirname(p) or None)
             ok = r.returncode == 0 and b"<svg" in r.stdout
             got = r.stdout.decode("utf-8", "replace")
         except Exception:

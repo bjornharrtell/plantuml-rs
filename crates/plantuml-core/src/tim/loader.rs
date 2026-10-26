@@ -251,4 +251,68 @@ mod tests {
             .options
             .contains_key(&crate::tim::context::OptionKey::Handwritten));
     }
+
+    #[test]
+    fn imports_zip_archives() {
+        use std::io::{Cursor, Write};
+        use zip::write::SimpleFileOptions;
+
+        let mut zip = zip::ZipWriter::new(Cursor::new(Vec::new()));
+        for (name, body) in [
+            ("lib/a.iuml", "!include sub/b.iuml\nAlice -> Bob : A"),
+            ("lib/sub/b.iuml", "Bob -> Carol : B"),
+            ("d.puml", "@startuml\nDave -> Eve : D\n@enduml"),
+        ] {
+            zip.start_file(name, SimpleFileOptions::default())
+                .expect("entry");
+            zip.write_all(body.as_bytes()).expect("write");
+        }
+        let archive = zip.finish().expect("finish").into_inner();
+
+        let mut r = MemoryResolver::default();
+        r.binaries.insert("a.zip".to_string(), archive);
+        let blocks = crate::preproc::split_blocks(
+            "@startuml\n!import a.zip\n!include lib/a.iuml\n!include d.puml\n@enduml",
+            &[],
+        );
+        let p = preprocess(
+            blocks[0].clone(),
+            &Defines::new(),
+            Rc::new(r),
+            HashMap::new(),
+        );
+        assert!(p.error.is_none(), "{:?}", p.error);
+        let out: Vec<String> = p.lines.iter().map(|l| l.string().to_string()).collect();
+        assert_eq!(
+            out,
+            [
+                "@startuml",
+                "Bob -> Carol : B",
+                "Alice -> Bob : A",
+                "Dave -> Eve : D",
+                "@enduml"
+            ]
+        );
+    }
+
+    #[test]
+    fn import_errors() {
+        for (src, archives) in [
+            ("!import missing.zip", vec![]),
+            ("!import bad.zip", vec![("bad.zip", b"not a zip".to_vec())]),
+        ] {
+            let mut r = MemoryResolver::default();
+            for (name, bytes) in archives {
+                r.binaries.insert(name.to_string(), bytes);
+            }
+            let blocks = crate::preproc::split_blocks(&format!("@startuml\n{src}\n@enduml"), &[]);
+            let p = preprocess(
+                blocks[0].clone(),
+                &Defines::new(),
+                Rc::new(r),
+                HashMap::new(),
+            );
+            assert_eq!(p.error.unwrap().message, "Cannot import");
+        }
+    }
 }

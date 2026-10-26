@@ -12,6 +12,10 @@ pub struct ResolvedFile {
 pub trait Resolver {
     /// Reads `name`, relative to `current_dir` first.
     fn read_file(&self, name: &str, current_dir: Option<&str>) -> Option<ResolvedFile>;
+    /// Raw bytes of `name`, for archives imported with `!import`.
+    fn read_binary(&self, _name: &str, _current_dir: Option<&str>) -> Option<Vec<u8>> {
+        None
+    }
     /// Content of a standard library file `<lib/name>`.
     fn read_stdlib(&self, _name: &str) -> Option<String> {
         None
@@ -60,6 +64,7 @@ impl Resolver for NoResolver {
 #[derive(Default)]
 pub struct MemoryResolver {
     pub files: std::collections::HashMap<String, String>,
+    pub binaries: std::collections::HashMap<String, Vec<u8>>,
 }
 
 impl Resolver for MemoryResolver {
@@ -69,6 +74,10 @@ impl Resolver for MemoryResolver {
             dir: None,
             identity: name.to_string(),
         })
+    }
+
+    fn read_binary(&self, name: &str, _current_dir: Option<&str>) -> Option<Vec<u8>> {
+        self.binaries.get(name).cloned()
     }
 
     fn file_exists(&self, path: &str) -> bool {

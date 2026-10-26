@@ -1,5 +1,11 @@
 use std::io::{Read, Write};
+use std::path::Path;
 use std::process::ExitCode;
+use std::rc::Rc;
+
+mod resolver;
+
+use resolver::FsResolver;
 
 fn read_input(path: Option<&str>) -> std::io::Result<String> {
     match path {
@@ -14,7 +20,15 @@ fn read_input(path: Option<&str>) -> std::io::Result<String> {
 
 fn run(path: Option<&str>, out: &mut impl Write) -> Result<(), String> {
     let source = read_input(path).map_err(|e| e.to_string())?;
-    let svg = plantuml_core::render(&source).map_err(|e| e.to_string())?;
+    let base = match path {
+        None | Some("-") => std::env::current_dir().unwrap_or_default(),
+        Some(p) => Path::new(p)
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_default(),
+    };
+    let resolver = Rc::new(FsResolver::new(base));
+    let svg = plantuml_core::render_with(&source, resolver).map_err(|e| e.to_string())?;
     out.write_all(svg.as_bytes()).map_err(|e| e.to_string())
 }
 
@@ -48,6 +62,6 @@ mod tests {
         let mut out = Vec::new();
         let err = run(path.to_str(), &mut out).unwrap_err();
         assert!(err.contains("unsupported"));
-        std::fs::remove_file(path).ok();
+        std::fs::remove_file(&path).ok();
     }
 }

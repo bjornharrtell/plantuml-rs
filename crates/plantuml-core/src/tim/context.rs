@@ -3,10 +3,11 @@
 use super::eater::{Eater, FunctionCall};
 use super::expr::TValue;
 use super::functions::{FunctionsSet, TFunction, TFunctionSignature, TFunctionType};
+use super::import::ImportedArchive;
 use super::iterator::build_code_iterator;
 use super::line_type::TLineType;
 use super::memory::{TMemory, TVariableScope};
-use super::resolver::{NoResolver, Resolver};
+use super::resolver::{NoResolver, ResolvedFile, Resolver};
 use super::{EaterException, Result};
 use crate::json::JsonValue;
 use crate::text::StringLocated;
@@ -150,6 +151,10 @@ pub struct TContext {
     pub subs: HashMap<String, Sub>,
     pub resolver: Rc<dyn Resolver>,
     pub current_dir: Option<String>,
+    /// Index in `imports` of the archive the current file came from.
+    current_import: Option<usize>,
+    /// Archives made available by `!import` (`PathSystem`'s imported folders).
+    imports: Vec<ImportedArchive>,
     included_current: HashSet<(String, Option<String>)>,
     pub artifact: PreprocessingArtifact,
     pending_add: Option<String>,
@@ -169,6 +174,8 @@ impl TContext {
             subs: HashMap::new(),
             resolver,
             current_dir: None,
+            current_import: None,
+            imports: Vec::new(),
             included_current: HashSet::new(),
             artifact: PreprocessingArtifact::default(),
             pending_add: None,
@@ -251,7 +258,7 @@ impl TContext {
             TLineType::Theme => self.execute_theme(mem, s)?,
             TLineType::Include => self.execute_include(mem, s)?,
             TLineType::IncludeDef => self.execute_include_def(mem, s)?,
-            TLineType::Import => return Err(EaterException::new("Cannot import", s)),
+            TLineType::Import => self.execute_import(mem, s)?,
             TLineType::DumpMemory => {
                 let mut e = Eater::new(s.trimmed());
                 e.skip_spaces();
@@ -804,15 +811,17 @@ impl TContext {
         let what = self.eat_include_target(mem, s, "!includesub")?;
         let mut sub: Option<Sub> = None;
         let saved_dir = self.current_dir.clone();
+        let saved_import = self.current_import;
         if let Some(idx) = what.find('!') {
             let filename = &what[..idx];
             let blocname = &what[idx + 1..];
-            let resolver = self.resolver.clone();
-            if let Some(f) = resolver.read_file(filename, saved_dir.as_deref()) {
+            if let Some((f, import)) = self.resolve_include_file(filename) {
                 self.current_dir = f.dir.clone();
+                self.current_import = import;
                 let lines = Self::read_lines(&f.content, s.location());
                 let r = Sub::from_file(&lines, blocname, self, mem);
                 self.current_dir = saved_dir.clone();
+                self.current_import = saved_import;
                 sub = r?;
             }
         }
@@ -824,6 +833,7 @@ impl TContext {
         };
         let r = self.execute_lines_internal(mem, &sub.lines, None);
         self.current_dir = saved_dir;
+        self.current_import = saved_import;
         r
     }
 
@@ -925,6 +935,7 @@ impl TContext {
         }
         let resolver = self.resolver.clone();
         let saved_dir = self.current_dir.clone();
+        let saved_import = self.current_import;
         let content: String;
         if what.starts_with('<') && what.ends_with('>') {
             let path = &what[1..what.len() - 1];
@@ -948,7 +959,7 @@ impl TContext {
         } else if what.starts_with('[') && what.ends_with(']') {
             return Err(EaterException::new("cannot include To be finished", s));
         } else {
-            let Some(f) = resolver.read_file(&what, saved_dir.as_deref()) else {
+            let Some((f, import)) = self.resolve_include_file(&what) else {
                 return Err(EaterException::new(format!("cannot include {what}"), s));
             };
             let key = (f.identity.clone(), suffix.clone());
@@ -975,13 +986,73 @@ impl TContext {
                 }
             };
             self.current_dir = f.dir.clone();
+            self.current_import = import;
             self.included_current.insert(key);
         }
         let lines = crate::preproc::read_lines(&content);
         let lines = crate::preproc::remove_yaml_header_lines(lines);
         let r = self.execute_lines(mem, &lines, None, false);
         self.current_dir = saved_dir;
+        self.current_import = saved_import;
         r.map(|_| ())
+    }
+
+    /// Reads `what` from the filesystem, the current archive, or an imported
+    /// archive's root (`PathSystem.getInputFile`).
+    fn resolve_include_file(&self, what: &str) -> Option<(ResolvedFile, Option<usize>)> {
+        if let Some(idx) = self.current_import {
+            if let Some((path, content, dir)) =
+                self.imports[idx].read(what, self.current_dir.as_deref())
+            {
+                return Some((
+                    ResolvedFile {
+                        content,
+                        dir: Some(dir),
+                        identity: format!("import:{idx}:{path}"),
+                    },
+                    Some(idx),
+                ));
+            }
+        }
+        if let Some(f) = self.resolver.read_file(what, self.current_dir.as_deref()) {
+            return Some((f, None));
+        }
+        for (idx, archive) in self.imports.iter().enumerate() {
+            if let Some((path, content, dir)) = archive.read(what, None) {
+                return Some((
+                    ResolvedFile {
+                        content,
+                        dir: Some(dir),
+                        identity: format!("import:{idx}:{path}"),
+                    },
+                    Some(idx),
+                ));
+            }
+        }
+        None
+    }
+
+    /// `!import archive.zip` adds the archive's entries for later includes.
+    fn execute_import(&mut self, mem: &mut TMemory, s: &StringLocated) -> Result<()> {
+        let mut e = Eater::new(s.trimmed());
+        e.skip_spaces();
+        e.check_and_eat_str("!import")?;
+        e.skip_spaces();
+        let what = self
+            .apply_functions_and_variables(
+                mem,
+                &StringLocated::new(e.eat_all_to_end(), s.location()),
+            )?
+            .unwrap_or_default();
+        let resolver = self.resolver.clone();
+        let Some(bytes) = resolver.read_binary(&what, self.current_dir.as_deref()) else {
+            return Err(EaterException::new("Cannot import", s));
+        };
+        let Some(archive) = ImportedArchive::parse(&bytes) else {
+            return Err(EaterException::new("Cannot import", s));
+        };
+        self.imports.push(archive);
+        Ok(())
     }
 }
 
@@ -998,9 +1069,6 @@ enum IncludeStrategy {
 /// preprocessor drops); a numeric suffix selects the n-th block and an identifier the block
 /// declared with `@startuml(id=name)`.
 pub fn extract_block(content: &str, suffix: Option<&str>) -> Option<String> {
-    let Some(suffix) = suffix else {
-        return Some(content.to_string());
-    };
     let lines: Vec<&str> = content.lines().collect();
     let is_start = |l: &str| crate::command::is_start_directive(l);
     let is_end = |l: &str| crate::command::is_end_directive(l);
@@ -1015,16 +1083,26 @@ pub fn extract_block(content: &str, suffix: Option<&str>) -> Option<String> {
             }
         }
     }
-    let chosen = if let Ok(n) = suffix.parse::<usize>() {
-        blocks.get(n)
-    } else {
-        let id = format!("id={suffix}");
-        blocks.iter().find(|(s, _)| {
-            let l = lines[*s].to_lowercase();
-            l.contains(&format!("({})", id.to_lowercase()))
-                || l.contains(&format!("({id},").to_lowercase())
-                || l.contains(&format!(",{id})").to_lowercase())
-        })
+    // A plain include of a file without a diagram block is used as is.
+    if blocks.is_empty() {
+        return Some(content.to_string());
+    }
+    let chosen = match suffix {
+        None => blocks.first(),
+        Some(suffix) => {
+            if let Ok(n) = suffix.parse::<usize>() {
+                blocks.get(n)
+            } else {
+                let id = format!("id={suffix}");
+                blocks.iter().find(|(s, _)| {
+                    let l = lines[*s].to_lowercase();
+                    l.contains(&format!("({})", id.to_lowercase()))
+                        || l.contains(&format!("({id},").to_lowercase())
+                        || l.contains(&format!(",{id})").to_lowercase())
+                })
+            }
+        }
     }?;
-    Some(lines[chosen.0..=chosen.1].join("\n"))
+    // The start and end directives are not part of the included body.
+    Some(lines[chosen.0 + 1..chosen.1].join("\n"))
 }

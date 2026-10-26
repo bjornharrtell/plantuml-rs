@@ -5,6 +5,7 @@ pub mod context;
 pub mod eater;
 pub mod expr;
 pub mod functions;
+pub mod import;
 pub mod iterator;
 pub mod line_type;
 pub mod loader;
