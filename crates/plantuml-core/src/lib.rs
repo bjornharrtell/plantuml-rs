@@ -12,6 +12,7 @@ pub mod cucadiagram;
 pub mod decoration;
 pub mod descdiagram;
 pub mod diagram;
+pub mod ebnf;
 pub mod export;
 pub mod gantt;
 pub mod hcl;

@@ -23,6 +23,7 @@ pub fn factories() -> Vec<Box<dyn DiagramFactory>> {
         Box::new(crate::wbs::WbsDiagramFactory),
         Box::new(crate::gantt::GanttDiagramFactory),
         Box::new(crate::timingdiagram::TimingDiagramFactory),
+        Box::new(crate::ebnf::EbnfDiagramFactory),
     ]
 }
 
