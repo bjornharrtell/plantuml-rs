@@ -8,6 +8,7 @@ pub mod edge;
 pub mod extremity;
 pub mod image;
 pub mod image_class;
+pub mod image_misc;
 pub mod node;
 pub mod note_link;
 pub mod role_labels;

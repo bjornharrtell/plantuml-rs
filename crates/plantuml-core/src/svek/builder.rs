@@ -26,6 +26,12 @@ pub(crate) fn create_entity_image(
 ) -> Rc<dyn IEntityImage> {
     match entity.leaf_type() {
         Some(t) if t.is_like_class() => Rc::new(EntityImageClass::new(entity.clone(), cuca, skin)),
+        Some(crate::abel::LeafType::PointForAssociation) => Rc::new(
+            super::image_misc::EntityImageAssociationPoint::new(entity, cuca, skin),
+        ),
+        Some(crate::abel::LeafType::Association) => Rc::new(
+            super::image_misc::EntityImageAssociation::new(entity, cuca, skin),
+        ),
         other => {
             log::warn!("no image for {other:?}");
             Rc::new(EntityImageSimpleEmpty)

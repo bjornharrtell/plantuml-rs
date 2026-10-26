@@ -1078,6 +1078,72 @@ fn get_or_create_class(
     }
 }
 
+/// `(a, b) .. c`, `c .. (a, b)` and `(a, b) .. (c, d)`.
+fn execute_association(
+    d: &mut ClassDiagram,
+    loc: Option<LineLocation>,
+    arg: &RegexResult,
+    first_is_couple: bool,
+    second_is_couple: bool,
+) -> CommandExecutionResult {
+    let existing =
+        |d: &mut ClassDiagram, name: &str| -> Result<crate::abel::Entity, CommandExecutionResult> {
+            let name = unquote(name);
+            let q = d
+                .cuca
+                .quark_in_context(true, &name)
+                .map_err(|(m, s)| CommandExecutionResult::error_with_score(m, s))?;
+            q.data()
+                .ok_or_else(|| CommandExecutionResult::error(format!("No class {name}")))
+        };
+    let single_entity = |d: &mut ClassDiagram, key: &str| {
+        let id = unquote(arg.get(key, 0).unwrap_or(""));
+        let q = d
+            .cuca
+            .quark_in_context(true, &id)
+            .map_err(|(m, s)| CommandExecutionResult::error_with_score(m, s))?;
+        Ok::<_, CommandExecutionResult>(match q.data() {
+            Some(e) => e,
+            None => d.cuca.really_create_leaf(
+                loc,
+                q.clone(),
+                Display::with_newlines(Some(q.name())),
+                LeafType::Class,
+            ),
+        })
+    };
+    let link_type = get_link_type(arg);
+    let label = Display::with_newlines(arg.get("LABEL_LINK", 0));
+    let couple =
+        |d: &mut ClassDiagram,
+         key: &str|
+         -> Result<(crate::abel::Entity, crate::abel::Entity), CommandExecutionResult> {
+            let a = existing(d, arg.get(key, 0).unwrap_or(""))?;
+            let b = existing(d, arg.get(key, 1).unwrap_or(""))?;
+            Ok((a, b))
+        };
+    let result = (|| -> Result<CommandExecutionResult, CommandExecutionResult> {
+        if first_is_couple && second_is_couple {
+            let (a1, b1) = couple(d, "COUPLE1")?;
+            let (a2, b2) = couple(d, "COUPLE2")?;
+            return Ok(d.association_between(loc, &a1, &b1, &a2, &b2, link_type, label));
+        }
+        let (mode, (a, b), c) = if first_is_couple {
+            (1, couple(d, "COUPLE1")?, single_entity(d, "ENT2")?)
+        } else {
+            (2, couple(d, "COUPLE2")?, single_entity(d, "ENT1")?)
+        };
+        if d.association_class(loc, mode, &a, &b, &c, link_type, label) {
+            Ok(CommandExecutionResult::ok())
+        } else {
+            Ok(CommandExecutionResult::error(
+                "Cannot have more than 2 assocications",
+            ))
+        }
+    })();
+    result.unwrap_or_else(|e| e)
+}
+
 fn execute_link(
     d: &mut ClassDiagram,
     loc: Option<LineLocation>,
@@ -1086,7 +1152,7 @@ fn execute_link(
     let mut ent1 = d.cuca.clean_id(arg.get("ENT1", 0));
     let mut ent2 = d.cuca.clean_id(arg.get("ENT2", 0));
     let (Some(e1), Some(e2)) = (ent1.as_mut(), ent2.as_mut()) else {
-        return CommandExecutionResult::error("Association classes are not supported yet");
+        return execute_association(d, loc, arg, ent1.is_none(), ent2.is_none());
     };
     let (mut port1, mut port2) = (None, None);
     let link_type = get_link_type(arg);

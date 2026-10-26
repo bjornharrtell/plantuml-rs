@@ -1,5 +1,6 @@
 //! Class diagrams (`classdiagram` package).
 
+mod association;
 mod commands;
 mod commands_group;
 mod commands_misc;
@@ -18,6 +19,7 @@ pub struct ClassDiagram {
     pub cuca: CucaDiagram,
     allow_mixing: bool,
     use_layout_explicit: i32,
+    associations: Vec<association::Association>,
 }
 
 impl ClassDiagram {
@@ -28,6 +30,7 @@ impl ClassDiagram {
             cuca,
             allow_mixing: false,
             use_layout_explicit: 0,
+            associations: Vec::new(),
         }
     }
 
