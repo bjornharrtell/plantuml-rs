@@ -232,6 +232,8 @@ time; it is a regression signal, not the acceptance bar (see [Fidelity target](#
 - Done: gantt diagrams (`gantt/`): tasks, dependencies, milestones, resources, calendars, colors. Vega GANTT: 16/16 render, 15 identical.
 - Done: timing diagrams (`timingdiagram/`): clocks, binary/bit signals, constraints, scales, highlights. Vega TIMING: 3/3 identical.
 - In progress: activity diagrams (`activitydiagram3/`): instruction tree, ftile layer, `klimt/compress`, commands for actions, arrows, start/stop/end, if/switch, while/repeat, fork, groups and partitions. Control blocks with colour or stereotype prefixes still differ (19 fixtures); see [Remaining work](#remaining-work).
+- Done: EBNF diagrams (`ebnf/`): symbol/token model, `ShuntingYard`, `EbnfEngine` and the tiles (box, concatenation, alternation, optional, zero/one-or-more, with circles), the `@startebnf` commands and factory. Twelve tests; no Vega fixture covers EBNF, so it is validated by unit tests and rendered samples. Still missing: the `-` (exclude) operator, look-ahead/behind and the regex-only tiles, which return a syntax error.
+- Done: benchmark harness (`scripts/bench.py`, `scripts/bench-wasm.mjs`, `crates/plantuml-core/examples/render_corpus.rs`) and published numbers in the README: on the 472-file Vega corpus Java PlantUML (one JVM) takes 2.8 ms per diagram against 5.7 ms for the Rust library and 8.5 ms for the wasm build; one-shot CLI runs are dominated by startup (76 ms of one-time work for the Rust binary, about 400 ms for a JVM).
 - Next: bundle stdlib includes (unblocks C4 models, see the C4 section), then the unported diagram types in [Remaining work](#remaining-work).
 
 ## Measured fidelity (at `1a61f98` + local changes)
@@ -320,9 +322,8 @@ against a running Java build rather than derived from one SVG. Until then these 
 
 ### In scope, not done
 
-- **EBNF diagrams** (`@startebnf`): the only unported diagram type still in scope. A faithful port of
-  `net.sourceforge.plantuml.ebnf` is being added under `crates/plantuml-core/src/ebnf/`; no Vega fixture covers it, so it
-  is validated by unit tests and by rendering the documented grammar examples.
+Nothing: EBNF landed (see the progress log), and the remaining gaps are the 14 in-scope fixture
+failures listed above.
 
 ### Out of scope
 
