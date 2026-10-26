@@ -50,6 +50,10 @@ impl Resolver for FsResolver {
         self.bytes(name, current_dir).map(|(bytes, _)| bytes)
     }
 
+    fn read_stdlib(&self, name: &str) -> Option<String> {
+        plantuml_core::tim::stdlib::read(name)
+    }
+
     fn read_theme(
         &self,
         name: &str,

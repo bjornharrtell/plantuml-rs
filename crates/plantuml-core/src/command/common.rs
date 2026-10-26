@@ -1,13 +1,14 @@
 //! Commands shared by all diagram types (`CommonCommands`).
 
 use super::{
-    BracketCommand, Command, CommandExecutionResult, SimpleMultiLineCommand, SingleLineCommand,
+    BracketCommand, Command, CommandExecutionResult, MultiLineCommand, SimpleMultiLineCommand,
+    SingleLineCommand, Trim,
 };
 use crate::diagram::{DiagramBase, Scale};
 use crate::klimt::creole::display::{Display, DisplayPositioned};
 use crate::klimt::geom::{HorizontalAlignment, VerticalAlignment};
 use crate::regex::IRegex;
-use crate::text::{BlocLines, LineLocation};
+use crate::text::{BlocLines, LineLocation, MultilinesStrategy};
 use regex::Regex;
 use std::sync::LazyLock;
 
@@ -531,6 +532,7 @@ pub fn common_commands<D: HasBase + 'static>() -> Vec<Cmd<D>> {
     cmds.push(pragma());
     cmds.push(skinparam_single());
     cmds.push(skinparam_block());
+    cmds.extend(sprite_commands());
     cmds.push(mainframe());
     cmds.extend(scale_commands());
     cmds.extend(style_commands());
@@ -585,6 +587,51 @@ fn rankdir<D: HasBase + 'static>() -> Cmd<D> {
         };
         CommandExecutionResult::ok()
     }))
+}
+
+/// `sprite $name [WxH/depth] { ... }` and `sprite $name [WxH/depth] DATA`
+/// (`CommandFactorySprite`). The data is validated and dropped: the port does not draw sprites yet,
+/// and a diagram that only defines them (C4-PlantUML does) renders unchanged.
+fn sprite_commands<D: HasBase + 'static>() -> Vec<Cmd<D>> {
+    let head = |parts: &mut Vec<IRegex>| {
+        parts.push(IRegex::leaf("sprite"));
+        parts.push(IRegex::space_one_or_more());
+        parts.push(IRegex::leaf(r"\$?"));
+        parts.push(IRegex::named("NAME", "([-.%pLN_]+)"));
+        parts.push(IRegex::space_zero_or_more());
+        parts.push(IRegex::optional(IRegex::group(vec![IRegex::named(
+            "DIM",
+            r"\[(\d+)x(\d+)/(?:(\d+)(z)?|(color))\]",
+        )])));
+    };
+    let mut block_parts = vec![IRegex::start()];
+    head(&mut block_parts);
+    block_parts.push(IRegex::space_zero_or_more());
+    block_parts.push(IRegex::leaf(r"\{"));
+    block_parts.push(IRegex::end());
+    let mut single_parts = vec![IRegex::start()];
+    head(&mut single_parts);
+    single_parts.push(IRegex::space_one_or_more());
+    single_parts.push(IRegex::named("DATA", "([-_A-Za-z0-9]+)"));
+    single_parts.push(IRegex::end());
+    vec![
+        Box::new(MultiLineCommand::new(
+            IRegex::concat(block_parts),
+            MultilinesStrategy::RemoveStartingQuote,
+            Trim::Both,
+            r"^end[%s]?sprite|^\}[%s]*$",
+            |_: &mut D, lines: &BlocLines, _| {
+                if lines.size() <= 2 {
+                    return CommandExecutionResult::error("No sprite defined.");
+                }
+                CommandExecutionResult::ok()
+            },
+        )),
+        Box::new(SingleLineCommand::new(
+            IRegex::concat(single_parts),
+            |_: &mut D, _, _, _| CommandExecutionResult::ok(),
+        )),
+    ]
 }
 
 fn mainframe<D: HasBase + 'static>() -> Cmd<D> {

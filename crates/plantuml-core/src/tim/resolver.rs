@@ -93,6 +93,14 @@ impl Resolver for BundledResolver {
         None
     }
 
+    fn read_stdlib(&self, name: &str) -> Option<String> {
+        super::stdlib::read(name)
+    }
+
+    fn all_stdlib_names(&self) -> Vec<String> {
+        vec!["c4".to_string()]
+    }
+
     fn read_theme(
         &self,
         name: &str,

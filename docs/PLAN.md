@@ -144,15 +144,20 @@ What that needs, and where the port stands:
 | Piece | State |
 |---|---|
 | Preprocessor builtins C4 uses (`%substr`, `%strpos`, `%strlen`, `%splitstr`, `%set_variable_value`, `%get_variable_value`, `%variable_exists`, `%function_exists`, `%intval`, `%chr`, `%lower`, `%is_dark`, `%darken`, `%newline`, `%breakline`, `%true`/`%false`), plus `!global`, `!unquoted procedure`, `!function`/`!return`, `!while`, `!foreach`, `!elseif` | present in `tim` |
-| `!include <name>` resolution | `read_stdlib` hook exists (`tim/builtin.rs`, `tim/context.rs`) but no bundled data, and `render` passes `NoResolver`, so `<C4/...>` cannot resolve in wasm or the CLI |
-| C4 sources | not bundled. Java ships them packed as `.spm` archives (`src/main/resources/stdlib/c4`); take the plain `.puml` sources from `plantuml-stdlib/C4-PlantUML` instead (7 files, 3,361 lines, MIT) |
-| DESCRIPTION diagram type | not ported: `component`, `rectangle`, `node`, `database`, `queue`, `cloud`, `person`, `actor`, `interface`, `storage`, `card` all fail to parse, and 0 of the 6 Vega DESCRIPTION fixtures render |
-| Stereotype styles, creole headings, legend chrome | present (`style`, `klimt/creole`, `chrome.rs`), so the C4 look is mostly a matter of the DESCRIPTION image |
+| `!include <name>` resolution | `read_stdlib` serves the bundled `c4` library (`tim/stdlib.rs`, sources in `stdlib/`, wired into `BundledResolver` and the CLI's `FsResolver`), so `<C4/...>` resolves in wasm and CLI |
+| C4 sources | bundled: C4-PlantUML 3,361 lines across seven `.puml` files (MIT) in `crates/plantuml-core/stdlib/c4`, with the upstream relative/URL include guard rewritten to `!include <c4/...>` |
+| `sprite $name [WxH/depth] { ... }` | parsed and validated, data dropped (sprites are not drawn yet). C4-PlantUML defines them at load time, so this was required for it to parse at all |
+| DESCRIPTION diagram type | ported; C4 samples expand to it |
+| Stereotype styles, creole headings, legend chrome | present (`style`, `klimt/creole`, `chrome.rs`) |
 
-Exit criterion for C4: the canonical samples (`samples/` in C4-PlantUML: context, container, component, deployment,
-dynamic) render, reach `text_jaccard` >= 0.95 and `layout_mean` >= 0.90 against the generated Java references, and are
-reviewed side by side; `Person`, `System`, `Container`, `Component`, `*_Boundary`, `Rel` first, then sprites and
-`$baseShape` variants.
+Status: with the bundled library, 13 of the 17 samples in C4-PlantUML `samples/` render once their `!include https://...`
+lines are rewritten to the bundled `<c4/...>` form (needed because the port has no network). Still failing: the icon
+sample (`tupadr3` sprites are not bundled), the two theme samples (`!theme C4_united` lives in the C4 theme folder),
+and `C4_Sequence Diagram Sample - bigbankplc` (a sequence-mode participant/skinparam interaction).
+
+Exit criterion for C4: the canonical samples render, reach `text_jaccard` >= 0.95 and `layout_mean` >= 0.90 against the
+generated Java references, and are reviewed side by side. No Java build is available here, so that comparison is still
+outstanding; the samples are only checked for rendering and content so far.
 
 Oracle: no C4 sources exist in the Vega fixtures (0 of 431 reference C4), so C4 needs generated references: render the
 samples with the Java jar built from base commit `e6c3adc` and score them with `scripts/fidelity.py` (or
@@ -322,9 +327,11 @@ not ported either.
 
 ### Foundations
 
-- Stdlib includes: `read_stdlib` exists in `tim` but no stdlib data is bundled, so `!include <C4/...>` and other
-  stdlib files fail. 44 themes are bundled and `!theme spacelab` works.
-- C4 models: blocked on stdlib only; the DESCRIPTION diagram type they expand to now exists (see the C4 section).
+- Stdlib includes: the `c4` library is bundled and resolved by `BundledResolver` (wasm, `render`) and `FsResolver` (CLI);
+  other stdlib folders (icon libraries such as `tupadr3`, cloud providers) are not bundled yet. 44 themes are bundled and
+  `!theme spacelab` works.
+- C4 models: render through the bundled library (13 of 17 samples after rewriting their URL includes). Open: sprites and
+  icons parse but are not drawn, the C4 `themes/` folder is not bundled, and the sequence-mode sample still fails.
 - Creole gaps: tables, trees, code blocks, images, sprites, emoji, math, and links as `<a>`.
 - Handwritten mode (`!option handwritten`, `skinparam handwritten`).
 

@@ -11,6 +11,7 @@ pub mod line_type;
 pub mod loader;
 pub mod memory;
 pub mod resolver;
+pub mod stdlib;
 pub mod themes;
 pub mod trie;
 

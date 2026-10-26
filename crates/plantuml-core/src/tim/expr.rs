@@ -506,6 +506,9 @@ impl TokenStack {
                 _ => {}
             }
         }
+        // Outermost pairs first: the argument count of a call must be taken before the nested calls
+        // inside it are rewritten to OPEN_PAREN_FUNC/CLOSE_PAREN_FUNC.
+        parens.sort_by_key(|(open, _)| *open);
         for (iopen, iclose) in parens {
             if iopen > 0 && self.tokens[iopen - 1].token_type == TokenType::PlainText {
                 let surface = self.tokens[iopen - 1].surface.clone();

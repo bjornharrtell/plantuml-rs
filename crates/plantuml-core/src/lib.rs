@@ -296,6 +296,29 @@ mod tests {
     }
 
     #[test]
+    fn renders_c4_models() {
+        let svg = render(
+            "@startuml\n!include <C4/C4_Container>\nPerson(user, \"User\")\nSystem(sys, \"System\")\nRel(user, sys, \"Uses\")\n@enduml",
+        )
+        .unwrap();
+        assert!(svg.contains("data-diagram-type=\"DESCRIPTION\""));
+        for text in ["User", "System", "Uses"] {
+            assert!(svg.contains(&format!(">{text}</text>")), "{text}");
+        }
+    }
+
+    #[test]
+    fn sprite_definitions_parse_without_being_drawn() {
+        let svg =
+            render("@startuml\nsprite $p [4x4/16] {\n0123\n3210\n}\nclass A\n@enduml").unwrap();
+        assert!(svg.contains(">A</text>"));
+        assert!(matches!(
+            render("@startuml\nsprite $p [4x4/16] {\n}\nclass A\n@enduml"),
+            Err(Error::Syntax(_))
+        ));
+    }
+
+    #[test]
     fn renders_notes() {
         let svg = render(
             "@startuml\nA -> B\nnote left of A: l\nnote right of B #red: r\nnote over A: o\n\
