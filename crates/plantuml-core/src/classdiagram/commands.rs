@@ -583,9 +583,24 @@ fn open_group(
         group.set_visibility_modifier(VisibilityModifier::from_text(&format!("{v}FOO"), false));
     }
     if let Some(st) = arg.get("STEREO", 0) {
-        let radius = d.cuca.base.skin_param.circled_character_radius();
-        group.set_stereotype(Some(Stereotype::build_complex(st, radius)));
-        group.set_stereostyle(st);
+        let skin = &d.cuca.base.skin_param;
+        let inner = st
+            .strip_prefix("<<")
+            .and_then(|s| s.strip_suffix(">>"))
+            .unwrap_or(st)
+            .trim();
+        let symbol = crate::decoration::usymbol::from_keyword(
+            inner,
+            skin.actor_style(),
+            skin.component_style(),
+        );
+        if let Some(symbol) = symbol {
+            group.set_usymbol(Some(symbol));
+        } else {
+            let radius = skin.circled_character_radius();
+            group.set_stereotype(Some(Stereotype::build_complex(st, radius)));
+            group.set_stereostyle(st);
+        }
     }
     add_tags(&group, arg.get_lazzy("TAGS", 0));
     if let Some(u) = arg.get(crate::url::URL_KEY, 0) {
@@ -1417,6 +1432,27 @@ mod tests {
         assert_eq!(entity(&d, "A").qualified_name(), "App.Entity.A");
         let d = parse("@startuml\npackage a {\npackage b {\nclass C\n}\n}\n@enduml");
         assert_eq!(entity(&d, "C").qualified_name(), "a.b.C");
+    }
+
+    #[test]
+    fn package_stereotype_may_name_a_symbol() {
+        let d = parse("@startuml\npackage \"Hello\" as uid <<Frame>> {\nclass A\n}\n@enduml");
+        let uid = &d.cuca.groups()[0];
+        assert!(
+            uid.usymbol().is_some(),
+            "<<Frame>> selects the frame symbol"
+        );
+        assert!(
+            uid.stereotype().is_none(),
+            "a symbol is not also a stereotype"
+        );
+        let d = parse("@startuml\npackage p <<MyStereotype>> {\nclass A\n}\n@enduml");
+        let p = &d.cuca.groups()[0];
+        assert!(p.usymbol().is_none());
+        assert!(
+            p.stereotype().is_some(),
+            "an unknown keyword stays a stereotype"
+        );
     }
 
     #[test]

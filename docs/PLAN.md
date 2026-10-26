@@ -229,17 +229,18 @@ time; it is a regression signal, not the acceptance bar (see [Fidelity target](#
 - In progress: activity diagrams (`activitydiagram3/`): instruction tree, ftile layer, `klimt/compress`, commands for actions, arrows, start/stop/end, if/switch, while/repeat, fork, groups and partitions. Control blocks with colour or stereotype prefixes still differ (19 fixtures); see [Remaining work](#remaining-work).
 - Next: bundle stdlib includes (unblocks C4 models, see the C4 section), then the unported diagram types in [Remaining work](#remaining-work).
 
-## Measured fidelity (at `8208623`)
+## Measured fidelity (at `cac0656` + local changes)
 
 graphviz-pure stands in for `dot`. Scored against the targets in [Fidelity target](#fidelity-target) with
 `scripts/fidelity.py`; the 38 fixtures using `!pragma layout smetana` are excluded from the pass counts (their
-arrangement cannot match by construction).
+arrangement cannot match by construction). `svgdiff` compares XML-entity-decoded text and ignores `data-source-line`,
+so encoding-only and attribution-only differences do not count.
 
 | type | n | ok% | text jaccard | layout | exact structure (diagnostic) | meets target |
 |---|---|---|---|---|---|---|
-| SEQUENCE | 149 | 100% | 0.99 | 0.98 | 95% | yes |
+| SEQUENCE | 149 | 100% | 0.99 | 0.98 | 96% | yes |
 | PACKET | 57 | 100% | 1.00 | 1.00 | 100% | yes |
-| CLASS | 53 | 100% | 0.99 | 0.93 | 57% | yes (30 of 36 in scope) |
+| CLASS | 53 | 100% | 1.00 | 0.96 | 60% | yes (32 of 36 in scope) |
 | STATE | 48 | 100% | 1.00 | 0.95 | 33% | yes (24 of 27 in scope) |
 | ACTIVITY | 36 | 100% | 0.92 | 0.62 | 17% | no (12 of 36 in scope) |
 | CHART | 35 | 100% | 1.00 | 1.00 | 100% | yes |
@@ -254,7 +255,7 @@ arrangement cannot match by construction).
 | JSON | 1 | 100% | 1.00 | 0.92 | 0% | yes (layout 0.92) |
 | YAML | 1 | 100% | 1.00 | 0.90 | 0% | yes (layout 0.90) |
 
-All 431 fixtures render. In scope: **352 of 393 pass (90%)**, 41 fail; `layout_mean` 0.94, text jaccard 0.99, 324
+All 431 fixtures render. In scope: **354 of 393 pass (90%)**, 39 fail; `layout_mean` 0.95, text jaccard 0.99, 327
 exact structures. Sequence, packet, class, state, chart, gantt, salt, wbs, mindmap, timing, crash, json and yaml meet
 the target; activity, description and Chen EER do not.
 
@@ -272,21 +273,20 @@ VEGA_DIR=plantuml/src/test/resources/vega FIDELITY_JSON=fidelity.json \
 
 ## Remaining work
 
-### In-scope fixture failures (41 of 393)
+### In-scope fixture failures (39 of 393)
 
 | Area | Fixtures | Cause |
 |---|---|---|
 | Activity control-block colour and stereotype prefixes | 19 (`activity-deprecated-color/` 13, `activity-color-prefix/` 6) | `if`/`elseif`/`while`/`switch`/`repeat` with `#color` or `<<stereo>>` before or inside the branch parse, but the branch label and layout differ (example: `elseif (c?) is (no)` renders one branch only) |
 | Activity misc | 3 | `style-block-unclosed-at-eof`, `partition_no_bracket`, `A0004` |
 | Embedded `{{ ... }}` diagrams with `scale` | 5 | 3 `tikz/tikz-scale-*` (SEQUENCE), 2 `tikz/tikz-1926*` (ACTIVITY): the embedded diagram and its scale are not laid out |
-| Class package `USymbol` | 2 (`group2846/correct_code`, `bug`) | `package "Hello" as uid <<Frame>>` draws a plain cluster: `open_group` ignores the stereotype as a `USymbol` |
-| Class package cluster geometry | 2 (`group2938/dot_separator`, `double_backslash_separator`) | layout 0.89: cluster title/offset tuning |
+| Class package cluster geometry | 2 (`group2938/dot_separator`, `double_backslash_separator`) | layout 0.89: leaves inside a package are ordered A/B the other way round |
 | Class id edge cases | 1 (`group2846/dollar_sign_code`) | `$` in package and class ids, coloured nested packages |
 | Class bucket outlier | 1 (`svg/id/component_01`) | description syntax filed under CLASS |
 | State | 3 | `svg/id/state_03`, `svg/id/state_05`, `group2783/nested_styled_composite` |
-| Chen EER | 2 | `migration/ChenMovieExtended_Test`, `ChenMovieAlias_Test` (layout 0.76) |
+| Chen EER | 2 | `migration/ChenMovieExtended_Test`, `ChenMovieAlias_Test` (layout 0.76; entity groups also carry `id` attributes Java omits) |
 | Salt | 1 | `group2732/brace_escape` (text 0.60) |
-| Description | 1 | `svg/interactive/SVG0005_Svek` |
+| Description | 1 | `svg/interactive/SVG0005_Svek` (ports, layout 0.0) |
 
 `nonreg/warnings/skinparam_handwritten` (SEQUENCE, layout 0.31) is not in the table above as a defect: handwritten
 mode needs a handwritten font, which is not embedded. It should either be listed as an accepted difference or

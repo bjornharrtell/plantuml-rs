@@ -1,10 +1,19 @@
 #!/usr/bin/env python3
 """Compare two SVG files structurally: svgdiff.py ref.svg got.svg [tolerance]."""
+import html
 import re
 import sys
 import xml.etree.ElementTree as ET
 
 NUM = re.compile(r"-?\d+(?:\.\d+)?")
+
+# Attributes that carry no visual meaning: source line attribution and similar metadata.
+IGNORED_ATTRIBUTES = {"data-source-line"}
+
+
+def _text(el):
+    """Text content with XML entities decoded, so `&gt;` and `>` compare equal."""
+    return html.unescape((el.text or "").strip())
 
 
 FILTER_ID = re.compile(r'^(url\(#)?f[0-9a-z]{2,14}(\))?$')
@@ -38,10 +47,12 @@ def walk(a, b, path, tol, out):
         return
     path = f"{path}/{strip(a.tag)}"
     for k in sorted(set(a.attrib) | set(b.attrib)):
+        if k in IGNORED_ATTRIBUTES:
+            continue
         va, vb = a.attrib.get(k), b.attrib.get(k)
         if va is None or vb is None or not same(va, vb, tol):
             out.append(f"{path}@{k}: ref={va!r} got={vb!r}")
-    ta, tb = (a.text or "").strip(), (b.text or "").strip()
+    ta, tb = _text(a), _text(b)
     if ta != tb:
         out.append(f"{path} text: ref={ta!r} got={tb!r}")
     ca, cb = list(a), list(b)
@@ -110,7 +121,7 @@ def _elements(root):
         c = _center(el)
         if c is None:
             continue
-        key = (strip(el.tag), el.attrib.get("class", ""), (el.text or "").strip())
+        key = (strip(el.tag), el.attrib.get("class", ""), _text(el))
         out.setdefault(key, []).append(c)
     for positions in out.values():
         positions.sort()
