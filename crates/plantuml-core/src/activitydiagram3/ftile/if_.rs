@@ -221,7 +221,7 @@ impl Ftile for FtileIf {
             if let Some(label) = &self.branches[i].label {
                 let dim = label.calculate_dimension(sb);
                 let y = if self.layout.labels_above {
-                    middle - dim.height - 2.0
+                    (middle - dim.height - 2.0).max(0.0)
                 } else {
                     (self.condition.height + by - dim.height) / 2.0
                 };
