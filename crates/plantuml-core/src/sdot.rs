@@ -294,6 +294,19 @@ fn collect_groups(
         if nested && g.group_type() == Some(crate::abel::GroupType::ConcurrentState) {
             continue;
         }
+        if g.is_packed() {
+            // A packed package is not drawn: its child keeps the merged title.
+            out.extend(collect_groups(
+                cuca,
+                skin,
+                sb,
+                &g,
+                parent_cluster,
+                nested,
+                c,
+            ));
+            continue;
+        }
         let header = ClusterHeader::new(&g, cuca, skin, skin.diagram_style_name(), &**sb);
         let colors = [
             c.bib.next_color(),

@@ -406,7 +406,7 @@ fn execute_create_element_multilines(
     CommandExecutionResult::ok()
 }
 
-fn create_element_multilines(multiline_type: usize) -> Cmd {
+pub(crate) fn create_element_multilines(multiline_type: usize) -> Cmd {
     let end = if multiline_type == 0 {
         r"^(.*)[%g]$"
     } else {
@@ -544,7 +544,7 @@ fn execute_package_with_usymbol(
     CommandExecutionResult::ok()
 }
 
-fn package_with_usymbol() -> Cmd {
+pub(crate) fn package_with_usymbol() -> Cmd {
     Box::new(SingleLineCommand::new(
         package_with_usymbol_pattern(),
         |d: &mut ClassDiagram, loc, arg, _| execute_package_with_usymbol(d, loc, arg),
@@ -553,7 +553,7 @@ fn package_with_usymbol() -> Cmd {
 
 // together, end of group
 
-fn together() -> Cmd {
+pub(crate) fn together() -> Cmd {
     Box::new(SingleLineCommand::new(
         IRegex::concat(vec![
             IRegex::start(),

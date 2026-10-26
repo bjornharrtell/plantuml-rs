@@ -12,6 +12,7 @@ pub mod image_class;
 pub mod image_description;
 pub mod image_misc;
 pub mod image_note;
+pub mod image_object;
 pub mod image_port;
 pub mod image_state;
 pub mod image_tips;

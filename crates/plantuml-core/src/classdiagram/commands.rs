@@ -274,9 +274,9 @@ fn create_class(
 
 fn class_regex(with_map_and_circle: bool, multi: bool) -> IRegex {
     let types = if with_map_and_circle {
-        "interface|enum|annotation|abstract[%s]+class|static[%s]+class|abstract|class|entity|circle|diamond|protocol|struct|exception|metaclass|stereotype|dataclass|record|map"
+        "interface|enum|annotation|abstract[%s]+class|static[%s]+class|abstract|class|object|entity|circle|diamond|protocol|struct|exception|metaclass|stereotype|dataclass|record|map"
     } else {
-        "interface|enum|annotation|abstract[%s]+class|static[%s]+class|abstract|class|entity|protocol|struct|exception|metaclass|stereotype|dataclass|record"
+        "interface|enum|annotation|abstract[%s]+class|static[%s]+class|abstract|class|object|entity|protocol|struct|exception|metaclass|stereotype|dataclass|record"
     };
     let codes = codes();
     let g = generic_pattern();
@@ -631,7 +631,7 @@ fn hide_show_by_gender() -> Cmd {
         IRegex::space_one_or_more(),
         IRegex::named(
             "GENDER",
-            &format!(r"(?:(?:{TYPE_KEYWORDS}|[%pLN_.]+|[%g][^%g]+[%g]|\<\<.*\>\>)[%s]+)*?"),
+            &format!(r"(?:({TYPE_KEYWORDS}|[%pLN_.]+|[%g][^%g]+[%g]|\<\<.*\>\>)[%s]+)*?"),
         ),
         IRegex::optional(IRegex::group(vec![
             IRegex::named("EMPTY", "(empty)"),
@@ -1302,6 +1302,8 @@ pub fn commands() -> Vec<Cmd> {
     cmds.push(hide_show_by_gender());
     cmds.push(hide_show2::<ClassDiagram>());
     cmds.push(create_package());
+    cmds.push(crate::descdiagram::commands::package_with_usymbol());
+    cmds.push(crate::descdiagram::commands::together());
     cmds.push(create_namespace());
     cmds.extend(super::commands_misc::commands());
     cmds.extend(super::commands_group::commands());
@@ -1312,6 +1314,8 @@ pub fn commands() -> Vec<Cmd> {
     cmds.push(link_class());
     cmds.extend(super::commands_note::on_entity_single_commands());
     cmds.extend(super::commands_note::multi_commands());
+    cmds.push(crate::descdiagram::commands::create_element_multilines(0));
+    cmds.push(crate::descdiagram::commands::create_element_multilines(1));
     cmds
 }
 
@@ -1368,6 +1372,28 @@ mod tests {
         let d = parse("@startuml\nclass A\nclass B\nhide B\n@enduml");
         assert!(d.cuca.is_hidden(&entity(&d, "B")));
         assert!(!d.cuca.is_hidden(&entity(&d, "A")));
+    }
+
+    #[test]
+    fn objects_are_created_and_rendered() {
+        let d = parse("@startuml\nobject A\nobject B\n@enduml");
+        assert_eq!(entity(&d, "A").leaf_type(), Some(LeafType::Object));
+        let svg = crate::render(
+            "@startuml\nset separator \\ \nobject App\\Entity\\o1\nobject App\\Entity\\o2\nApp\\Entity\\o1 --> App\\Entity\\o2\n@enduml",
+        )
+        .expect("renders");
+        assert!(svg.contains(">o1<"));
+        assert!(svg.contains("data-qualified-name=\"App.Entity.o1\""));
+    }
+
+    #[test]
+    fn intermediate_packages_are_packed() {
+        let svg = crate::render(
+            "@startuml\nset separator \\ \n!pragma useIntermediatePackages false\nclass App\\Entity\\ImageRequest\n@enduml",
+        )
+        .expect("renders");
+        assert!(svg.contains("App\\Entity"));
+        assert!(!svg.contains("data-qualified-name=\"App\""));
     }
 
     #[test]

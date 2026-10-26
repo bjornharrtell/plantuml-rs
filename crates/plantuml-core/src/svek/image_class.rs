@@ -343,13 +343,13 @@ fn icon_colors(skin: &SkinParam, m: VisibilityModifier) -> (HColor, Option<HColo
 }
 
 /// The fields or the methods of a class (`MethodsOrFieldsArea`).
-struct MembersArea {
-    members: Vec<Member>,
-    config: FontConfiguration,
-    wrap: crate::klimt::creole::LineBreakStrategy,
-    skin: SkinParam,
-    icon_size: i32,
-    radius: f64,
+pub(crate) struct MembersArea {
+    pub(crate) members: Vec<Member>,
+    pub(crate) config: FontConfiguration,
+    pub(crate) wrap: crate::klimt::creole::LineBreakStrategy,
+    pub(crate) skin: SkinParam,
+    pub(crate) icon_size: i32,
+    pub(crate) radius: f64,
 }
 
 impl MembersArea {
@@ -485,7 +485,7 @@ impl TextBlock for MembersArea {
     }
 }
 
-struct ClassStencil(f64);
+pub(crate) struct ClassStencil(pub(crate) f64);
 
 impl Stencil for ClassStencil {
     fn starting_x(&self, _: &dyn StringBounder, _: f64) -> f64 {

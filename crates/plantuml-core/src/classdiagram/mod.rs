@@ -174,6 +174,7 @@ impl CommandDiagram for ClassDiagram {
     }
 
     fn make_diagram_ready(&mut self) {
+        self.cuca.eventually_build_phantom_groups(None);
         let links = self.cuca.links().to_vec();
         for link in &links {
             if link.length() == 1 {

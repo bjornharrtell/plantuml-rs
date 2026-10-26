@@ -31,6 +31,13 @@ pub(crate) fn create_entity_image(
             }
             Rc::new(EntityImageSimpleEmpty)
         }
+        Some(crate::abel::LeafType::Object) => {
+            Rc::new(super::image_object::EntityImageObject::new(
+                entity.clone(),
+                cuca,
+                skin,
+            ))
+        }
         Some(t) if t.is_like_class() => Rc::new(EntityImageClass::new(entity.clone(), cuca, skin)),
         Some(crate::abel::LeafType::Portin | crate::abel::LeafType::Portout) => {
             Rc::new(super::image_port::EntityImagePort::new(
