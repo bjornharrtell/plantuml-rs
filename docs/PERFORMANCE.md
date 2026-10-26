@@ -69,10 +69,24 @@ Landed:
    cache now hands out `Rc<Regex>`, so one engine and its pool serve the whole process: sequence
    575 -> 490 ms, corpus 1840 -> 1470 ms.
 
-Tried and rejected: routing patterns without lookaround through `regex::Regex` instead of
-`fancy-regex` measured neutral (sequences 575 -> 580 ms, corpus unchanged), so the cost was never the
-engine choice but the per-diagram cloning described above; that change was reverted rather than kept
-for no gain.
+Tried and rejected, both measured on the sequence and whole corpus:
+
+- **Routing patterns without lookaround through `regex::Regex`** instead of `fancy-regex`: neutral
+  (sequences 575 -> 580 ms, corpus unchanged), because the cost was the per-diagram cloning described
+  above, not the engine choice.
+- **A first-token prefilter on the command list** (Java's `mandatoryFirstTokensFast`: derive the
+  required leading word from the pattern tree and skip commands that cannot start with the line's
+  prefix). Also neutral (corpus 1.43-1.54 s against a 1.45-1.51 s baseline, overlapping runs): once
+  the compiled patterns are shared, the surviving searches are cheap, and action, note and link
+  commands have no certain first token to filter on.
+
+Both were reverted rather than kept for no gain.
+
+What is left is ~18% in the allocator and ~8% in `fancy-regex`'s per-search cache construction, which
+cannot be reused from outside that crate; closing it needs an upstream change there or a broad
+allocation pass over labels and style merging, with an expected yield below the ~12% gap to Java. The
+rest of the gap is JIT against AOT: `Rc<dyn TextBlock>` calls and `Vec` growth are inlined in Java and
+cannot be here.
 
 Text measurement is not a factor: the whole sequence run performs 170,466 measurements in 11 ms.
 
