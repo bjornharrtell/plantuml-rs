@@ -130,3 +130,19 @@ fn groups_and_partitions_wrap_activities() {
 fn unbalanced_group_close_is_an_error() {
     assert!(render("@startuml\n}\n@enduml").is_err());
 }
+
+#[test]
+fn fork_draws_two_bars_and_branches() {
+    let out = svg("fork\n:A;\nfork again\n:B;\nend fork");
+    assert!(out.contains(">A</text>") && out.contains(">B</text>"));
+    assert!(out.contains("#555"));
+    assert_eq!(out.matches("fill=\"#555\"").count(), 2);
+    let out = svg("fork\n-> right;\n:A;\nend fork");
+    assert!(out.contains(">right</text>"));
+}
+
+#[test]
+fn fork_again_outside_fork_is_an_error() {
+    assert!(render("@startuml\nfork again\n@enduml").is_err());
+    assert!(render("@startuml\nend fork\n@enduml").is_err());
+}

@@ -261,6 +261,59 @@ fn close_group_legacy() -> Cmd {
     )
 }
 
+/// `fork`: start parallel branches.
+fn fork() -> Cmd {
+    single(
+        vec![
+            IRegex::start(),
+            IRegex::leaf("fork"),
+            IRegex::leaf(";?"),
+            IRegex::space_zero_or_more(),
+            Stereogroup::optional_stereogroup(),
+            IRegex::end(),
+        ],
+        |d, arg| {
+            let colors = Stereogroup::build(arg).inner_colors();
+            d.fork(colors);
+            CommandExecutionResult::ok()
+        },
+    )
+}
+
+/// `fork again`: start the next parallel branch.
+fn fork_again() -> Cmd {
+    single(
+        vec![
+            IRegex::start(),
+            IRegex::leaf("fork"),
+            IRegex::space_zero_or_more(),
+            IRegex::leaf("again"),
+            IRegex::leaf(";?"),
+            IRegex::end(),
+        ],
+        |d, _| d.fork_again(),
+    )
+}
+
+/// `end fork` / `fork end` / `end merge`: close the parallel branches.
+fn end_fork() -> Cmd {
+    single(
+        vec![
+            IRegex::start(),
+            IRegex::or(vec![
+                IRegex::leaf("end[%s]*fork"),
+                IRegex::leaf("fork[%s]*end"),
+                IRegex::leaf("end[%s]*merge"),
+            ]),
+            IRegex::space_zero_or_more(),
+            IRegex::named("LABEL", r"(\{.+\})?"),
+            IRegex::leaf(";?"),
+            IRegex::end(),
+        ],
+        |d, _| d.end_fork(),
+    )
+}
+
 pub fn commands() -> Vec<Cmd> {
     let mut cmds: Vec<Cmd> = Vec::new();
     // CommandFootboxIgnored
@@ -279,6 +332,9 @@ pub fn commands() -> Vec<Cmd> {
     cmds.push(open_group());
     cmds.push(close_group());
     cmds.push(close_group_legacy());
+    cmds.push(fork());
+    cmds.push(fork_again());
+    cmds.push(end_fork());
 
     // CommandArrow3
     cmds.push(single(arrow_regex("(.*);"), |d, arg| {

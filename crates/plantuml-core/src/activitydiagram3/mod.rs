@@ -30,7 +30,9 @@ use crate::skin::SkinParam;
 use crate::style::Style;
 use crate::url::Url;
 use ftile::box_style::BoxStyle;
-use instruction::{InsRef, InstructionGroup, InstructionNode, InstructionSimple, NodeKind};
+use instruction::{
+    InsRef, InstructionFork, InstructionGroup, InstructionNode, InstructionSimple, NodeKind,
+};
 use rainbow::{LinkRendering, Rainbow};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -49,6 +51,7 @@ pub struct ActivityDiagram3 {
     swimlanes: Swimlanes,
     has_url: bool,
     group_stack: Vec<InsRef>,
+    fork_stack: Vec<InsRef>,
 }
 
 impl ActivityDiagram3 {
@@ -59,6 +62,7 @@ impl ActivityDiagram3 {
             swimlanes: Swimlanes::new(),
             has_url: false,
             group_stack: Vec::new(),
+            fork_stack: Vec::new(),
         }
     }
 
@@ -202,6 +206,59 @@ impl ActivityDiagram3 {
         self.current().borrow_mut().add(group.clone());
         self.group_stack.push(self.current());
         self.swimlanes.set_current(group);
+    }
+
+    /// Starts parallel branches (`fork`).
+    pub fn fork(&mut self, colors: crate::klimt::color::colors::Colors) {
+        self.manage_swimlane_strategy();
+        let fork = InstructionFork::new(
+            colors,
+            self.swimlanes.current_swimlane(),
+            self.next_link_renderer(),
+        );
+        let fork: InsRef = Rc::new(RefCell::new(fork));
+        self.current().borrow_mut().add(fork.clone());
+        self.fork_stack.push(self.current());
+        self.swimlanes.set_current(fork);
+        self.reset_next_link();
+    }
+
+    /// Starts the next parallel branch (`forkAgain`).
+    pub fn fork_again(&mut self) -> CommandExecutionResult {
+        let current = self.current();
+        if !current.borrow().as_any().is::<InstructionFork>() {
+            return CommandExecutionResult::error("Cannot find fork");
+        }
+        let mut current = current.borrow_mut();
+        let Some(fork) = current.as_any_mut().downcast_mut::<InstructionFork>() else {
+            return CommandExecutionResult::error("Cannot find fork");
+        };
+        fork.set_out_rendering(self.next_link_renderer());
+        fork.fork_again();
+        self.reset_next_link();
+        CommandExecutionResult::ok()
+    }
+
+    /// Closes the parallel branches (`endFork`).
+    pub fn end_fork(&mut self) -> CommandExecutionResult {
+        let current = self.current();
+        if !current.borrow().as_any().is::<InstructionFork>() {
+            return CommandExecutionResult::error("Cannot find fork");
+        }
+        let mut current = current.borrow_mut();
+        let Some(fork) = current.as_any_mut().downcast_mut::<InstructionFork>() else {
+            return CommandExecutionResult::error("Cannot find fork");
+        };
+        fork.set_out_rendering(self.next_link_renderer());
+        drop(current);
+        self.reset_next_link();
+        match self.fork_stack.pop() {
+            Some(parent) => {
+                self.swimlanes.set_current(parent);
+                CommandExecutionResult::ok()
+            }
+            None => CommandExecutionResult::error("Cannot find fork"),
+        }
     }
 
     /// Closes the current group or partition (`closeGroup`).

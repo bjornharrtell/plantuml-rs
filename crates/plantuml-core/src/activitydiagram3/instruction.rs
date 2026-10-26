@@ -58,6 +58,11 @@ pub trait Instruction {
     }
 
     fn as_any(&self) -> &dyn Any;
+
+    /// Mutable access for the commands that fill a compound instruction.
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        panic!("not mutable")
+    }
 }
 
 fn single(s: &Option<Rc<Swimlane>>) -> Vec<Rc<Swimlane>> {
@@ -322,6 +327,107 @@ impl Instruction for InstructionNode {
     }
 
     fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+/// Parallel branches of a fork (`InstructionFork`).
+pub struct InstructionFork {
+    branches: Vec<InstructionList>,
+    colors: Colors,
+    swimlane: Option<Rc<Swimlane>>,
+    in_link_rendering: LinkRendering,
+}
+
+impl InstructionFork {
+    pub fn new(
+        colors: Colors,
+        swimlane: Option<Rc<Swimlane>>,
+        in_link_rendering: LinkRendering,
+    ) -> Self {
+        Self {
+            branches: vec![InstructionList::new(swimlane.clone())],
+            colors,
+            swimlane,
+            in_link_rendering,
+        }
+    }
+
+    /// Ends the current branch and starts a new one (`forkAgain`).
+    pub fn fork_again(&mut self) {
+        self.branches
+            .push(InstructionList::new(self.swimlane.clone()));
+    }
+
+    /// Remembers the arrow leaving the current branch (`manageOutRendering`).
+    pub fn set_out_rendering(&mut self, link: LinkRendering) {
+        if let Some(last) = self.branches.last_mut() {
+            last.set_out_rendering(link);
+        }
+    }
+}
+
+impl Instruction for InstructionFork {
+    fn create_ftile(&self, factory: &dyn FtileFactory) -> FtileRef {
+        let branches = self
+            .branches
+            .iter()
+            .map(|b| b.create_ftile(factory))
+            .collect();
+        super::ftile::fork::FtileParallel::new(
+            branches,
+            self.colors.clone(),
+            factory.skin(),
+            self.in_link_rendering.clone(),
+        )
+    }
+
+    fn add(&mut self, other: InsRef) -> CommandExecutionResult {
+        self.branches
+            .last_mut()
+            .expect("at least one branch")
+            .add(other)
+    }
+
+    fn kill(&mut self) -> bool {
+        self.branches
+            .last_mut()
+            .is_some_and(|b| b.kill())
+    }
+
+    fn in_link_rendering(&self) -> LinkRendering {
+        self.in_link_rendering.clone()
+    }
+
+    fn contains_break(&self) -> bool {
+        self.branches.iter().any(|b| b.contains_break())
+    }
+
+    fn swimlanes(&self) -> Vec<Rc<Swimlane>> {
+        let mut result = Vec::new();
+        for branch in &self.branches {
+            for lane in branch.swimlanes() {
+                if !result.iter().any(|l| Rc::ptr_eq(l, &lane)) {
+                    result.push(lane);
+                }
+            }
+        }
+        result
+    }
+
+    fn swimlane_in(&self) -> Option<Rc<Swimlane>> {
+        self.swimlane.clone()
+    }
+
+    fn swimlane_out(&self) -> Option<Rc<Swimlane>> {
+        self.branches.last().and_then(|b| b.swimlane_out())
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
 }
