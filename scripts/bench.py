@@ -90,7 +90,6 @@ def main():
     p.add_argument("--java")
     p.add_argument("--plantuml-jar")
     p.add_argument("--runs", type=int, default=3)
-    p.add_argument("--java-per-file", type=int, default=10)
     a = p.parse_args()
     files = corpus_files(a.corpus)
     if not files:
@@ -98,14 +97,10 @@ def main():
     print(f"corpus: {len(files)} diagrams", file=sys.stderr)
 
     rows = []
-    rust_cli = bench_rust_cli(a.rust_cli, files, a.runs)
-    rows.append(("rust cli, one process per diagram", rust_cli))
     if a.rust_example:
         rows.append(("rust library, one process", bench_rust_example(a.rust_example, a.corpus, a.runs)))
     if a.java and a.plantuml_jar:
         rows.append(("java plantuml, one jvm", bench_java(a.java, a.plantuml_jar, files, a.runs)))
-        rows.append(("java plantuml, one process per diagram (extrapolated)",
-                     bench_java_per_file(a.java, a.plantuml_jar, files, a.runs, a.java_per_file)))
 
     print()
     print("| run mode | total (s) | ms per diagram | diagrams/s |")
