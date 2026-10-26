@@ -263,3 +263,4 @@ cargo build -p plantuml-cli
 VEGA_DIR=plantuml/src/test/resources/vega FIDELITY_JSON=fidelity.json \
   python3 scripts/fidelity.py target/debug/plantuml-cli
 ```
+- Unfinished work saved on local branches (not merged, may not compile): `worktree-agent-a192ada23969d77e8` (gantt), `worktree-agent-a42e83c1bc53e12c3` (state diagrams), `worktree-agent-ab990208859063f62` (timing). Resume them or restart from them. Activity slices still to do: if/switch, while/repeat, fork/split, groups/partitions/swimlanes, notes, goto. Also open: SVG `<a>` hyperlinks, description/object diagrams (and C4 on top), EBNF/regex/bpm/wire/board/git/files, `!import` zip, handwritten mode.
