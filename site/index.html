@@ -34,7 +34,7 @@
   <button id="download">Download SVG</button>
   <span class="grow"></span>
   <span class="grow"></span>
-  <span title="Diagram types the port renders so far">supported: sequence, class, object, state, activity, component, use case, chen, packet, chart, mindmap, wbs, gantt, timing, salt, json, yaml, hcl, crash</span>
+  <span title="Diagram types the port renders so far">supported: sequence, class, object, state, activity, component, use case, C4, chen, packet, chart, mindmap, wbs, gantt, timing, salt, json, yaml, hcl, ebnf, crash</span>
   <a href="https://github.com/bjornharrtell/plantuml-rs">source</a>
 </header>
 <main>
@@ -125,6 +125,19 @@ usecase "Place order" as place
 usecase "Pay" as pay
 Customer --> place
 place ..> pay : include
+@enduml`,
+  'C4 container': `@startuml
+!include <C4/C4_Container>
+title Internet banking
+Person(customer, "Customer", "A customer of the bank")
+System(banking, "Internet Banking System", "Shows balances and payments")
+System_Boundary(internal, "Bank") {
+  Container(api, "API", "Rust", "Serves requests")
+  ContainerDb(db, "Database", "PostgreSQL", "Stores accounts")
+}
+Rel(customer, banking, "Uses")
+Rel(banking, api, "Calls")
+Rel(api, db, "Reads")
 @enduml`,
   'Chen EER': `@startchen
 entity DIRECTOR {
@@ -271,6 +284,14 @@ colwidth = 32
 100-105: Reserved
 106-111: Flags
 @endpacketdiag`,
+  'EBNF': `@startebnf
+title Simple grammar
+letter = "a" | "b" | "c" ;
+digit = "0" | "1" ;
+word = { letter } ;
+number = digit , { digit } ;
+name = [ "_" ] , word ;
+@endebnf`,
   'Crash test': `@startcrash
 This is working
 @endcrash`,
