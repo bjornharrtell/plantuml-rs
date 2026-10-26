@@ -14,3 +14,4 @@ md-5 = "0.10.6"
 log.workspace = true
 regex = { version = "1", default-features = false, features = ["std", "unicode-perl", "unicode-case", "unicode-gencat", "perf"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
+

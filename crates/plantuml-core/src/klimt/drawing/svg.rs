@@ -26,24 +26,46 @@ pub fn format_decimal(x: f64, decimal: usize) -> String {
     } else {
         floor as u64 + 1
     };
-    let mut s = format!("{}", rounded);
-    if decimal > 0 {
-        while s.len() <= decimal {
-            s.insert(0, '0');
-        }
-        s.insert(s.len() - decimal, '.');
-        while s.ends_with('0') {
-            s.pop();
-        }
-        if s.ends_with('.') {
-            s.pop();
+    if rounded == 0 {
+        return "0".into();
+    }
+    // One pass, no intermediate String: the digits of the rounded value, the decimal point
+    // `decimal` places from the right, trailing zeros dropped. This runs for every coordinate and
+    // length written to the SVG.
+    let mut digits = [0u8; 20];
+    let mut n = 0;
+    let mut value = rounded;
+    loop {
+        digits[n] = b'0' + (value % 10) as u8;
+        n += 1;
+        value /= 10;
+        if value == 0 {
+            break;
         }
     }
-    if s == "0" {
-        return s;
-    }
+    let digit = |i: usize| if i < n { digits[i] } else { b'0' };
+    let mut s = String::with_capacity(n + 2 + decimal);
     if x < 0.0 {
-        s.insert(0, '-');
+        s.push('-');
+    }
+    if n > decimal {
+        for i in (decimal..n).rev() {
+            s.push(digit(i) as char);
+        }
+    } else {
+        s.push('0');
+    }
+    if decimal > 0 {
+        let mut first = 0;
+        while first < decimal && digit(first) == b'0' {
+            first += 1;
+        }
+        if first < decimal {
+            s.push('.');
+            for i in (first..decimal).rev() {
+                s.push(digit(i) as char);
+            }
+        }
     }
     s
 }

@@ -45,6 +45,37 @@ The Rust library spends about 76 ms on its first render in a process (font table
 regex compilation) and about 1 ms per tiny diagram afterwards. That cost is paid once per process or
 per wasm instance, so it matters for one-shot use and not for a server that renders continuously.
 
+## Where the time actually goes
+
+`perf` is not available in the environment this was measured in, and `pprof` failed to symbolise
+(frame walking produced only `__libc_start_call_main`), so the split below comes from instrumenting
+the library itself: wall time around the four phases of `render_with`, on the 149 sequence and 53
+class diagrams of the corpus.
+
+| phase | sequence | class |
+|---|---|---|
+| preprocess | 10% | 11% |
+| parse (commands, model) | 21% | 48% |
+| layout (`text_block`) | 20% | 19% |
+| export (SVG writing) | 49% | 8% |
+
+Inside export, the draw pass costs 85% and the dimension pass 15%. Text measurement is negligible:
+the whole sequence run performs 170,466 measurements in 11 ms (0.4% of the run), so memoising the
+font tables would not help — the initial guess in the previous section of this document was wrong.
+
+So the two real targets are:
+
+1. **Sequence drawing** (dominant). 149 diagrams produce only 882 KB of SVG yet take 2.5 s to draw:
+   about 27 us per emitted element, far above string writing. The suspects are the creole sheet of
+   every label being rebuilt during drawing and a full `UGraphic` clone for each `apply_*` of an
+   element's colour, stroke and translation.
+2. **Class parsing** (48% of that type). Each source line is offered to every command in the list,
+   each of which runs its own regex, so member-heavy classes pay per line per command.
+
+One optimisation is landed: `format_decimal` builds its result in a single pass instead of going
+through an intermediate `String` and `insert` calls (it runs for every coordinate and length in the
+SVG). It is worth about 3% on the sequence corpus and leaves fidelity untouched.
+
 ## Reproducing
 
 ```sh
