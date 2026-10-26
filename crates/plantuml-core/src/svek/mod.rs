@@ -9,6 +9,7 @@ pub mod extremity;
 pub mod image;
 pub mod image_class;
 pub mod image_misc;
+pub mod image_note;
 pub mod node;
 pub mod note_link;
 pub mod role_labels;

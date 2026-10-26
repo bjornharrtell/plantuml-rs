@@ -1236,8 +1236,11 @@ pub fn commands() -> Vec<Cmd> {
     cmds.extend(super::commands_group::commands());
     cmds.push(create_class_multi());
     cmds.push(create_class_single());
+    cmds.extend(super::commands_note::floating_commands());
     cmds.push(end_package());
     cmds.push(link_class());
+    cmds.extend(super::commands_note::on_entity_single_commands());
+    cmds.extend(super::commands_note::multi_commands());
     cmds
 }
 

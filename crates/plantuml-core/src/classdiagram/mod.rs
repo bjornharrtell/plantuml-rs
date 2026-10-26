@@ -4,6 +4,7 @@ mod association;
 mod commands;
 mod commands_group;
 mod commands_misc;
+mod commands_note;
 
 use crate::abel::{Entity, Link};
 use crate::command::common::HasBase;
@@ -213,6 +214,31 @@ mod tests {
         );
         let b = d.cuca.first_with_name("B").and_then(|q| q.data()).unwrap();
         assert_eq!(b.get().bodier.raw_body().len(), 2);
+    }
+
+    #[test]
+    fn notes_are_drawn_with_a_pointer() {
+        let svg = crate::render(
+            "@startuml\nclass A\nclass B\nA --> B\nnote right of A : hello\nnote bottom of B #red\n x\n y\nend note\nnote \"free\" as F\nnote on link : on the link\n@enduml",
+        )
+        .expect("renders");
+        assert!(svg.contains("hello"));
+        assert!(svg.contains("on the link"));
+        assert!(svg.contains("free"));
+        assert!(svg.contains("fill=\"#F00\""));
+        // folded corner and pointer of the note on A
+        assert!(svg.matches("<path").count() >= 4);
+        assert_eq!(svg.matches("class=\"entity\"").count(), 5);
+    }
+
+    #[test]
+    fn note_linked_twice_is_drawn_normally() {
+        let svg = crate::render(
+            "@startuml\nclass A\nclass B\nnote as N\n  n\nend note\nN .. A\nN .. B\n@enduml",
+        )
+        .expect("renders");
+        assert!(svg.contains(">n<"));
+        assert!(svg.contains("class=\"link\""));
     }
 
     #[test]

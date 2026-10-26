@@ -4,7 +4,7 @@
 //! made with it, so the nodes and links are laid out here by `graphviz-pure` (the layout core)
 //! and drawn exactly as `CucaDiagramFileMakerSmetana` and `SmetanaEdge` do.
 
-use crate::abel::{Entity, Link};
+use crate::abel::{Entity, LeafType, Link};
 use crate::cucadiagram::CucaDiagram;
 use crate::json::JsonValue;
 use crate::klimt::color::colors::ColorType;
@@ -21,6 +21,7 @@ use crate::svek::builder::{create_entity_image, ordered_links};
 use crate::svek::cluster::Cluster;
 use crate::svek::edge::{role_block, skin_style_name};
 use crate::svek::extremity::{extremity_factory_complete, middle_factory};
+use crate::svek::image_note::{EntityImageNote, OpalePath};
 use crate::svek::node::SvekNode;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -314,6 +315,40 @@ fn build_dot(
     out
 }
 
+/// A note with exactly one visible link, to something that is not a note (`isOpalisable`).
+fn is_opalisable(cuca: &CucaDiagram, ent: &Entity) -> bool {
+    if ent.is_group() || ent.leaf_type() != Some(LeafType::Note) {
+        return false;
+    }
+    let mut single: Option<&Link> = None;
+    for link in cuca.links() {
+        if link.is_invis() || !link.contains(ent) {
+            continue;
+        }
+        if single.is_some() {
+            return false;
+        }
+        single = Some(link);
+    }
+    single.is_some_and(|l| l.other(ent).leaf_type() != Some(LeafType::Note))
+}
+
+/// The link of such a note is drawn as the pointer of the note (`setOpaleLink`).
+fn mark_opale_links(cuca: &CucaDiagram, links: &[Link], nodes: &[(Entity, SvekNode)]) {
+    let has_node = |e: &Entity| nodes.iter().any(|(x, _)| x == e);
+    for link in links {
+        if cuca.is_link_removed(link) {
+            continue;
+        }
+        let (e1, e2) = (link.entity1(), link.entity2());
+        if (is_opalisable(cuca, &e1) && has_node(&e2))
+            || (is_opalisable(cuca, &e2) && has_node(&e1))
+        {
+            link.set_opale(true);
+        }
+    }
+}
+
 fn layout(cuca: &CucaDiagram, skin: &SkinParam, sb: &Rc<dyn StringBounder>) -> Option<Layout> {
     let bib = Bibliotekon::new();
     let root_entity = cuca.root_group();
@@ -347,6 +382,7 @@ fn layout(cuca: &CucaDiagram, skin: &SkinParam, sb: &Rc<dyn StringBounder>) -> O
             // Room for the roles is taken by the layout (labels), not by margins.
         }
     }
+    mark_opale_links(cuca, &links, &nodes);
     let edges: Vec<(Link, EdgeTexts)> = links
         .iter()
         .filter(|l| !cuca.is_link_removed(l))
@@ -490,8 +526,11 @@ impl Drawing {
             } else {
                 ug.clone()
             };
-            node.image()
-                .draw(&ug_node.apply_translate(UTranslate::new(corner.0, corner.1)));
+            let image = node.image();
+            if let Some(note) = image.as_any().downcast_ref::<EntityImageNote>() {
+                note.set_opale_path(self.opale_path(note.entity(), corner, max));
+            }
+            image.draw(&ug_node.apply_translate(UTranslate::new(corner.0, corner.1)));
         }
         for edge in &self.layout.edges {
             if edge.link.is_invis() || edge.link.is_opale() {
@@ -499,6 +538,21 @@ impl Drawing {
             }
             self.draw_edge(ug, edge, max);
         }
+    }
+
+    /// Ends of the link of a note, relative to the note (`SmetanaEdge.getStartPoint`).
+    fn opale_path(&self, entity: &Entity, corner: Point, max: f64) -> Option<OpalePath> {
+        let edge = self
+            .layout
+            .edges
+            .iter()
+            .find(|e| e.link.is_opale() && e.link.contains(entity))?;
+        let path = mirrored_path(edge.path.as_ref()?, max);
+        let rel = |p: Point| (p.0 - corner.0, p.1 - corner.1);
+        Some(OpalePath {
+            start: rel(path.start_point()),
+            end: rel(path.end_point()),
+        })
     }
 
     fn draw_edge(&self, ug: &UGraphic, edge: &LaidEdge, max: f64) {

@@ -32,6 +32,9 @@ pub(crate) fn create_entity_image(
         Some(crate::abel::LeafType::Association) => Rc::new(
             super::image_misc::EntityImageAssociation::new(entity, cuca, skin),
         ),
+        Some(crate::abel::LeafType::Note) => {
+            Rc::new(super::image_note::EntityImageNote::new(entity, cuca, skin))
+        }
         other => {
             log::warn!("no image for {other:?}");
             Rc::new(EntityImageSimpleEmpty)
