@@ -423,6 +423,8 @@ pub enum UShape {
     Comment(String),
     /// A character centered on the origin, as in the spot of a class (`UCenteredCharacter`).
     CenteredChar(char),
+    /// A single pixel (`UPixel`).
+    Pixel,
 }
 
 macro_rules! impl_from {
@@ -719,6 +721,11 @@ impl UGraphic {
             UShape::HLine(l) => self.draw_hline(&l),
             UShape::Comment(c) => self.svg.add_comment(&c),
             UShape::CenteredChar(c) => self.draw_centered_char(c, x, y),
+            UShape::Pixel => {
+                self.apply_stroke_color(&self.param.color.clone());
+                self.svg.set_stroke_width(0.5, None);
+                self.svg.rectangle(x, y, 0.5, 0.5, 0.0, 0.0, 0.0);
+            }
         }
         self.svg.set_hidden(false);
     }
@@ -810,6 +817,7 @@ impl UGraphic {
             }
             UShape::HLine(l) => self.draw_hline(l),
             UShape::Comment(_) | UShape::CenteredChar(_) => {}
+            UShape::Pixel => add(x, y),
         }
     }
 

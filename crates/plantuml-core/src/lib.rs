@@ -18,6 +18,7 @@ pub mod preproc;
 pub mod psystem;
 pub mod real;
 pub mod regex;
+pub mod salt;
 pub mod sdot;
 pub mod sequencediagram;
 pub mod skin;
