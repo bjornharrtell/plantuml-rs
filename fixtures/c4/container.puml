@@ -1,0 +1,13 @@
+@startuml
+!include <C4/C4_Container>
+title Internet banking
+Person(customer, "Customer", "A customer of the bank")
+System(banking, "Internet Banking System", "Shows balances and payments")
+System_Boundary(internal, "Bank") {
+  Container(api, "API", "Rust", "Serves requests")
+  ContainerDb(db, "Database", "PostgreSQL", "Stores accounts")
+}
+Rel(customer, banking, "Uses")
+Rel(banking, api, "Calls")
+Rel(api, db, "Reads")
+@enduml

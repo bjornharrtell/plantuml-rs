@@ -114,13 +114,16 @@ impl ETile for ETileBox {
             self.symbol,
             Symbol::TerminalString1 | Symbol::TerminalString2
         ) {
+            // A terminal is an unfilled box: the ambient background colour would otherwise fill it.
             ug.apply_translate(UTranslate::new(pos_x_box, pos_y))
                 .apply_color(line_color)
+                .apply_back_color(crate::klimt::color::HColor::TRANSPARENT)
                 .apply_stroke(UStroke::with_thickness(0.5))
                 .draw(rect);
         } else if self.symbol == Symbol::SpecialSequence {
             ug.apply_translate(UTranslate::new(pos_x_box, pos_y))
                 .apply_color(line_color)
+                .apply_back_color(crate::klimt::color::HColor::TRANSPARENT)
                 .apply_stroke(UStroke::new(5.0, 5.0, 1.0))
                 .draw(rect);
         } else {

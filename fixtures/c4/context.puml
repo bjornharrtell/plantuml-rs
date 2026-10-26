@@ -1,0 +1,9 @@
+@startuml
+!include <C4/C4_Context>
+title System context
+Person(user, "User")
+System(sys, "System", "Does the work")
+System_Ext(ext, "External", "Third party")
+Rel(user, sys, "Uses")
+Rel(sys, ext, "Calls")
+@enduml

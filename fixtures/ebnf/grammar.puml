@@ -1,0 +1,8 @@
+@startebnf
+title Alternation, repetition and optional
+letter = "a" | "b" | "c" ;
+digit = "0" | "1" ;
+word = { letter } ;
+number = digit , { digit } ;
+name = [ "_" ] , word ;
+@endebnf

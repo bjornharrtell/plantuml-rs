@@ -3,10 +3,25 @@ import os, re, subprocess, json, sys, html, collections, fnmatch, xml.etree.Elem
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import svgdiff
 
-ROOT = os.environ.get("VEGA_DIR", "/home/bjorn/code/plantuml/src/test/resources/vega")
-PUML = os.path.abspath(sys.argv[1])  # renderer command reading a diagram on stdin
+HERE = os.path.dirname(os.path.abspath(__file__))
+_args = sys.argv[1:]
+_extra_roots = [a[len("--root="):] for a in _args if a.startswith("--root=")]
+_plain = [a for a in _args if not a.startswith("--root=")]
+PUML = os.path.abspath(_plain[0])  # renderer command reading a diagram on stdin
 TOL = float(os.environ.get("SVG_TOL", "0.5"))  # coordinate tolerance in pixels
 LAYOUT_TOL = float(os.environ.get("LAYOUT_TOL", "0.03"))  # relative to the canvas
+
+# Roots scored by this harness: the Vega corpus, any `--root=`, and the repository fixtures for the diagram
+# types the Vega corpus does not cover. Fixture paths are reported with a `fixtures/` prefix.
+ROOTS = []
+VEGA = os.environ.get("VEGA_DIR", "/home/bjorn/code/plantuml/src/test/resources/vega")
+if os.path.isdir(VEGA):
+    ROOTS.append((VEGA, ""))
+for _root in _extra_roots:
+    ROOTS.append((os.path.abspath(_root), ""))
+_FIXTURES = os.path.join(os.path.dirname(HERE), "fixtures")
+if os.path.isdir(_FIXTURES):
+    ROOTS.append((_FIXTURES, "fixtures/"))
 
 
 def load_accepted():
@@ -28,14 +43,21 @@ def is_accepted(rules, relpath):
 ACCEPTED = load_accepted()
 SMETANA = re.compile(r"!pragma\s+layout\s+smetana")
 out = []
-for dp, _, fs in os.walk(ROOT):
-    for f in fs:
-        if not f.endswith(".puml"):
-            continue
-        p = os.path.join(dp, f)
+
+
+def corpus(root):
+    found = []
+    for dp, _, fs in os.walk(root):
+        for f in fs:
+            if f.endswith(".puml") and os.path.exists(os.path.join(dp, f)[:-5] + ".svg"):
+                found.append(os.path.join(dp, f))
+    return sorted(found)
+
+
+for root, prefix in ROOTS:
+    for p in corpus(root):
+        f = os.path.basename(p)
         svgp = p[:-5] + ".svg"
-        if not os.path.exists(svgp):
-            continue
         src = open(p, encoding="utf-8").read()
         m = re.search(r"^@start", src, re.M)
         if not m:
@@ -89,7 +111,7 @@ for dp, _, fs in os.walk(ROOT):
         if dr and dg and dr[0] and dr[1]:
             wr, hr = dg[0] / dr[0], dg[1] / dr[1]
         lay = layout_match(ref, got) if ok else (None, None)
-        rel = os.path.relpath(p, ROOT)
+        rel = prefix + os.path.relpath(p, root)
         text_score = inter / uni
         layout_score = lay[0]
         passes = ok and text_score >= 0.95 and (layout_score or 0) >= 0.90

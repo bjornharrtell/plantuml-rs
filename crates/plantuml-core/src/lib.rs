@@ -310,6 +310,23 @@ mod tests {
     }
 
     #[test]
+    fn terminals_are_unfilled_boxes() {
+        let svg = render("@startebnf\nletter = \"a\" | \"b\" ;\n@endebnf").unwrap();
+        let rects: Vec<&str> = svg
+            .split("<rect")
+            .skip(1)
+            .filter_map(|r| r.split_once('>').map(|(tag, _)| tag))
+            .collect();
+        assert!(!rects.is_empty(), "the grammar has boxes");
+        for rect in &rects {
+            assert!(
+                rect.contains("fill=\"none\""),
+                "a terminal box is an outline, not a filled shape: {rect}"
+            );
+        }
+    }
+
+    #[test]
     fn empty_packages_and_boundaries_are_drawn() {
         let svg = render("@startuml\npackage foo {\n}\n@enduml").unwrap();
         assert!(svg.contains("class=\"cluster\""));
