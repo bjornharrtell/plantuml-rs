@@ -168,13 +168,30 @@ impl UHorizontalLine {
     }
 
     fn draw_title(&self, ug: &UGraphic, start_x: f64, end_x: f64, y: f64) {
+        self.draw_title_internal(ug, start_x, end_x, y, false);
+    }
+
+    /// Draws the centered title, first blanking its area when `clear_area` (`drawTitleInternal`).
+    pub fn draw_title_internal(
+        &self,
+        ug: &UGraphic,
+        start_x: f64,
+        end_x: f64,
+        y: f64,
+        clear_area: bool,
+    ) {
         let Some(title) = &self.title else {
             return;
         };
         let dim = title.calculate_dimension(ug.string_bounder());
         let x1 = start_x + ((end_x - start_x) - dim.width) / 2.0;
         let y1 = y - dim.height / 2.0 - 0.5;
-        title.draw(&ug.apply_translate(UTranslate::new(x1, y1)));
+        let ug = ug.apply_translate(UTranslate::new(x1, y1));
+        if clear_area {
+            ug.apply_stroke(self.stroke())
+                .draw(URectangle::build(dim.width, dim.height));
+        }
+        title.draw(&ug);
     }
 }
 

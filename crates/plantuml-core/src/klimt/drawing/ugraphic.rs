@@ -221,6 +221,40 @@ impl UEllipse {
             delta_shadow: 0.0,
         }
     }
+
+    /// Larger ellipse keeping the shadow (`bigger`).
+    pub fn bigger(&self, more: f64) -> Self {
+        let mut e = Self::build(self.width + more, self.height + more);
+        e.delta_shadow = self.delta_shadow;
+        e
+    }
+
+    /// Scaled ellipse keeping the shadow (`scale`).
+    pub fn scale(&self, factor: f64) -> Self {
+        let mut e = Self::build(self.width * factor, self.height * factor);
+        e.delta_shadow = self.delta_shadow;
+        e
+    }
+
+    /// Left border of the ellipse at height `y` (`getStartingX`).
+    pub fn starting_x(&self, y: f64) -> f64 {
+        let y = y / self.height * 2.0;
+        (1.0 - (1.0 - (y - 1.0) * (y - 1.0)).sqrt()) * self.width / 2.0
+    }
+
+    /// Right border of the ellipse at height `y` (`getEndingX`).
+    pub fn ending_x(&self, y: f64) -> f64 {
+        let y = y / self.height * 2.0;
+        (1.0 + (1.0 - (y - 1.0) * (y - 1.0)).sqrt()) * self.width / 2.0
+    }
+
+    /// Point of the border at angle `alpha` (`getPointAtAngle`).
+    pub fn point_at_angle(&self, alpha: f64) -> (f64, f64) {
+        (
+            self.width / 2.0 + self.width / 2.0 * alpha.cos(),
+            self.height / 2.0 + self.height / 2.0 * alpha.sin(),
+        )
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -463,12 +497,31 @@ pub struct UGraphic {
     limit: Option<Rc<RefCell<MinMax>>>,
     /// Whether tiles draw their background layer (`Context2D.isBackground`).
     background_layer: bool,
+    /// When set, drawing only records the extreme points of shapes (`Footprint`).
+    footprint: Option<Rc<RefCell<Points>>>,
+}
+
+/// Points recorded by [`footprint`].
+type Points = Vec<(f64, f64)>;
+
+/// Custom drawing of horizontal lines (`AbstractUGraphicHorizontalLine`).
+pub trait HLineDrawer {
+    /// `ug` is the context in place when the drawer was installed; `translate` only carries the
+    /// vertical offset accumulated since.
+    fn draw_hline(&self, ug: &UGraphic, line: &UHorizontalLine, translate: UTranslate);
+}
+
+enum HLineKind {
+    Stencil {
+        stencil: Rc<dyn Stencil>,
+        default_stroke: UStroke,
+    },
+    Custom(Rc<dyn HLineDrawer>),
 }
 
 /// Stencil installed by [`UGraphic::apply_stencil`] (`UGraphicStencil`).
 struct StencilLayer {
-    stencil: Rc<dyn Stencil>,
-    default_stroke: UStroke,
+    kind: HLineKind,
     /// Position of the drawing context when the stencil was installed.
     origin: UTranslate,
     parent: Option<Rc<StencilLayer>>,
@@ -491,6 +544,7 @@ impl UGraphic {
             default_background: HColor::WHITE,
             limit: None,
             background_layer: false,
+            footprint: None,
         }
     }
 
@@ -574,8 +628,22 @@ impl UGraphic {
         let parent = self.stencil.clone();
         let mut u = self.clone();
         u.stencil = Some(Rc::new(StencilLayer {
-            stencil,
-            default_stroke,
+            kind: HLineKind::Stencil {
+                stencil,
+                default_stroke,
+            },
+            origin: u.translate,
+            parent,
+        }));
+        u
+    }
+
+    /// Hands horizontal lines to `drawer` from the current position on.
+    pub fn apply_hline_drawer(&self, drawer: Rc<dyn HLineDrawer>) -> UGraphic {
+        let parent = self.stencil.clone();
+        let mut u = self.clone();
+        u.stencil = Some(Rc::new(StencilLayer {
+            kind: HLineKind::Custom(drawer),
             origin: u.translate,
             parent,
         }));
@@ -583,13 +651,13 @@ impl UGraphic {
     }
 
     pub fn start_group(&self, attrs: &[(&str, String)]) {
-        if self.limit.is_some() {
+        if self.limit.is_some() || self.footprint.is_some() {
             return;
         }
         self.svg.start_group(attrs);
     }
     pub fn close_group(&self) {
-        if self.limit.is_some() {
+        if self.limit.is_some() || self.footprint.is_some() {
             return;
         }
         self.svg.close_group();
@@ -635,6 +703,10 @@ impl UGraphic {
             self.limit_shape(&shape.into(), x, y, &limit);
             return;
         }
+        if let Some(points) = self.footprint.clone() {
+            self.footprint_shape(&shape.into(), x, y, &points);
+            return;
+        }
         self.svg.set_hidden(self.param.hidden);
         match shape.into() {
             UShape::Empty(..) => {}
@@ -649,6 +721,39 @@ impl UGraphic {
             UShape::CenteredChar(c) => self.draw_centered_char(c, x, y),
         }
         self.svg.set_hidden(false);
+    }
+
+    fn footprint_shape(&self, shape: &UShape, x: f64, y: f64, points: &RefCell<Vec<(f64, f64)>>) {
+        let add = |px: f64, py: f64| points.borrow_mut().push((px, py));
+        match shape {
+            UShape::Text(t) => {
+                let dim = self.bounder.calculate_dimension(&t.font.font(), &t.text);
+                let y = y - (dim.height - 1.5);
+                add(x, y);
+                add(x, y + dim.height);
+                add(x + dim.width, y);
+                add(x + dim.width, y + dim.height);
+            }
+            UShape::Path(p) => {
+                if let Some((x1, y1, x2, y2)) = p.min_max() {
+                    add(x + x1, y + y1);
+                    add(x + x2, y + y2);
+                }
+            }
+            UShape::Rectangle(r) => {
+                add(x, y);
+                add(x + r.width, y + r.height);
+            }
+            UShape::Ellipse(e) => {
+                add(x, y);
+                add(x + e.width, y + e.height);
+            }
+            UShape::Empty(w, h) => {
+                add(x, y);
+                add(x + w, y + h);
+            }
+            _ => {}
+        }
     }
 
     fn limit_shape(&self, shape: &UShape, x: f64, y: f64, limit: &RefCell<MinMax>) {
@@ -732,11 +837,20 @@ impl UGraphic {
         let Some(layer) = self.stencil.clone() else {
             return;
         };
+        if self.footprint.is_some() {
+            return;
+        }
         let y = self.translate.dy - layer.origin.dy;
         let mut u = self.clone();
         u.translate = layer.origin;
         u.stencil = layer.parent.clone();
-        l.draw_line_internal(&u, layer.stencil.as_ref(), y, layer.default_stroke);
+        match &layer.kind {
+            HLineKind::Stencil {
+                stencil,
+                default_stroke,
+            } => l.draw_line_internal(&u, stencil.as_ref(), y, *default_stroke),
+            HLineKind::Custom(drawer) => drawer.draw_hline(&u, l, UTranslate::dy(y)),
+        }
     }
 
     fn draw_rectangle(&self, r: &URectangle, mut x: f64, mut y: f64) {
@@ -953,6 +1067,17 @@ pub fn find_limits(
     } else {
         m
     }
+}
+
+/// Extreme points of the shapes `f` draws (`Footprint`).
+pub fn footprint(bounder: Rc<dyn StringBounder>, f: impl FnOnce(&UGraphic)) -> Vec<(f64, f64)> {
+    let scratch = Rc::new(RefCell::new(SvgGraphics::new(0, SvgOption::default())));
+    let points = Rc::new(RefCell::new(Vec::new()));
+    let mut ug = UGraphic::new(scratch, bounder);
+    ug.footprint = Some(points.clone());
+    f(&ug);
+    let result = points.borrow().clone();
+    result
 }
 
 /// Convenience: renders a drawing closure into an SVG string.
