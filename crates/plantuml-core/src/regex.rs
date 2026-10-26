@@ -55,16 +55,25 @@ pub fn transform(input: &str) -> String {
 }
 
 /// Compiles with PlantUML semantics (case-insensitive, shorthands expanded).
-pub fn compile(pattern: &str) -> Engine {
+pub fn compile(pattern: &str) -> fancy_regex::Regex {
+    (*compile_shared(pattern)).clone()
+}
+
+/// The same engine, shared: command patterns are compiled once per process and the `Rc` keeps a
+/// single regex (and its internal cache pool) alive across the diagram that builds the commands.
+fn compile_shared(pattern: &str) -> std::rc::Rc<fancy_regex::Regex> {
     thread_local! {
-        static CACHE: std::cell::RefCell<std::collections::HashMap<String, Engine>> =
-            std::cell::RefCell::new(std::collections::HashMap::new());
+        static CACHE: std::cell::RefCell<
+            std::collections::HashMap<String, std::rc::Rc<fancy_regex::Regex>>,
+        > = std::cell::RefCell::new(std::collections::HashMap::new());
     }
     if let Some(e) = CACHE.with(|c| c.borrow().get(pattern).cloned()) {
         return e;
     }
     let full = format!("(?i){}", transform(pattern));
-    let engine = Engine::new(&full).unwrap_or_else(|e| panic!("invalid regex {full}: {e}"));
+    let engine = std::rc::Rc::new(
+        fancy_regex::Regex::new(&full).unwrap_or_else(|e| panic!("invalid regex {full}: {e}")),
+    );
     CACHE.with(|c| c.borrow_mut().insert(pattern.to_string(), engine.clone()));
     engine
 }
@@ -136,7 +145,7 @@ pub struct Concat {
 }
 
 #[derive(Clone)]
-struct OnceCellEngine(OnceCell<Engine>);
+struct OnceCellEngine(OnceCell<std::rc::Rc<Engine>>);
 
 impl std::fmt::Debug for OnceCellEngine {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -275,7 +284,7 @@ impl IRegex {
 
     fn engine(&self) -> &Engine {
         match self {
-            IRegex::Concat(c) => c.compiled.0.get_or_init(|| compile(&self.pattern())),
+            IRegex::Concat(c) => c.compiled.0.get_or_init(|| compile_shared(&self.pattern())),
             _ => panic!("only a concatenation can be matched"),
         }
     }

@@ -8,10 +8,10 @@ Measured on the 472 `.puml` files of the PlantUML Vega corpus, best of three war
 
 | implementation | total | per diagram | diagrams/s |
 |---|---|---|---|
-| Rust library (`plantuml-core`) | 1.81 s | 3.82 ms | 261 |
+| Rust library (`plantuml-core`) | 1.47 s | 3.07 ms | 326 |
 | Java PlantUML, one JVM | 1.31 s | 2.77 ms | 361 |
 
-Java is about 1.4x faster per diagram on this corpus. Two caveats: Java writes its SVGs to `/dev/shm`
+Java is about 1.1x faster per diagram on this corpus: 3.07 ms against 2.77 ms. Two caveats: Java writes its SVGs to `/dev/shm`
 here while the Rust harness keeps them in memory, and class diagrams are not like-for-like — this port
 lays them out with `graphviz-pure`, while the Java run used Graphviz through its own DOT round trip.
 
@@ -63,10 +63,16 @@ Landed:
    (5.4 -> 3.8 ms per diagram), fidelity untouched.
 2. **`format_decimal` in one pass**, without the intermediate `String` and `insert` calls that ran for
    every coordinate of the SVG (about 3% on the sequence corpus).
+3. **Compiled patterns are shared.** Command patterns were cloned out of the compile cache for every
+   diagram, and cloning a `fancy-regex` `Regex` loses its internal cache pool, so the first match of
+   every command rebuilt the automaton caches (9.5% of the profile, plus 8% in `IRegex::engine`). The
+   cache now hands out `Rc<Regex>`, so one engine and its pool serve the whole process: sequence
+   575 -> 490 ms, corpus 1840 -> 1470 ms.
 
-Next target: the regex machinery. Simple patterns (no lookaround, no backreference) could go through
-`regex::Regex`, which keeps a thread-local cache pool, instead of `fancy-regex`, which builds its NFA
-state caches per match; that is the remaining ~12% plus part of the allocation churn.
+Tried and rejected: routing patterns without lookaround through `regex::Regex` instead of
+`fancy-regex` measured neutral (sequences 575 -> 580 ms, corpus unchanged), so the cost was never the
+engine choice but the per-diagram cloning described above; that change was reverted rather than kept
+for no gain.
 
 Text measurement is not a factor: the whole sequence run performs 170,466 measurements in 11 ms.
 
