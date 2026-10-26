@@ -543,7 +543,7 @@ fn layout(cuca: &CucaDiagram, skin: &SkinParam, sb: &Rc<dyn StringBounder>) -> O
         add_node(cuca, skin, sb, &ent, &root, &mut c);
         c.root_leaves.push(ent);
     }
-    mark_opale_links(cuca, &links, &nodes);
+    mark_opale_links(cuca, &links, &c.nodes);
     let edges: Vec<(Link, EdgeTexts)> = links
         .iter()
         .filter(|l| !cuca.is_link_removed(l))
