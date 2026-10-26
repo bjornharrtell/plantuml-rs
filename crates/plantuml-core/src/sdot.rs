@@ -489,6 +489,31 @@ fn build_dot(
     out
 }
 
+/// Draws the label of a port on the outside of its cluster (`EntityImagePort.upPosition`).
+fn orient_ports(
+    placed: &[(Entity, SvekNode, Point, Dimension)],
+    clusters: &[(Cluster, (Point, Point))],
+) {
+    for (ent, node, pos, _) in placed {
+        if !matches!(ent.leaf_type(), Some(LeafType::Portin | LeafType::Portout)) {
+            continue;
+        }
+        let Some(parent) = ent.parent_container() else {
+            continue;
+        };
+        let Some((_, (ll, ur))) = clusters.iter().find(|(c, _)| c.group() == parent) else {
+            continue;
+        };
+        if let Some(image) = node
+            .image()
+            .as_any()
+            .downcast_ref::<crate::svek::image_port::EntityImagePort>()
+        {
+            image.set_up(pos.1 < (ll.1 + ur.1) / 2.0);
+        }
+    }
+}
+
 /// A note with exactly one visible link, to something that is not a note (`isOpalisable`).
 fn is_opalisable(cuca: &CucaDiagram, ent: &Entity) -> bool {
     if ent.is_group() || ent.leaf_type() != Some(LeafType::Note) {
@@ -640,6 +665,7 @@ fn layout_from(
             Dimension::new(max_x - min_x, max_y - min_y),
         ));
     }
+    orient_ports(&placed, &cluster_boxes);
     let mut mm = MinMax::empty(false);
     for (_, _, c, d) in &placed {
         // Smetana's box info: upper right has the smaller y.

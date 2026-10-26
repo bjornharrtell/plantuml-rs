@@ -14,6 +14,8 @@ use crate::stereo::{Guillemet, Stereotype};
 use crate::text::LineLocation;
 use std::rc::Rc;
 
+mod magma;
+
 /// A diagram that owns a [`CucaDiagram`], so commands can be shared between diagram types.
 pub trait CucaHolder: crate::command::common::HasBase {
     fn cuca(&self) -> &CucaDiagram;
@@ -294,9 +296,24 @@ impl CucaDiagram {
         display: Display,
         leaf_type: LeafType,
     ) -> Entity {
+        self.really_create_leaf_with(location, ident, display, leaf_type, None)
+    }
+
+    /// `reallyCreateLeaf` with the shape chosen by the declaration.
+    pub fn really_create_leaf_with(
+        &mut self,
+        location: Option<LineLocation>,
+        ident: Quark<Entity>,
+        display: Display,
+        leaf_type: LeafType,
+        usymbol: Option<Rc<dyn crate::decoration::usymbol::USymbol>>,
+    ) -> Entity {
         assert!(ident.data().is_none());
         assert!(!display.is_null());
         let result = self.create_leaf(location, ident, leaf_type);
+        if usymbol.is_some() {
+            result.set_usymbol(usymbol);
+        }
         self.last_entity = Some(result.clone());
         result.set_together(self.current_together());
         result.set_display(display);

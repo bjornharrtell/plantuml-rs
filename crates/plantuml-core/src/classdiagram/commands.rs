@@ -117,7 +117,7 @@ fn tags_pattern() -> String {
     Stereotag::pattern()
 }
 
-fn back_color() -> ColorParser {
+pub(crate) fn back_color() -> ColorParser {
     ColorParser::simple_color(ColorType::Back)
 }
 
@@ -125,7 +125,7 @@ fn line_color() -> ColorParser {
     ColorParser::simple_color(ColorType::Line)
 }
 
-fn add_tags(entity: &crate::abel::Entity, tags: Option<&str>) {
+pub(crate) fn add_tags(entity: &crate::abel::Entity, tags: Option<&str>) {
     let Some(tags) = tags else { return };
     for tag in tags.split(' ').filter(|t| !t.is_empty()) {
         if let Some(t) = tag.strip_prefix('$') {
@@ -962,7 +962,7 @@ fn string_with_arrow(complete: Option<&str>) -> (Option<String>, LinkArrow) {
     }
 }
 
-fn link_regex() -> IRegex {
+pub(crate) fn link_regex() -> IRegex {
     let quals = |name: &str| {
         IRegex::optional(IRegex::group(vec![
             IRegex::space_one_or_more(),
@@ -1036,12 +1036,19 @@ fn get_or_create_class(
 ) -> crate::abel::Entity {
     match quark.data() {
         Some(e) => e,
-        None => d.cuca.really_create_leaf(
-            loc,
-            quark.clone(),
-            Display::with_newlines(Some(quark.name())),
-            LeafType::Class,
-        ),
+        None => {
+            let leaf_type = if d.is_description() {
+                LeafType::StillUnknown
+            } else {
+                LeafType::Class
+            };
+            d.cuca.really_create_leaf(
+                loc,
+                quark.clone(),
+                Display::with_newlines(Some(quark.name())),
+                leaf_type,
+            )
+        }
     }
 }
 
@@ -1111,13 +1118,110 @@ fn execute_association(
     result.unwrap_or_else(|e| e)
 }
 
-fn execute_link(
+pub(crate) fn execute_link(
     d: &mut ClassDiagram,
     loc: Option<LineLocation>,
     arg: &RegexResult,
 ) -> CommandExecutionResult {
-    let mut ent1 = d.cuca.clean_id(arg.get("ENT1", 0));
-    let mut ent2 = d.cuca.clean_id(arg.get("ENT2", 0));
+    execute_link_mode(d, loc, arg, false)
+}
+
+/// `CommandLinkElement` of a description diagram: notation-aware entity names.
+pub(crate) fn execute_link_description(
+    d: &mut ClassDiagram,
+    loc: Option<LineLocation>,
+    arg: &RegexResult,
+) -> CommandExecutionResult {
+    for key in ["ENT1", "ENT2"] {
+        if let Some(raw) = arg.get(key, 0) {
+            if let Err(e) = ensure_description_dummy(d, loc, raw) {
+                return e;
+            }
+        }
+    }
+    execute_link_mode(d, loc, arg, true)
+}
+
+/// Creates an entity from the notation of a link endpoint (`getDummy`).
+fn ensure_description_dummy(
+    d: &mut ClassDiagram,
+    loc: Option<LineLocation>,
+    raw: &str,
+) -> Result<(), CommandExecutionResult> {
+    let raw = unquote(raw);
+    let first = if raw.chars().count() > 2 {
+        raw.chars().next().unwrap_or('\0')
+    } else {
+        '\0'
+    };
+    let end_slash = raw.ends_with('/');
+    let id = d.clean_id(Some(&raw)).unwrap_or_default();
+    if d.cuca.is_group_code(&id) {
+        return Ok(());
+    }
+    let quark = d
+        .cuca
+        .quark_in_context(true, &id)
+        .map_err(|(m, s)| CommandExecutionResult::error_with_score(m, s))?;
+    if quark.data().is_some() {
+        return Ok(());
+    }
+    let display = Display::with_newlines(Some(quark.name()));
+    let skin = &d.cuca.base.skin_param;
+    let (leaf_type, usymbol) = if raw.starts_with("()") {
+        (
+            LeafType::Description,
+            Some(crate::decoration::usymbol::usymbols::interface()),
+        )
+    } else if first == '(' {
+        if end_slash {
+            (
+                LeafType::UsecaseBusiness,
+                Some(crate::decoration::usymbol::usymbols::usecase_business()),
+            )
+        } else {
+            (
+                LeafType::Usecase,
+                Some(crate::decoration::usymbol::usymbols::usecase()),
+            )
+        }
+    } else if first == ':' {
+        (
+            LeafType::Description,
+            Some(if end_slash {
+                crate::decoration::usymbol::usymbols::actor_stickman_business()
+            } else {
+                skin.actor_style().to_usymbol()
+            }),
+        )
+    } else if first == '[' {
+        (
+            LeafType::Description,
+            Some(skin.component_style().to_usymbol()),
+        )
+    } else {
+        (LeafType::StillUnknown, None)
+    };
+    d.cuca
+        .really_create_leaf_with(loc, quark, display, leaf_type, usymbol);
+    Ok(())
+}
+
+fn execute_link_mode(
+    d: &mut ClassDiagram,
+    loc: Option<LineLocation>,
+    arg: &RegexResult,
+    description: bool,
+) -> CommandExecutionResult {
+    let clean = |d: &ClassDiagram, id: Option<&str>| {
+        if description {
+            d.clean_id(id)
+        } else {
+            d.cuca.clean_id(id)
+        }
+    };
+    let mut ent1 = clean(d, arg.get("ENT1", 0));
+    let mut ent2 = clean(d, arg.get("ENT2", 0));
     let (Some(e1), Some(e2)) = (ent1.as_mut(), ent2.as_mut()) else {
         return execute_association(d, loc, arg, ent1.is_none(), ent2.is_none());
     };

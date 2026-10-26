@@ -6,7 +6,7 @@ mod commands_group;
 pub(crate) mod commands_misc;
 pub(crate) mod commands_note;
 
-use crate::abel::{Entity, Link};
+use crate::abel::{Entity, LeafType, Link};
 use crate::command::common::HasBase;
 use crate::command::{create_system, CommandDiagram, CommandExecutionResult, ErrorUml, UmlSource};
 use crate::cucadiagram::CucaDiagram;
@@ -33,6 +33,38 @@ impl ClassDiagram {
             use_layout_explicit: 0,
             associations: Vec::new(),
         }
+    }
+
+    /// A description diagram (`DescriptionDiagram`), sharing the entity model.
+    pub fn new_description(source: UmlSource) -> ClassDiagram {
+        let mut cuca = CucaDiagram::new(DiagramBase::new(source, DiagramType::Description));
+        cuca.set_namespace_separator(Some("."));
+        ClassDiagram {
+            cuca,
+            allow_mixing: false,
+            use_layout_explicit: 0,
+            associations: Vec::new(),
+        }
+    }
+
+    pub fn is_description(&self) -> bool {
+        self.cuca.base.diagram_type == DiagramType::Description
+    }
+
+    /// `DescriptionDiagram.cleanId`: strips the `()`, `(...)` and `:...:` markers.
+    pub fn clean_id(&self, id: Option<&str>) -> Option<String> {
+        let id = id?;
+        let id = crate::string_utils::eventually_remove_starting_and_ending_double_quote(id);
+        if let Some(rest) = id.strip_prefix("()") {
+            return Some(crate::string_utils::trin(rest).to_string());
+        }
+        if id.starts_with(':') && id.ends_with(":/") {
+            return Some(id[1..id.len() - 2].to_string());
+        }
+        if id.starts_with('(') && id.ends_with(")/") {
+            return Some(id[1..id.len() - 2].to_string());
+        }
+        self.cuca.clean_id(Some(&id))
     }
 
     pub fn set_allow_mixing(&mut self, v: bool) {
@@ -152,6 +184,9 @@ impl CommandDiagram for ClassDiagram {
                 }
             }
         }
+        if self.is_description() {
+            self.default_unknown_to_description();
+        }
         if self
             .cuca
             .base
@@ -162,6 +197,37 @@ impl CommandDiagram for ClassDiagram {
         {
             self.pack_some_package();
         }
+        self.cuca.apply_single_strategy();
+    }
+}
+
+impl ClassDiagram {
+    /// `DescriptionDiagram.makeDiagramReady`: unresolved entities become descriptions.
+    fn default_unknown_to_description(&mut self) {
+        let default = if self.is_usecase() {
+            self.cuca.base.skin_param.actor_style().to_usymbol()
+        } else {
+            crate::decoration::usymbol::usymbols::interface()
+        };
+        for leaf in self.cuca.leafs() {
+            if leaf.leaf_type() == Some(LeafType::StillUnknown) {
+                leaf.mute_to_type(LeafType::Description);
+                leaf.set_usymbol(Some(default.clone()));
+            }
+        }
+    }
+
+    fn is_usecase(&self) -> bool {
+        self.cuca.leafs().iter().any(|leaf| {
+            matches!(
+                leaf.leaf_type(),
+                Some(LeafType::Usecase | LeafType::UsecaseBusiness)
+            ) || leaf.usymbol().is_some_and(|s| {
+                s.snames()
+                    .iter()
+                    .any(|n| matches!(n, crate::style::SName::Actor | crate::style::SName::Usecase))
+            })
+        })
     }
 }
 

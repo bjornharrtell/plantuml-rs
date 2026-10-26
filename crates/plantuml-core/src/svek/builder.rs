@@ -32,6 +32,23 @@ pub(crate) fn create_entity_image(
             Rc::new(EntityImageSimpleEmpty)
         }
         Some(t) if t.is_like_class() => Rc::new(EntityImageClass::new(entity.clone(), cuca, skin)),
+        Some(crate::abel::LeafType::Portin | crate::abel::LeafType::Portout) => {
+            Rc::new(super::image_port::EntityImagePort::new(
+                entity.clone(),
+                cuca,
+                skin,
+            ))
+        }
+        Some(
+            crate::abel::LeafType::Description
+            | crate::abel::LeafType::Usecase
+            | crate::abel::LeafType::UsecaseBusiness
+            | crate::abel::LeafType::Circle,
+        ) => Rc::new(super::image_description::EntityImageDescription::new(
+            entity.clone(),
+            cuca,
+            skin,
+        )),
         Some(crate::abel::LeafType::PointForAssociation) => Rc::new(
             super::image_misc::EntityImageAssociationPoint::new(entity, cuca, skin),
         ),

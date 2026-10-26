@@ -8,6 +8,7 @@ pub mod classdiagram;
 pub mod command;
 pub mod cucadiagram;
 pub mod decoration;
+pub mod descdiagram;
 pub mod diagram;
 pub mod export;
 pub mod gantt;
