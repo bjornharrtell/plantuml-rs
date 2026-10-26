@@ -6,6 +6,7 @@
 
 pub mod box_style;
 pub mod factory;
+pub mod group;
 pub mod leaf;
 pub mod snake;
 pub mod wrap;

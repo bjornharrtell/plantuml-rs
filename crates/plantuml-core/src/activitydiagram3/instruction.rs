@@ -13,9 +13,11 @@ use super::rainbow::LinkRendering;
 use super::swimlanes::Swimlane;
 use crate::command::CommandExecutionResult;
 use crate::klimt::color::colors::Colors;
+use crate::klimt::color::HColor;
 use crate::klimt::creole::display::Display;
+use crate::decoration::usymbol::USymbol;
 use crate::stereo::Stereotype;
-use crate::style::StyleBuilder;
+use crate::style::{Style, StyleBuilder};
 use crate::url::Url;
 use std::any::Any;
 use std::cell::RefCell;
@@ -317,6 +319,82 @@ impl Instruction for InstructionNode {
 
     fn swimlane_in(&self) -> Option<Rc<Swimlane>> {
         self.swimlane.clone()
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+/// A group or partition around a sequence of instructions (`InstructionGroup`).
+pub struct InstructionGroup {
+    list: InstructionList,
+    title: Display,
+    back_color: Option<HColor>,
+    symbol: Rc<dyn USymbol>,
+    style: Style,
+    in_link_rendering: LinkRendering,
+}
+
+impl InstructionGroup {
+    pub fn new(
+        title: Display,
+        back_color: Option<HColor>,
+        symbol: Rc<dyn USymbol>,
+        style: Style,
+        swimlane: Option<Rc<Swimlane>>,
+        in_link_rendering: LinkRendering,
+    ) -> Self {
+        Self {
+            list: InstructionList::new(swimlane),
+            title,
+            back_color,
+            symbol,
+            style,
+            in_link_rendering,
+        }
+    }
+}
+
+impl Instruction for InstructionGroup {
+    fn create_ftile(&self, factory: &dyn FtileFactory) -> FtileRef {
+        let inner = self.list.create_ftile(factory);
+        super::ftile::group::FtileGroup::new(
+            inner,
+            self.title.clone(),
+            self.back_color.clone(),
+            self.symbol.clone(),
+            &self.style,
+            factory.skin().as_ref(),
+        )
+    }
+
+    fn add(&mut self, other: InsRef) -> CommandExecutionResult {
+        self.list.add(other)
+    }
+
+    fn kill(&mut self) -> bool {
+        self.list.kill()
+    }
+
+    fn in_link_rendering(&self) -> LinkRendering {
+        self.in_link_rendering.clone()
+    }
+
+    fn contains_break(&self) -> bool {
+        self.list.contains_break()
+    }
+
+    fn swimlanes(&self) -> Vec<Rc<Swimlane>> {
+        self.list.swimlanes()
+    }
+
+    fn swimlane_in(&self) -> Option<Rc<Swimlane>> {
+        self.list.swimlane_in()
+    }
+
+    fn swimlane_out(&self) -> Option<Rc<Swimlane>> {
+        self.list.swimlane_out()
     }
 
     fn as_any(&self) -> &dyn Any {

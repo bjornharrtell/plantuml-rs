@@ -9,9 +9,12 @@ use crate::klimt::color::colors::ColorType;
 use crate::klimt::color::parser::ColorParser;
 use crate::klimt::creole::display::Display;
 use crate::regex::{IRegex, RegexResult};
+use crate::decoration::usymbol::USymbol;
 use crate::stereo;
 use crate::text::{BlocLines, MultilinesStrategy};
+use crate::style::{queries, SName};
 use crate::url::{self, UrlBuilder, UrlMode};
+use std::rc::Rc;
 
 type Cmd = Box<dyn Command<ActivityDiagram3>>;
 
@@ -141,6 +144,123 @@ fn add_long_activity(d: &mut ActivityDiagram3, lines: &BlocLines) -> CommandExec
     )
 }
 
+fn group_symbol(kind: &str) -> Rc<dyn USymbol> {
+    use crate::decoration::usymbol::usymbols;
+    match kind.to_lowercase().as_str() {
+        "partition" => usymbols::partition(),
+        "package" => usymbols::package(),
+        "rectangle" => usymbols::rectangle(),
+        "card" => usymbols::card(),
+        _ => usymbols::group(),
+    }
+}
+
+/// `partition Name {`, `group G {`, `package`, `rectangle` or `card`.
+fn open_group() -> Cmd {
+    let back1 = ColorParser::simple_color_id(ColorType::Back, "BACK1");
+    let back2 = ColorParser::simple_color_id(ColorType::Back, "BACK2");
+    single(
+        vec![
+            IRegex::start(),
+            IRegex::named("TYPE", "(partition|package|rectangle|card|group)"),
+            IRegex::space_one_or_more(),
+            IRegex::optional(IRegex::group(vec![
+                back1.regex(),
+                IRegex::space_one_or_more(),
+            ])),
+            IRegex::named("NAME", "([%g][^%g]+[%g]|.*?)"),
+            IRegex::optional(IRegex::group(vec![
+                IRegex::space_one_or_more(),
+                back2.regex(),
+            ])),
+            crate::stereo::optional_pattern("STEREO"),
+            IRegex::named("BRACKET", r"(\{?)"),
+            IRegex::end(),
+        ],
+        move |d, arg| {
+            let name = crate::string_utils::eventually_remove_starting_and_ending_double_quote(
+                arg.get("NAME", 0).unwrap_or("").trim(),
+            );
+            let kind = arg.get("TYPE", 0).unwrap_or("group");
+            let symbol = group_symbol(kind);
+            let parser = if arg.get("BACK1", 0).is_some() {
+                ColorParser::simple_color_id(ColorType::Back, "BACK1")
+            } else {
+                ColorParser::simple_color_id(ColorType::Back, "BACK2")
+            };
+            let Some(colors) = parser.colors(arg) else {
+                return CommandExecutionResult::bad_color();
+            };
+            let stereotype = arg
+                .get("STEREO", 0)
+                .map(crate::stereo::Stereotype::build);
+            let query = queries::ACTIVITYDIAG
+                .add_all(&symbol.snames())
+                .add(SName::Composite)
+                .with_stereotype_obj(stereotype.as_ref());
+            let style = d.skin().style_builder().merged_style(&query).expect("group style");
+            let back = colors
+                .color(ColorType::Back)
+                .cloned()
+                .unwrap_or_else(|| style.value(crate::style::PName::BackGroundColor).as_color());
+            if arg.get("BRACKET", 0).unwrap_or("").is_empty() {
+                let mut rebased = kind.to_string();
+                if let Some(c) = arg.get("BACK1", 0) {
+                    rebased.push(' ');
+                    rebased.push_str(c);
+                }
+                rebased.push(' ');
+                rebased.push_str(arg.get("NAME", 0).unwrap_or("").trim());
+                if let Some(c) = arg.get("BACK2", 0) {
+                    rebased.push(' ');
+                    rebased.push_str(c);
+                }
+                if let Some(c) = arg.get("STEREO", 0) {
+                    rebased.push(' ');
+                    rebased.push_str(c);
+                }
+                d.base.add_warning(vec![format!(
+                    "Missing '{{': write '{rebased} {{' and close it with '}}'"
+                )]);
+            }
+            d.start_group(
+                Display::with_newlines(Some(&name)),
+                Some(back),
+                symbol,
+                style,
+            );
+            CommandExecutionResult::ok()
+        },
+    )
+}
+
+/// `}` closes the current group (`CommandCloseGroup3`).
+fn close_group() -> Cmd {
+    single(
+        vec![IRegex::start(), IRegex::leaf(r"\}"), IRegex::end()],
+        |d, _| d.close_group(),
+    )
+}
+
+/// `end group` / `group end` closes the current group (`CommandCloseGroupLegacy3`).
+fn close_group_legacy() -> Cmd {
+    single(
+        vec![
+            IRegex::start(),
+            IRegex::named("CMD", "(end ?group|group ?end)"),
+            IRegex::leaf(";?"),
+            IRegex::end(),
+        ],
+        |d, arg| {
+            let cmd = arg.get("CMD", 0).unwrap_or("end group");
+            d.base.add_warning(vec![format!(
+                "'{cmd}' is deprecated: close the group with '}}' instead"
+            )]);
+            d.close_group()
+        },
+    )
+}
+
 pub fn commands() -> Vec<Cmd> {
     let mut cmds: Vec<Cmd> = Vec::new();
     // CommandFootboxIgnored
@@ -155,8 +275,10 @@ pub fn commands() -> Vec<Cmd> {
         |_, _| CommandExecutionResult::ok(),
     ));
     cmds.extend(crate::command::common::common_commands());
-    // CommandSwimlane, CommandSwimlane2, CommandPartition3, CommandCloseGroup3,
-    // CommandCloseGroupLegacy3: with swimlanes and groups.
+    // CommandSwimlane, CommandSwimlane2
+    cmds.push(open_group());
+    cmds.push(close_group());
+    cmds.push(close_group_legacy());
 
     // CommandArrow3
     cmds.push(single(arrow_regex("(.*);"), |d, arg| {

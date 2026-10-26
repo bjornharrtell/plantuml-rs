@@ -21,13 +21,16 @@ pub mod swimlanes;
 use crate::command::common::HasBase;
 use crate::command::{create_system, CommandDiagram, CommandExecutionResult, ErrorUml, UmlSource};
 use crate::diagram::{Diagram, DiagramBase, DiagramFactory, DiagramType};
+use crate::decoration::usymbol::USymbol;
+use crate::klimt::color::HColor;
 use crate::klimt::creole::display::Display;
 use crate::klimt::font::StringBounder;
 use crate::klimt::shape::TextBlock;
 use crate::skin::SkinParam;
+use crate::style::Style;
 use crate::url::Url;
 use ftile::box_style::BoxStyle;
-use instruction::{InsRef, InstructionNode, InstructionSimple, NodeKind};
+use instruction::{InsRef, InstructionGroup, InstructionNode, InstructionSimple, NodeKind};
 use rainbow::{LinkRendering, Rainbow};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -45,6 +48,7 @@ pub struct ActivityDiagram3 {
     swimlane_strategy: Option<SwimlaneStrategy>,
     swimlanes: Swimlanes,
     has_url: bool,
+    group_stack: Vec<InsRef>,
 }
 
 impl ActivityDiagram3 {
@@ -54,6 +58,7 @@ impl ActivityDiagram3 {
             swimlane_strategy: None,
             swimlanes: Swimlanes::new(),
             has_url: false,
+            group_stack: Vec::new(),
         }
     }
 
@@ -174,6 +179,48 @@ impl ActivityDiagram3 {
 
     pub fn has_url(&self) -> bool {
         self.has_url
+    }
+
+    /// Opens a group or partition (`startGroup`).
+    pub fn start_group(
+        &mut self,
+        title: Display,
+        back_color: Option<HColor>,
+        symbol: Rc<dyn USymbol>,
+        style: Style,
+    ) {
+        self.manage_swimlane_strategy();
+        let group = InstructionGroup::new(
+            title,
+            back_color,
+            symbol,
+            style,
+            self.swimlanes.current_swimlane(),
+            self.next_link_renderer(),
+        );
+        let group: InsRef = Rc::new(RefCell::new(group));
+        self.current().borrow_mut().add(group.clone());
+        self.group_stack.push(self.current());
+        self.swimlanes.set_current(group);
+    }
+
+    /// Closes the current group or partition (`closeGroup`).
+    pub fn close_group(&mut self) -> CommandExecutionResult {
+        let is_group = self
+            .current()
+            .borrow()
+            .as_any()
+            .is::<InstructionGroup>();
+        if !is_group {
+            return CommandExecutionResult::error("Cannot find group");
+        }
+        match self.group_stack.pop() {
+            Some(parent) => {
+                self.swimlanes.set_current(parent);
+                CommandExecutionResult::ok()
+            }
+            None => CommandExecutionResult::error("Cannot find group"),
+        }
     }
 }
 

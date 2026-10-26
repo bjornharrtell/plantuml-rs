@@ -112,3 +112,21 @@ fn urls_are_parsed() {
     let out = svg(":X; [[http://example.com]]");
     assert!(out.contains(">X</text>"));
 }
+
+#[test]
+fn groups_and_partitions_wrap_activities() {
+    let out = svg("group G {\n:A;\n}");
+    assert!(out.contains(">G</text>"), "{out}");
+    assert!(out.contains(">A</text>"));
+    let out = svg("partition \"My part\"\n:A;\n}");
+    assert!(out.contains(">My part</text>"), "{out}");
+    assert!(out.contains("Missing"), "{out}");
+    let out = svg("group G {\n:A;\nend group");
+    assert!(out.contains("deprecated"));
+    assert!(out.contains(">A</text>"));
+}
+
+#[test]
+fn unbalanced_group_close_is_an_error() {
+    assert!(render("@startuml\n}\n@enduml").is_err());
+}
