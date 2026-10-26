@@ -1,6 +1,7 @@
 //! Drawing primitives, ported from PlantUML's `klimt` package.
 
 pub mod color;
+pub mod compress;
 pub mod creole;
 pub mod dotpath;
 pub mod drawing;

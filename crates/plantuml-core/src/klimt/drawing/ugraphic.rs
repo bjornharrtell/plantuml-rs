@@ -2,6 +2,9 @@
 
 use super::svg::{PathSeg, SvgGraphics, SvgOption, TextAttrs};
 use crate::klimt::color::{HColor, TransparentFillBehavior};
+use crate::klimt::compress::{
+    CompressLayer, CompressionMode, CompressionTransform, SlotRecorder, SlotSet,
+};
 use crate::klimt::font::config::{FontConfiguration, FontStyle};
 use crate::klimt::font::StringBounder;
 use crate::klimt::geom::MinMax;
@@ -501,6 +504,10 @@ pub struct UGraphic {
     background_layer: bool,
     /// When set, drawing only records the extreme points of shapes (`Footprint`).
     footprint: Option<Rc<RefCell<Points>>>,
+    /// Moves shapes along an axis (`UGraphicCompressOnXorY`).
+    compress: Option<Rc<CompressLayer>>,
+    /// When set, drawing only records the bands covered by shapes (`SlotFinder`).
+    slots: Option<Rc<SlotRecorder>>,
 }
 
 /// Points recorded by [`footprint`].
@@ -547,6 +554,8 @@ impl UGraphic {
             limit: None,
             background_layer: false,
             footprint: None,
+            compress: None,
+            slots: None,
         }
     }
 
@@ -563,7 +572,23 @@ impl UGraphic {
     /// Background assumed when the current back color is transparent.
     /// Whether shapes only feed a bounding box (`LimitFinder`).
     pub fn is_finding_limits(&self) -> bool {
-        self.limit.is_some()
+        self.limit.is_some() || self.slots.is_some()
+    }
+
+    /// Shapes drawn from now on are moved along `mode`'s axis (`UGraphicCompressOnXorY.create`).
+    pub fn apply_compression(
+        &self,
+        mode: CompressionMode,
+        transform: Rc<CompressionTransform>,
+    ) -> UGraphic {
+        let mut u = self.clone();
+        u.compress = Some(Rc::new(CompressLayer::new(
+            mode,
+            u.translate,
+            transform,
+            self.compress.clone(),
+        )));
+        u
     }
 
     pub fn default_background(&self) -> &HColor {
@@ -658,13 +683,13 @@ impl UGraphic {
     }
 
     pub fn start_group(&self, attrs: &[(&str, String)]) {
-        if self.limit.is_some() || self.footprint.is_some() {
+        if self.limit.is_some() || self.footprint.is_some() || self.slots.is_some() {
             return;
         }
         self.svg.start_group(attrs);
     }
     pub fn close_group(&self) {
-        if self.limit.is_some() || self.footprint.is_some() {
+        if self.limit.is_some() || self.footprint.is_some() || self.slots.is_some() {
             return;
         }
         self.svg.close_group();
@@ -705,17 +730,25 @@ impl UGraphic {
 
     /// Draws a shape at the current translation.
     pub fn draw(&self, shape: impl Into<UShape>) {
-        let (x, y) = (self.translate.dx, self.translate.dy);
+        let (mut x, mut y) = (self.translate.dx, self.translate.dy);
+        let mut shape = shape.into();
+        if let Some(layer) = &self.compress {
+            (x, y, shape) = layer.apply(x, y, shape);
+        }
+        if let Some(rec) = &self.slots {
+            rec.record(self.bounder.as_ref(), x, y, &shape);
+            return;
+        }
         if let Some(limit) = self.limit.clone() {
-            self.limit_shape(&shape.into(), x, y, &limit);
+            self.limit_shape(&shape, x, y, &limit);
             return;
         }
         if let Some(points) = self.footprint.clone() {
-            self.footprint_shape(&shape.into(), x, y, &points);
+            self.footprint_shape(&shape, x, y, &points);
             return;
         }
         self.svg.set_hidden(self.param.hidden);
-        match shape.into() {
+        match shape {
             UShape::Empty(..) => {}
             UShape::Rectangle(r) => self.draw_rectangle(&r, x, y),
             UShape::Line(l) => self.draw_line(&l, x, y),
@@ -1080,6 +1113,20 @@ pub fn find_limits(
     } else {
         m
     }
+}
+
+/// Bands of `mode`'s axis covered by what `f` draws (`SlotFinder`).
+pub fn find_slots(
+    bounder: Rc<dyn StringBounder>,
+    mode: CompressionMode,
+    f: impl FnOnce(&UGraphic),
+) -> SlotSet {
+    let scratch = Rc::new(RefCell::new(SvgGraphics::new(0, SvgOption::default())));
+    let recorder = Rc::new(SlotRecorder::new(mode, UTranslate::default()));
+    let mut ug = UGraphic::new(scratch, bounder);
+    ug.slots = Some(recorder.clone());
+    f(&ug);
+    recorder.slots()
 }
 
 /// Extreme points of the shapes `f` draws (`Footprint`).

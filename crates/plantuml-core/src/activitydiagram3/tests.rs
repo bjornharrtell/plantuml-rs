@@ -1,0 +1,114 @@
+use crate::render;
+
+fn svg(body: &str) -> String {
+    render(&format!("@startuml\n{body}\n@enduml")).expect("renders")
+}
+
+#[test]
+fn two_actions_are_joined_by_an_arrow() {
+    let out = svg(":X;\n:Y;");
+    assert!(out.contains(r#"data-diagram-type="ACTIVITY""#));
+    assert_eq!(out.matches("<rect").count(), 2);
+    assert_eq!(out.matches("<polygon").count(), 1);
+    assert!(out.contains(">X</text>") && out.contains(">Y</text>"));
+    // the 35 pixels of space are squeezed to 20 by the vertical compression
+    assert!(out.contains(r#"y="68""#), "{out}");
+}
+
+#[test]
+fn start_stop_and_end() {
+    let out = svg("start\n:a;\nstop");
+    assert_eq!(out.matches("<ellipse").count(), 3);
+    let out = svg("start\n:a;\nend");
+    assert!(out.contains("<ellipse") && out.matches("<line").count() >= 3);
+    assert!(render("@startuml\nstart;\nstop;\n@enduml").is_ok());
+}
+
+#[test]
+fn arrow_label_and_color() {
+    let out = svg(":a;\n-> some text;\n:b;");
+    assert!(out.contains(">some text</text>"));
+    let out = svg(":a;\n-[#red]->\n:b;");
+    assert!(out.contains("#F00") || out.contains("#FF0000"), "{out}");
+    let out = svg(":a;\n-[#red]-> label;\n:b;");
+    assert!(out.contains(">label</text>") && out.contains("#F00"));
+    let out = svg(":a;\n-> first\nsecond;\n:b;");
+    assert!(out.contains(">first</text>") && out.contains(">second</text>"));
+    let out = svg(":a;\nlink #blue\n:b;");
+    assert!(out.contains("#00F"));
+    let out = svg(":a;\n-[#red;#blue]->\n:b;");
+    assert!(out.contains("#F00") && out.contains("#00F"));
+    let out = svg(":a;\n-[hidden]->\n:b;");
+    assert!(!out.contains("<polygon"));
+}
+
+#[test]
+fn multi_line_action_and_box_styles() {
+    let out = svg(":first line\nsecond line;");
+    assert!(out.contains(">first line</text>") && out.contains(">second line</text>"));
+    for style in [
+        "input",
+        "output",
+        "procedure",
+        "load",
+        "save",
+        "continuous",
+        "task",
+        "object",
+    ] {
+        let out = svg(&format!(":x; <<{style}>>"));
+        assert!(out.contains(">x</text>"), "{style}");
+    }
+    for style in [
+        "objectSignal",
+        "trigger",
+        "sendSignal",
+        "acceptEvent",
+        "timeEvent",
+    ] {
+        let out = svg(&format!(":x; <<{style}>>"));
+        assert!(out.contains(">x</text>"), "{style}");
+    }
+    assert!(svg("- item\n* other").contains(">other</text>"));
+}
+
+#[test]
+fn colors_and_warnings() {
+    let out = svg(":X; <<#palegreen>>");
+    assert!(out.contains("#98FB98"));
+    let out = svg("#red:X;");
+    assert!(out.contains("deprecated"), "{out}");
+    let out = svg("<<foo>>:X;");
+    assert!(out.contains("ignored"));
+    let out = svg("#red:first\nsecond;");
+    assert!(out.contains("must"));
+    let out = svg(":foo1; <<FontColor:red;BackGroundColor:blue;>>");
+    assert!(out.contains("#00F") && out.contains(r##"fill="#F00""##));
+}
+
+#[test]
+fn chrome_and_ignored_commands() {
+    let out = svg("title My title\nhide footbox\n:X;");
+    assert!(out.contains(">My title</text>"));
+    let out = svg("skinparam backgroundColor yellow\n:X;");
+    assert!(out.contains("#FF0"));
+}
+
+#[test]
+fn shared_factory_order_keeps_other_types() {
+    let out = render("@startuml\nA -> B: hi\n@enduml").unwrap();
+    assert!(out.contains("SEQUENCE"));
+    let out = render("@startuml\nclass A\n@enduml").unwrap();
+    assert!(out.contains("CLASS"));
+}
+
+#[test]
+fn syntax_error_is_reported() {
+    assert!(render("@startuml\n:X;\nbogus words here\n@enduml").is_err());
+}
+
+#[test]
+fn urls_are_parsed() {
+    let out = svg(":X; [[http://example.com]]");
+    assert!(out.contains(">X</text>"));
+}

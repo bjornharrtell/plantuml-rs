@@ -1,6 +1,7 @@
 //! PlantUML rendering core. Pure library: no I/O, usable on `wasm32-unknown-unknown`.
 
 pub mod abel;
+pub mod activitydiagram3;
 pub mod chart;
 pub mod chrome;
 pub mod classdiagram;
