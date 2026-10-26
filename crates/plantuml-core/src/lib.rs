@@ -7,6 +7,7 @@ pub mod cheneer;
 pub mod chrome;
 pub mod classdiagram;
 pub mod command;
+pub mod crash;
 pub mod cucadiagram;
 pub mod decoration;
 pub mod descdiagram;
