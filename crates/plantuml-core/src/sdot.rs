@@ -19,6 +19,7 @@ use crate::style::{queries, Margins, PName};
 use crate::svek::bibliotekon::Bibliotekon;
 use crate::svek::builder::{create_entity_image, ordered_links};
 use crate::svek::cluster::Cluster;
+use crate::svek::cluster_header::ClusterHeader;
 use crate::svek::edge::{role_block, skin_style_name};
 use crate::svek::extremity::{extremity_factory_complete, middle_factory};
 use crate::svek::image_note::{EntityImageNote, OpalePath};
@@ -60,6 +61,7 @@ struct Layout {
     bib: Bibliotekon,
     skin: SkinParam,
     nodes: Vec<(Entity, SvekNode, Point, Dimension)>,
+    clusters: Vec<(Cluster, (Point, Point))>,
     edges: Vec<LaidEdge>,
     min_max: MinMax,
     canvas_margin: f64,
@@ -255,10 +257,157 @@ fn java_f64(v: f64) -> String {
     crate::svek::node::java_double(v)
 }
 
-fn build_dot(
+/// A package as laid out: its cluster, its leaves and its sub packages (`exportGroup`).
+struct GroupNode {
+    group: Entity,
+    cluster: Cluster,
+    leaves: Vec<Entity>,
+    children: Vec<GroupNode>,
+}
+
+struct Collected {
+    bib: Bibliotekon,
+    root_leaves: Vec<Entity>,
+    groups: Vec<GroupNode>,
+    nodes: Vec<(Entity, SvekNode)>,
+}
+
+fn collect_groups(
     cuca: &CucaDiagram,
     skin: &SkinParam,
+    sb: &Rc<dyn StringBounder>,
+    parent: &Entity,
+    parent_cluster: &Cluster,
+    c: &mut Collected,
+) -> Vec<GroupNode> {
+    let mut out = Vec::new();
+    for g in parent.groups() {
+        if cuca.is_entity_removed(&g) {
+            continue;
+        }
+        if cuca.is_empty(&g) && g.group_type() == Some(crate::abel::GroupType::Package) {
+            log::warn!("empty package {} is not drawn", g.name());
+            continue;
+        }
+        if g.group_type() == Some(crate::abel::GroupType::ConcurrentState) {
+            continue;
+        }
+        let header = ClusterHeader::new(&g, cuca, skin, crate::style::SName::ClassDiagram, &**sb);
+        let colors = [
+            c.bib.next_color(),
+            c.bib.next_color(),
+            c.bib.next_color(),
+            c.bib.next_color(),
+        ];
+        let cluster = parent_cluster.create_child(g.clone(), colors, header);
+        cluster.get_mut().hidden = cuca.is_entity_hidden(&g);
+        c.bib.add_cluster(cluster.clone());
+        let mut leaves = Vec::new();
+        for leaf in g.leafs() {
+            if cuca.is_entity_removed(&leaf) {
+                continue;
+            }
+            add_node(cuca, skin, sb, &leaf, &cluster, c);
+            leaves.push(leaf);
+        }
+        let children = collect_groups(cuca, skin, sb, &g, &cluster, c);
+        out.push(GroupNode {
+            group: g,
+            cluster,
+            leaves,
+            children,
+        });
+    }
+    out
+}
+
+fn add_node(
+    cuca: &CucaDiagram,
+    skin: &SkinParam,
+    sb: &Rc<dyn StringBounder>,
+    ent: &Entity,
+    cluster: &Cluster,
+    c: &mut Collected,
+) {
+    let image = create_entity_image(ent, cuca, skin);
+    let node = SvekNode::new(
+        ent.clone(),
+        image,
+        &mut c.bib.get_mut().color_sequence,
+        sb.clone(),
+        false,
+    );
+    c.bib.add_node(ent.clone(), node.clone());
+    cluster.add_node(node.clone());
+    c.nodes.push((ent.clone(), node));
+}
+
+fn group_core_name(g: &Entity) -> String {
+    format!("z{}", g.uid())
+}
+
+fn node_dot(n: &SvekNode) -> String {
+    format!(
+        "{} [shape=box,label=\"\",width={},height={}];\n",
+        n.uid(),
+        java_f64(java_round(n.width()) / 72.0),
+        java_f64(java_round(n.height()) / 72.0)
+    )
+}
+
+fn group_dot(
+    out: &mut String,
+    g: &GroupNode,
     nodes: &[(Entity, SvekNode)],
+    core_groups: &[Entity],
+) {
+    out.push_str(&format!("subgraph {} {{\n", g.cluster.cluster_id()));
+    let (w, h) = (
+        g.cluster.title_and_attribute_width(),
+        g.cluster.title_and_attribute_height(),
+    );
+    if w > 0.0 || h > 0.0 {
+        out.push_str(&format!(
+            "label={}\n",
+            hack_label(Dimension::new(w, h - 5.0 + 8.0))
+        ));
+    }
+    let mut margin = 16;
+    if g.group
+        .usymbol()
+        .is_some_and(|u| u.supp_width_because_of_shape() > 0)
+    {
+        margin = margin.max(20);
+    }
+    out.push_str(&format!("margin={margin};\n"));
+    for leaf in &g.leaves {
+        if let Some((_, n)) = nodes.iter().find(|(e, _)| e == leaf) {
+            out.push_str(&node_dot(n));
+        }
+    }
+    for child in &g.children {
+        group_dot(out, child, nodes, core_groups);
+    }
+    if core_groups.contains(&g.group) {
+        out.push_str(&format!(
+            "{} [shape=box,width=0.1,height=0.1];\n",
+            group_core_name(&g.group)
+        ));
+    }
+    out.push_str("}\n");
+}
+
+fn dot_endpoint(e: &Entity, nodes: &[(Entity, SvekNode)]) -> Option<String> {
+    if e.is_group() {
+        Some(group_core_name(e))
+    } else {
+        nodes.iter().find(|(x, _)| x == e).map(|(_, n)| n.uid())
+    }
+}
+
+fn build_dot(
+    skin: &SkinParam,
+    collected: &Collected,
     edges: &[(Link, EdgeTexts)],
     sb: &dyn StringBounder,
 ) -> String {
@@ -280,17 +429,28 @@ fn build_dot(
     if skin.rankdir == Rankdir::LeftToRight {
         out.push_str("rankdir=LR;\n");
     }
-    for (_, n) in nodes {
-        out.push_str(&format!(
-            "{} [shape=box,label=\"\",width={},height={}];\n",
-            n.uid(),
-            java_f64(java_round(n.width()) / 72.0),
-            java_f64(java_round(n.height()) / 72.0)
-        ));
+    let nodes = &collected.nodes;
+    let mut core_groups: Vec<Entity> = Vec::new();
+    for (l, _) in edges {
+        for e in [l.entity1(), l.entity2()] {
+            if e.is_group() && !core_groups.contains(&e) {
+                core_groups.push(e);
+            }
+        }
     }
-    let bib_node = |e: &Entity| nodes.iter().find(|(x, _)| x == e).map(|(_, n)| n.uid());
+    for leaf in &collected.root_leaves {
+        if let Some((_, n)) = nodes.iter().find(|(e, _)| e == leaf) {
+            out.push_str(&node_dot(n));
+        }
+    }
+    for g in &collected.groups {
+        group_dot(&mut out, g, nodes, &core_groups);
+    }
     for (link, texts) in edges {
-        let (Some(a), Some(b)) = (bib_node(&link.entity1()), bib_node(&link.entity2())) else {
+        let (Some(a), Some(b)) = (
+            dot_endpoint(&link.entity1(), nodes),
+            dot_endpoint(&link.entity2(), nodes),
+        ) else {
             continue;
         };
         let mut attrs = format!("arrowtail=none,arrowhead=none,minlen={}", link.length() - 1);
@@ -310,7 +470,6 @@ fn build_dot(
         }
         out.push_str(&format!("{a} -> {b} [{attrs}];\n"));
     }
-    let _ = cuca;
     out.push('}');
     out
 }
@@ -349,6 +508,16 @@ fn mark_opale_links(cuca: &CucaDiagram, links: &[Link], nodes: &[(Entity, SvekNo
     }
 }
 
+fn bb_of(o: &JsonValue) -> Option<(Point, Point)> {
+    let s = o.get("bb")?.as_str()?;
+    let v: Vec<f64> = s.split(',').filter_map(|x| x.trim().parse().ok()).collect();
+    if v.len() == 4 {
+        Some(((v[0], v[1]), (v[2], v[3])))
+    } else {
+        None
+    }
+}
+
 fn layout(cuca: &CucaDiagram, skin: &SkinParam, sb: &Rc<dyn StringBounder>) -> Option<Layout> {
     let bib = Bibliotekon::new();
     let root_entity = cuca.root_group();
@@ -358,29 +527,21 @@ fn layout(cuca: &CucaDiagram, skin: &SkinParam, sb: &Rc<dyn StringBounder>) -> O
         bib.next_color(),
         bib.next_color(),
     ];
-    let root = Cluster::new_root(root_entity, colors);
+    let root = Cluster::new_root(root_entity.clone(), colors);
     let links: Vec<Link> = ordered_links(cuca);
-    let mut nodes: Vec<(Entity, SvekNode)> = Vec::new();
-    for ent in cuca.leafs() {
+    let mut c = Collected {
+        bib: bib.clone(),
+        root_leaves: Vec::new(),
+        groups: Vec::new(),
+        nodes: Vec::new(),
+    };
+    c.groups = collect_groups(cuca, skin, sb, &root_entity, &root, &mut c);
+    for ent in root_entity.leafs() {
         if cuca.is_entity_removed(&ent) {
             continue;
         }
-        let image = create_entity_image(&ent, cuca, skin);
-        let node = SvekNode::new(
-            ent.clone(),
-            image,
-            &mut bib.get_mut().color_sequence,
-            sb.clone(),
-            false,
-        );
-        bib.add_node(ent.clone(), node.clone());
-        root.add_node(node.clone());
-        nodes.push((ent, node));
-    }
-    for link in &links {
-        if !cuca.is_link_removed(link) && (link.role1().is_some() || link.role2().is_some()) {
-            // Room for the roles is taken by the layout (labels), not by margins.
-        }
+        add_node(cuca, skin, sb, &ent, &root, &mut c);
+        c.root_leaves.push(ent);
     }
     mark_opale_links(cuca, &links, &nodes);
     let edges: Vec<(Link, EdgeTexts)> = links
@@ -388,10 +549,10 @@ fn layout(cuca: &CucaDiagram, skin: &SkinParam, sb: &Rc<dyn StringBounder>) -> O
         .filter(|l| !cuca.is_link_removed(l))
         .map(|l| (l.clone(), edge_texts(l, skin, &**sb)))
         .collect();
-    if nodes.is_empty() {
+    if c.nodes.is_empty() && c.groups.is_empty() {
         return None;
     }
-    let dot = build_dot(cuca, skin, &nodes, &edges, &**sb);
+    let dot = build_dot(skin, &c, &edges, &**sb);
     log::debug!("dot input:\n{dot}");
     let json = match graphviz_pure::render_dot(&dot, "dot", "json") {
         Ok(j) => j,
@@ -403,10 +564,18 @@ fn layout(cuca: &CucaDiagram, skin: &SkinParam, sb: &Rc<dyn StringBounder>) -> O
     let doc = JsonValue::parse(&json).ok()?;
     let objects = doc.get("objects")?;
     let mut placed: Vec<(Entity, SvekNode, Point, Dimension)> = Vec::new();
+    let mut cluster_boxes: Vec<(Cluster, (Point, Point))> = Vec::new();
+    let all_clusters = bib.all_cluster();
     for i in 0..objects.len() {
         let o = objects.get(i)?;
         let name = o.get("name")?.as_str()?;
-        let Some((ent, node)) = nodes.iter().find(|(_, n)| n.uid() == name) else {
+        if let Some(cl) = all_clusters.iter().find(|cl| cl.cluster_id() == name) {
+            if let Some(bb) = bb_of(o) {
+                cluster_boxes.push((cl.clone(), bb));
+            }
+            continue;
+        }
+        let Some((ent, node)) = c.nodes.iter().find(|(_, n)| n.uid() == name) else {
             continue;
         };
         let pos = parse_point(o.get("pos")?.as_str()?)?;
@@ -440,16 +609,18 @@ fn layout(cuca: &CucaDiagram, skin: &SkinParam, sb: &Rc<dyn StringBounder>) -> O
             .add_point(c.0 + d.width / 2.0, c.1 - d.height / 2.0)
             .add_point(c.0 - d.width / 2.0, c.1 + d.height / 2.0);
     }
+    for (_, (ll, ur)) in &cluster_boxes {
+        mm = mm.add_point(ur.0, ur.1).add_point(ll.0, ll.1);
+    }
     let json_edges = doc.get("edges");
     let mut laid = Vec::new();
     let mut idx = 0usize;
     for (link, texts) in edges {
-        let (Some(_), Some(_)) = (
-            nodes.iter().find(|(x, _)| *x == link.entity1()),
-            nodes.iter().find(|(x, _)| *x == link.entity2()),
-        ) else {
+        if dot_endpoint(&link.entity1(), &c.nodes).is_none()
+            || dot_endpoint(&link.entity2(), &c.nodes).is_none()
+        {
             continue;
-        };
+        }
         let je = json_edges.and_then(|e| e.get(idx));
         idx += 1;
         let prop = |k: &str| je.and_then(|e| e.get(k)).and_then(JsonValue::as_str);
@@ -463,11 +634,11 @@ fn layout(cuca: &CucaDiagram, skin: &SkinParam, sb: &Rc<dyn StringBounder>) -> O
             tail_label_pos: prop("tail_lp").and_then(parse_point),
         });
     }
-    let _ = root;
     Some(Layout {
         bib,
         skin: skin.clone(),
         nodes: placed,
+        clusters: cluster_boxes,
         edges: laid,
         min_max: mm,
         canvas_margin: 6.0,
@@ -513,6 +684,10 @@ impl Drawing {
 
     fn draw_content(&self, ug: &UGraphic) {
         let max = self.max();
+        for (cluster, (ll, ur)) in &self.layout.clusters {
+            cluster.set_position((ur.0, max - ur.1), (ll.0, max - ll.1));
+            cluster.draw(ug, &self.layout.skin, cluster.get().hidden);
+        }
         for (_, node, c, d) in &self.layout.nodes {
             // `getCorner`: the lower left in layout coordinates, mirrored.
             let corner = (c.0 - d.width / 2.0, max - (c.1 + d.height / 2.0));
@@ -568,6 +743,18 @@ impl Drawing {
         ug.start_group(&attrs);
         if let Some(path) = &edge.path {
             let mut dot_path = mirrored_path(path, max);
+            let area_of = |e: &Entity| {
+                if e.is_group() {
+                    self.layout
+                        .bib
+                        .cluster_of(e)
+                        .and_then(|c| c.rectangle_area())
+                } else {
+                    None
+                }
+            };
+            dot_path =
+                dot_path.simulate_compound(area_of(&link.entity2()), area_of(&link.entity1()));
             let q = queries::ARROW
                 .add(skin_style_name(skin))
                 .with_stereotype_obj(link.stereotype().as_ref());

@@ -101,9 +101,15 @@ impl ClassDiagram {
     /// The shape selected by a stereotype such as `<<Node>>` (`USymbols.fromString`).
     pub fn usymbol_for(
         &self,
-        _stereotype: &str,
+        stereotype: &str,
     ) -> Option<std::rc::Rc<dyn crate::decoration::usymbol::USymbol>> {
-        None
+        let skin = &self.cuca.base.skin_param;
+        crate::decoration::usymbol::from_string(
+            stereotype,
+            skin.actor_style(),
+            skin.component_style(),
+            skin.package_style(),
+        )
     }
 
     pub fn links(&self) -> Vec<Link> {

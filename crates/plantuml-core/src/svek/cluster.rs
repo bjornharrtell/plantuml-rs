@@ -1,5 +1,6 @@
 //! A package drawn as a Graphviz cluster (`Cluster`).
 
+use super::cluster_header::{default_style_query, ClusterHeader};
 use super::edge::SvekEdge;
 use super::node::SvekNode;
 use crate::abel::{Entity, EntityPosition};
@@ -24,6 +25,8 @@ pub struct ClusterData {
     pub xy_note_bottom: Option<Point>,
     /// Width and height of the title and attributes (`ClusterHeader`).
     pub title_and_attribute: (f64, f64),
+    pub header: Option<Rc<ClusterHeader>>,
+    pub hidden: bool,
 }
 
 #[derive(Clone)]
@@ -51,15 +54,18 @@ impl Cluster {
             xy_note_top: None,
             xy_note_bottom: None,
             title_and_attribute: (0.0, 0.0),
+            header: None,
+            hidden: false,
         })))
     }
 
-    pub fn create_child(&self, group: Entity, colors: [i32; 4], title: (f64, f64)) -> Cluster {
+    pub fn create_child(&self, group: Entity, colors: [i32; 4], header: ClusterHeader) -> Cluster {
         let child = Cluster::new_root(group, colors);
         {
             let mut c = child.get_mut();
             c.parent = Some(self.clone());
-            c.title_and_attribute = title;
+            c.title_and_attribute = (f64::from(header.width), f64::from(header.height));
+            c.header = Some(Rc::new(header));
         }
         self.get_mut().children.push(child.clone());
         child
@@ -227,5 +233,96 @@ impl Cluster {
 
     fn print_internal(&self, _sb: &mut String, _lines: &[SvekEdge]) {
         // Clusters of packages are added with `ClusterDotString`.
+    }
+}
+
+impl Cluster {
+    /// Draws the package (`Cluster.drawU`).
+    pub fn draw(
+        &self,
+        ug: &crate::klimt::drawing::ugraphic::UGraphic,
+        skin: &crate::skin::SkinParam,
+        hidden: bool,
+    ) {
+        use crate::klimt::color::colors::ColorType;
+        use crate::klimt::color::HColor;
+        use crate::klimt::drawing::ugraphic::{UShape, UTranslate};
+        use crate::klimt::fashion::Fashion;
+        use crate::klimt::geom::HorizontalAlignment;
+        use crate::style::PName;
+        let group = self.group();
+        if hidden {
+            return;
+        }
+        let (Some(header), Some(area)) = (self.get().header.clone(), self.rectangle_area()) else {
+            return;
+        };
+        let full_name = group.name();
+        if !full_name.starts_with("##") {
+            ug.draw(UShape::Comment(format!("cluster {full_name}")));
+        }
+        let diagram_style = crate::style::SName::ClassDiagram;
+        let symbol = group
+            .usymbol()
+            .unwrap_or_else(|| crate::decoration::usymbol::usymbols::package());
+        let query = default_style_query(diagram_style, Some(&symbol), group.group_type())
+            .with_stereotype_obj(group.stereotype().as_ref());
+        let style = skin
+            .style_builder()
+            .merged_style(&query)
+            .expect("group style");
+        let shadowing = style.shadowing();
+        let colors = group.colors();
+        let border = colors
+            .color(ColorType::Line)
+            .cloned()
+            .unwrap_or_else(|| style.value(PName::LineColor).as_color());
+        let mut rounded = style.value(PName::RoundCorner).as_double();
+        if skin.strict_uml_style() {
+            rounded = 0.0;
+        }
+        let diagonal = style.value(PName::DiagonalCorner).as_double();
+        let mut attrs: Vec<(&str, String)> = vec![("class", "cluster".to_string())];
+        attrs.push((
+            "data-qualified-name",
+            crate::skin::rose::line::fix_group_value(&group.qualified_name()),
+        ));
+        if let Some(l) = group.location() {
+            attrs.push(("data-source-line", l.position.to_string()));
+        }
+        attrs.push(("id", group.uid()));
+        ug.start_group(&attrs);
+        let stroke = colors
+            .specific_line_stroke()
+            .unwrap_or_else(|| style.stroke());
+        let back = colors
+            .color(ColorType::Back)
+            .cloned()
+            .unwrap_or_else(|| style.value(PName::BackGroundColor).as_color());
+        let back = if back.is_transparent() {
+            HColor::TRANSPARENT
+        } else {
+            back
+        };
+        let package_style = skin.package_style();
+        let symbol = group
+            .usymbol()
+            .or_else(|| package_style.to_usymbol())
+            .unwrap_or(symbol);
+        let fashion = Fashion::new(Some(back), Some(border))
+            .with_delta_shadow(shadowing)
+            .with_stroke(stroke)
+            .with_corner(rounded, diagonal);
+        let big = symbol.as_big(
+            header.title.clone(),
+            header.title_alignment,
+            header.stereo.clone(),
+            area.width(),
+            area.height(),
+            fashion,
+            HorizontalAlignment::Center,
+        );
+        big.draw(&ug.apply_translate(UTranslate::new(area.min_x, area.min_y)));
+        ug.close_group();
     }
 }

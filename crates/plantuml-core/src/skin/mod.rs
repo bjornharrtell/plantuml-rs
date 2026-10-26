@@ -347,6 +347,23 @@ impl SkinParam {
         }
     }
 
+    /// `skinparam componentStyle`.
+    pub fn component_style(&self) -> crate::decoration::usymbol::ComponentStyle {
+        use crate::decoration::usymbol::ComponentStyle;
+        match self.get_value("componentstyle") {
+            Some(v) if v.eq_ignore_ascii_case("uml1") => ComponentStyle::Uml1,
+            Some(v) if v.eq_ignore_ascii_case("rectangle") => ComponentStyle::Rectangle,
+            _ => ComponentStyle::Uml2,
+        }
+    }
+
+    /// `skinparam packageStyle` (folder when unknown).
+    pub fn package_style(&self) -> crate::decoration::usymbol::PackageStyle {
+        self.get_value("packagestyle")
+            .and_then(crate::decoration::usymbol::PackageStyle::from_string)
+            .unwrap_or_default()
+    }
+
     pub fn shadowing(&self) -> bool {
         match self.get_value("shadowing") {
             Some(v) if v.eq_ignore_ascii_case("false") => false,

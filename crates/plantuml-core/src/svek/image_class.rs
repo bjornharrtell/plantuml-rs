@@ -564,7 +564,10 @@ impl TextBlock for EntityImageClass {
         let name = self.entity.name();
         ug.draw(UShape::Comment(format!("class {name}")));
         let mut attrs: Vec<(&str, String)> = vec![("class", "entity".to_string())];
-        attrs.push(("data-qualified-name", self.entity.qualified_name()));
+        attrs.push((
+            "data-qualified-name",
+            crate::skin::rose::line::fix_group_value(&self.entity.qualified_name()),
+        ));
         if let Some(l) = self.entity.location() {
             attrs.push(("data-source-line", l.position.to_string()));
         }
