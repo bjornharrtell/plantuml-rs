@@ -1,6 +1,8 @@
 //! Class diagrams (`classdiagram` package).
 
 mod commands;
+mod commands_group;
+mod commands_misc;
 
 use crate::abel::{Entity, Link};
 use crate::command::common::HasBase;
@@ -90,6 +92,14 @@ impl ClassDiagram {
         }
         let child = g.groups().into_iter().next().expect("group child");
         child.count_children() != 0
+    }
+
+    /// The shape selected by a stereotype such as `<<Node>>` (`USymbols.fromString`).
+    pub fn usymbol_for(
+        &self,
+        _stereotype: &str,
+    ) -> Option<std::rc::Rc<dyn crate::decoration::usymbol::USymbol>> {
+        None
     }
 
     pub fn links(&self) -> Vec<Link> {

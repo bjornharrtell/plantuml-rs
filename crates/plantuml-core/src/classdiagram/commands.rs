@@ -573,6 +573,7 @@ fn open_group(
         quark,
         Display::with_newlines(Some(&display)),
         crate::abel::GroupType::Package,
+        None,
     );
     if !status.is_ok() {
         return status;
@@ -1165,6 +1166,8 @@ pub fn commands() -> Vec<Cmd> {
     cmds.push(hide_show2());
     cmds.push(create_package());
     cmds.push(create_namespace());
+    cmds.extend(super::commands_misc::commands());
+    cmds.extend(super::commands_group::commands());
     cmds.push(create_class_multi());
     cmds.push(create_class_single());
     cmds.push(end_package());

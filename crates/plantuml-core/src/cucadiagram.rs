@@ -326,6 +326,7 @@ impl CucaDiagram {
         quark: Quark<Entity>,
         display: Display,
         group_type: GroupType,
+        usymbol: Option<Rc<dyn crate::decoration::usymbol::USymbol>>,
     ) -> CommandExecutionResult {
         if quark.data().is_none() {
             let g = self.create_group(location, quark.clone(), group_type);
@@ -334,6 +335,9 @@ impl CucaDiagram {
         }
         let ent = quark.data().expect("created");
         ent.mute_to_group_type(group_type);
+        if usymbol.is_some() {
+            ent.set_usymbol(usymbol);
+        }
         self.stacks.push(Bag::Entity(ent));
         CommandExecutionResult::ok()
     }

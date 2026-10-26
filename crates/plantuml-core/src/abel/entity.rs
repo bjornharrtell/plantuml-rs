@@ -15,8 +15,19 @@ use std::cell::{Ref, RefCell, RefMut};
 use std::collections::BTreeSet;
 use std::rc::Rc;
 
+/// A shape given by a stereotype such as `<<Node>>` (`USymbol`).
+#[derive(Clone)]
+pub struct SymbolRef(pub Rc<dyn crate::decoration::usymbol::USymbol>);
+
+impl std::fmt::Debug for SymbolRef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("USymbol")
+    }
+}
+
 #[derive(Debug)]
 pub struct EntityData {
+    pub symbol: Option<SymbolRef>,
     pub quark: Quark<Entity>,
     pub url: Option<Url>,
     pub bodier: Bodier,
@@ -97,6 +108,7 @@ impl Entity {
             EntityKind::Group(g) => (None, Some(g)),
         };
         let e = Entity(Rc::new(RefCell::new(EntityData {
+            symbol: None,
             quark: quark.clone(),
             url: None,
             bodier,
@@ -134,6 +146,14 @@ impl Entity {
 
     pub fn get_mut(&self) -> RefMut<'_, EntityData> {
         self.0.borrow_mut()
+    }
+
+    pub fn usymbol(&self) -> Option<Rc<dyn crate::decoration::usymbol::USymbol>> {
+        self.get().symbol.as_ref().map(|s| s.0.clone())
+    }
+
+    pub fn set_usymbol(&self, symbol: Option<Rc<dyn crate::decoration::usymbol::USymbol>>) {
+        self.get_mut().symbol = symbol.map(SymbolRef);
     }
 
     pub fn quark(&self) -> Quark<Entity> {
