@@ -314,6 +314,126 @@ fn end_fork() -> Cmd {
     )
 }
 
+/// `if (test) then (yes)` or `if (test) is (yes) then`.
+fn if_start() -> Cmd {
+    single(
+        vec![
+            IRegex::start(),
+            crate::klimt::color::parser::exp4(),
+            IRegex::leaf("if"),
+            IRegex::space_zero_or_more(),
+            IRegex::leaf(r"\("),
+            IRegex::named("TEST", "(.*?)"),
+            IRegex::leaf(r"\)"),
+            IRegex::space_zero_or_more(),
+            IRegex::named("KEYWORD", "(then|is)"),
+            IRegex::space_zero_or_more(),
+            IRegex::optional(IRegex::group(vec![
+                IRegex::leaf(r"\("),
+                IRegex::named("YES", "(.+?)"),
+                IRegex::leaf(r"\)"),
+            ])),
+            IRegex::space_zero_or_more(),
+            IRegex::optional(IRegex::leaf("then")),
+            IRegex::leaf(";?"),
+            IRegex::space_zero_or_more(),
+            Stereogroup::optional_stereogroup(),
+            IRegex::end(),
+        ],
+        |d, arg| {
+            if let Some(color) = arg.get("COLOR", 0) {
+                d.base.add_warning(vec![format!(
+                    "This syntax is deprecated, you must add <<{color}>> at the end of the line"
+                )]);
+            }
+            let colors = Stereogroup::build(arg).inner_colors();
+            let back = colors.color(ColorType::Back).cloned();
+            d.start_if(
+                Display::with_newlines(arg.get("TEST", 0)),
+                arg.get("YES", 0).map(|y| Display::with_newlines(Some(y))),
+                back,
+            );
+            CommandExecutionResult::ok()
+        },
+    )
+}
+
+/// `else (label)`: add a branch to the current `if`.
+fn else_branch() -> Cmd {
+    single(
+        vec![
+            IRegex::start(),
+            IRegex::leaf("else"),
+            IRegex::space_zero_or_more(),
+            IRegex::optional(IRegex::group(vec![
+                IRegex::leaf(r"\("),
+                IRegex::named("WHEN", "(.*?)"),
+                IRegex::leaf(r"\)"),
+            ])),
+            IRegex::space_zero_or_more(),
+            IRegex::leaf(";?"),
+            IRegex::end(),
+        ],
+        |d, arg| {
+            d.else_branch(arg.get("WHEN", 0).map(|w| Display::with_newlines(Some(w))))
+        },
+    )
+}
+
+/// `elseif (test) then (yes)`: add a branch to the current `if`.
+fn elseif_branch() -> Cmd {
+    single(
+        vec![
+            IRegex::start(),
+            crate::klimt::color::parser::exp4(),
+            IRegex::leaf("elseif"),
+            IRegex::space_zero_or_more(),
+            IRegex::leaf(r"\("),
+            IRegex::named("TEST", "(.*?)"),
+            IRegex::leaf(r"\)"),
+            IRegex::space_zero_or_more(),
+            IRegex::named("KEYWORD", "(then|is)"),
+            IRegex::space_zero_or_more(),
+            IRegex::optional(IRegex::group(vec![
+                IRegex::leaf(r"\("),
+                IRegex::named("YES", "(.+?)"),
+                IRegex::leaf(r"\)"),
+            ])),
+            IRegex::space_zero_or_more(),
+            IRegex::optional(IRegex::leaf("then")),
+            IRegex::leaf(";?"),
+            IRegex::space_zero_or_more(),
+            Stereogroup::optional_stereogroup(),
+            IRegex::end(),
+        ],
+        |d, arg| {
+            if let Some(color) = arg.get("COLOR", 0) {
+                d.base.add_warning(vec![format!(
+                    "This syntax is deprecated, you must add <<{color}>> at the end of the line"
+                )]);
+            }
+            d.else_branch(arg.get("YES", 0).map(|y| Display::with_newlines(Some(y))))
+        },
+    )
+}
+
+/// `endif`: close the `if`.
+fn end_if() -> Cmd {
+    single(
+        vec![
+            IRegex::start(),
+            IRegex::leaf("end"),
+            IRegex::space_zero_or_more(),
+            IRegex::leaf("if"),
+            IRegex::leaf(";?"),
+            IRegex::space_zero_or_more(),
+            Stereogroup::optional_stereogroup(),
+            IRegex::end(),
+        ],
+        |d, _| d.end_if(),
+    )
+}
+
 /// `repeat [:label;]`: start a repeat loop.
 fn repeat_start() -> Cmd {
     single(
@@ -467,6 +587,10 @@ pub fn commands() -> Vec<Cmd> {
     cmds.push(while_end());
     cmds.push(repeat_start());
     cmds.push(repeat_while());
+    cmds.push(if_start());
+    cmds.push(else_branch());
+    cmds.push(elseif_branch());
+    cmds.push(end_if());
 
     // CommandArrow3
     cmds.push(single(arrow_regex("(.*);"), |d, arg| {

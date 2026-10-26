@@ -8,7 +8,7 @@ use crate::activitydiagram3::swimlanes::Swimlane;
 use crate::klimt::color::HColor;
 use crate::klimt::creole::display::Display;
 use crate::klimt::creole::CreoleMode;
-use crate::klimt::drawing::ugraphic::{UPolygon, UTranslate};
+use crate::klimt::drawing::ugraphic::{UPolygon, UStroke, UTranslate};
 use crate::klimt::font::StringBounder;
 use crate::klimt::geom::{Direction, HorizontalAlignment};
 use crate::klimt::shape::TextBlock;
@@ -27,6 +27,7 @@ pub(crate) struct Diamond {
     label: Rc<dyn TextBlock>,
     back: HColor,
     border: HColor,
+    stroke: UStroke,
     pub(crate) height: f64,
 }
 
@@ -54,6 +55,7 @@ impl Diamond {
             label: block,
             back,
             border,
+            stroke: style.stroke(),
         }
     }
 
@@ -77,7 +79,8 @@ impl Diamond {
             .ug()
             .apply_translate(UTranslate::new(x, y))
             .apply_color(self.border.clone())
-            .apply_back_color(self.back.clone());
+            .apply_back_color(self.back.clone())
+            .apply_stroke(self.stroke);
         ug.draw(self.polygon(width));
         let dim = self.label.calculate_dimension(g.string_bounder());
         let lx = (width - dim.width) / 2.0;

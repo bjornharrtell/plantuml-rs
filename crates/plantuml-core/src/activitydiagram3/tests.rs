@@ -176,3 +176,20 @@ fn repeat_loop_renders_body_and_condition() {
 fn repeat_while_outside_loop_is_an_error() {
     assert!(render("@startuml\nrepeat while (x?)\n@enduml").is_err());
 }
+
+#[test]
+fn if_else_renders_two_branches() {
+    let out = svg("if (c?) then (yes)\n:A;\nelse (no)\n:B;\nendif");
+    assert!(out.contains(">c?</text>") && out.contains(">A</text>") && out.contains(">B</text>"));
+    assert!(out.contains(">yes</text>") && out.contains(">no</text>"));
+    let out = svg("if (c?) is (v) then\n:A;\nelse\n:B;\nendif");
+    assert!(out.contains(">v</text>"));
+    let out = svg("if (c?) then (yes)\n:A;\nelseif (d?) then (maybe)\n:B;\nelse (no)\n:C;\nendif");
+    assert!(out.contains(">A</text>") && out.contains(">B</text>") && out.contains(">C</text>"));
+}
+
+#[test]
+fn endif_outside_if_is_an_error() {
+    assert!(render("@startuml\nendif\n@enduml").is_err());
+    assert!(render("@startuml\nelse\n@enduml").is_err());
+}

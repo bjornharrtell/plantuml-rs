@@ -31,8 +31,8 @@ use crate::style::Style;
 use crate::url::Url;
 use ftile::box_style::BoxStyle;
 use instruction::{
-    InsRef, InstructionFork, InstructionGroup, InstructionNode, InstructionRepeat, InstructionSimple,
-    InstructionWhile, NodeKind,
+    InsRef, InstructionFork, InstructionGroup, InstructionIf, InstructionNode, InstructionRepeat,
+    InstructionSimple, InstructionWhile, NodeKind,
 };
 use rainbow::{LinkRendering, Rainbow};
 use std::cell::RefCell;
@@ -207,6 +207,64 @@ impl ActivityDiagram3 {
         self.current().borrow_mut().add(group.clone());
         self.group_stack.push(self.current());
         self.swimlanes.set_current(group);
+    }
+
+    /// Starts an `if` (`startIf`).
+    pub fn start_if(
+        &mut self,
+        test: Display,
+        yes: Option<Display>,
+        back_color: Option<crate::klimt::color::HColor>,
+    ) {
+        self.manage_swimlane_strategy();
+        let if_ = InstructionIf::new(
+            test,
+            yes,
+            back_color,
+            self.swimlanes.current_swimlane(),
+            self.next_link_renderer(),
+        );
+        let if_: InsRef = Rc::new(RefCell::new(if_));
+        self.current().borrow_mut().add(if_.clone());
+        self.group_stack.push(self.current());
+        self.swimlanes.set_current(if_);
+    }
+
+    /// Adds an `else` / `elseif` branch to the current `if`.
+    pub fn else_branch(&mut self, label: Option<Display>) -> CommandExecutionResult {
+        let current = self.current();
+        if !current.borrow().as_any().is::<InstructionIf>() {
+            return CommandExecutionResult::error("Cannot find if");
+        }
+        let mut current = current.borrow_mut();
+        let Some(if_) = current.as_any_mut().downcast_mut::<InstructionIf>() else {
+            return CommandExecutionResult::error("Cannot find if");
+        };
+        if_.else_branch(label);
+        CommandExecutionResult::ok()
+    }
+
+    /// Closes the `if` (`endif`).
+    pub fn end_if(&mut self) -> CommandExecutionResult {
+        let current = self.current();
+        if !current.borrow().as_any().is::<InstructionIf>() {
+            return CommandExecutionResult::error("Cannot find if");
+        }
+        {
+            let mut current = current.borrow_mut();
+            let Some(if_) = current.as_any_mut().downcast_mut::<InstructionIf>() else {
+                return CommandExecutionResult::error("Cannot find if");
+            };
+            if_.set_out_rendering(self.next_link_renderer());
+        }
+        self.reset_next_link();
+        match self.group_stack.pop() {
+            Some(parent) => {
+                self.swimlanes.set_current(parent);
+                CommandExecutionResult::ok()
+            }
+            None => CommandExecutionResult::error("Cannot find if"),
+        }
     }
 
     /// Starts a `repeat` loop (`doRepeat`).

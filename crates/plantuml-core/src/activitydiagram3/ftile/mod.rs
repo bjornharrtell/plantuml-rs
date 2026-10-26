@@ -8,6 +8,7 @@ pub mod box_style;
 pub mod factory;
 pub mod fork;
 pub mod group;
+pub mod if_;
 pub mod leaf;
 pub mod repeat;
 pub mod snake;
