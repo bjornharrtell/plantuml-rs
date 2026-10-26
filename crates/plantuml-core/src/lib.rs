@@ -280,6 +280,13 @@ mod tests {
     }
 
     #[test]
+    fn empty_packet_diagrams_do_not_panic() {
+        // Java divides by zero on these two and shows an error diagram; the port draws them.
+        assert!(render("@startpacketdiag\n4-3: error\n@endpacketdiag").is_ok());
+        assert!(render("@startpacketdiag\n* A [len = 0]\n@endpacketdiag").is_ok());
+    }
+
+    #[test]
     fn renders_a_class_diagram() {
         let svg = render(
             "@startuml\nclass A {\n  + int x\n  - run()\n}\nclass B\nA <|-- B : extends\n@enduml",

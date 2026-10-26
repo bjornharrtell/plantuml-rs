@@ -360,11 +360,14 @@ impl PacketDiagram {
     }
 
     fn full_indicator_interval(&self) -> i32 {
-        if self.col_width >= 4 {
+        let interval = if self.col_width >= 4 {
             self.col_width / 4
         } else {
             self.col_width
-        }
+        };
+        // An empty diagram (`* A [len = 0]`) leaves no columns; Java divides by zero there and the
+        // exception becomes an error diagram. Keep the drawing instead of panicking.
+        interval.max(1)
     }
 
     /// Lays the items out in rows (`adjustLayout`).
@@ -457,7 +460,7 @@ impl PacketDiagram {
             .into_iter()
             .map(|i| PacketIndicator {
                 full: i % full_interval == 0,
-                numbered: i % self.scale_interval == 0,
+                numbered: i % self.scale_interval.max(1) == 0,
                 bit_number: i.to_string(),
                 style: self.style(),
                 skin: skin.clone(),
