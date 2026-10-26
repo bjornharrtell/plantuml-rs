@@ -9,6 +9,7 @@ pub mod factory;
 pub mod fork;
 pub mod group;
 pub mod leaf;
+pub mod repeat;
 pub mod snake;
 pub mod while_;
 pub mod wrap;

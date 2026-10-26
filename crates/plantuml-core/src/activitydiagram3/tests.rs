@@ -161,3 +161,18 @@ fn while_loop_renders_condition_and_body() {
 fn endwhile_outside_loop_is_an_error() {
     assert!(render("@startuml\nendwhile\n@enduml").is_err());
 }
+
+#[test]
+fn repeat_loop_renders_body_and_condition() {
+    let out = svg("repeat\n:A;\nrepeat while (more?)");
+    assert!(out.contains(">A</text>") && out.contains(">more?</text>"));
+    let out = svg("repeat :R;\n:A;\nrepeat while (more?)");
+    assert!(out.contains(">R</text>") && out.contains(">A</text>"));
+    let out = svg("#red:repeat\n:A;\nrepeat while (more?)");
+    assert!(out.contains("deprecated"));
+}
+
+#[test]
+fn repeat_while_outside_loop_is_an_error() {
+    assert!(render("@startuml\nrepeat while (x?)\n@enduml").is_err());
+}

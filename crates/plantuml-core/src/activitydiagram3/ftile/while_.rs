@@ -23,15 +23,15 @@ const BOTTOM_GAP: f64 = 10.0;
 const LOOP_MARGIN: f64 = 12.0;
 
 /// The condition diamond (`FtileDiamond`).
-struct Diamond {
+pub(crate) struct Diamond {
     label: Rc<dyn TextBlock>,
     back: HColor,
     border: HColor,
-    height: f64,
+    pub(crate) height: f64,
 }
 
 impl Diamond {
-    fn new(label: Display, skin: &SkinParam, back: Option<HColor>) -> Diamond {
+    pub(crate) fn new(label: Display, skin: &SkinParam, back: Option<HColor>) -> Diamond {
         let style = skin
             .style_builder()
             .merged_style(&queries::ACTIVITYDIAG_ACTIVITY_DIAMOND)
@@ -57,7 +57,7 @@ impl Diamond {
         }
     }
 
-    fn width(&self, sb: &dyn StringBounder) -> f64 {
+    pub(crate) fn width(&self, sb: &dyn StringBounder) -> f64 {
         (self.label.calculate_dimension(sb).width + 24.0).max(48.0)
     }
 
@@ -72,7 +72,7 @@ impl Diamond {
         ])
     }
 
-    fn draw(&self, g: &FtileGraphic, x: f64, y: f64, width: f64) {
+    pub(crate) fn draw(&self, g: &FtileGraphic, x: f64, y: f64, width: f64) {
         let ug = g
             .ug()
             .apply_translate(UTranslate::new(x, y))
@@ -119,7 +119,7 @@ impl FtileWhile {
         self.diamond.width(sb)
     }
 
-    fn width(&self, sb: &dyn StringBounder) -> f64 {
+    pub(crate) fn width(&self, sb: &dyn StringBounder) -> f64 {
         let body = self.body.calculate_dimension(sb);
         self.diamond_width(sb).max(body.width) + 2.0 * LOOP_MARGIN
     }

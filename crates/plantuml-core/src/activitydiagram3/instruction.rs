@@ -432,6 +432,108 @@ impl Instruction for InstructionFork {
     }
 }
 
+/// A `repeat` loop (`InstructionRepeat`).
+pub struct InstructionRepeat {
+    list: InstructionList,
+    test: Display,
+    start_label: Option<Display>,
+    back_color: Option<HColor>,
+    colors: Colors,
+    swimlane: Option<Rc<Swimlane>>,
+    in_link_rendering: LinkRendering,
+    out_link_rendering: LinkRendering,
+}
+
+impl InstructionRepeat {
+    pub fn new(
+        start_label: Option<Display>,
+        colors: Colors,
+        back_color: Option<HColor>,
+        swimlane: Option<Rc<Swimlane>>,
+        in_link_rendering: LinkRendering,
+    ) -> Self {
+        Self {
+            list: InstructionList::new(swimlane.clone()),
+            test: Display::null(),
+            start_label,
+            back_color,
+            colors,
+            swimlane,
+            in_link_rendering,
+            out_link_rendering: LinkRendering::none(),
+        }
+    }
+
+    pub fn set_test(&mut self, test: Display) {
+        self.test = test;
+    }
+
+    pub fn set_out_rendering(&mut self, link: LinkRendering) {
+        self.out_link_rendering = link;
+    }
+}
+
+impl Instruction for InstructionRepeat {
+    fn create_ftile(&self, factory: &dyn FtileFactory) -> FtileRef {
+        let body = self.list.create_ftile(factory);
+        let start = self.start_label.as_ref().map(|label| {
+            factory.activity(
+                label,
+                self.swimlane.clone(),
+                BoxStyle::Plain,
+                &self.colors,
+                None,
+                None,
+            )
+        });
+        super::ftile::repeat::FtileRepeat::new(
+            body,
+            start,
+            self.test.clone(),
+            self.back_color.clone(),
+            factory.skin(),
+            self.in_link_rendering.clone(),
+            self.out_link_rendering.clone(),
+        )
+    }
+
+    fn add(&mut self, other: InsRef) -> CommandExecutionResult {
+        self.list.add(other)
+    }
+
+    fn kill(&mut self) -> bool {
+        self.list.kill()
+    }
+
+    fn in_link_rendering(&self) -> LinkRendering {
+        self.in_link_rendering.clone()
+    }
+
+    fn contains_break(&self) -> bool {
+        self.list.contains_break()
+    }
+
+    fn swimlanes(&self) -> Vec<Rc<Swimlane>> {
+        self.list.swimlanes()
+    }
+
+    fn swimlane_in(&self) -> Option<Rc<Swimlane>> {
+        self.swimlane.clone()
+    }
+
+    fn swimlane_out(&self) -> Option<Rc<Swimlane>> {
+        self.list.swimlane_out()
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+}
+
 /// A `while` loop (`InstructionWhile`).
 pub struct InstructionWhile {
     list: InstructionList,

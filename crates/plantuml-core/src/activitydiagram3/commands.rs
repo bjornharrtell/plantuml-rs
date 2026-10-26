@@ -314,6 +314,77 @@ fn end_fork() -> Cmd {
     )
 }
 
+/// `repeat [:label;]`: start a repeat loop.
+fn repeat_start() -> Cmd {
+    single(
+        vec![
+            IRegex::start(),
+            crate::klimt::color::parser::exp4(),
+            IRegex::leaf("repeat"),
+            IRegex::space_zero_or_more(),
+            IRegex::optional(IRegex::group(vec![
+                IRegex::leaf(":"),
+                IRegex::named("LABEL", "(.*?)"),
+                IRegex::leaf(";"),
+                IRegex::space_zero_or_more(),
+            ])),
+            Stereogroup::optional_stereogroup(),
+            IRegex::end(),
+        ],
+        |d, arg| {
+            let label = arg.get("LABEL", 0).map(|l| Display::with_newlines(Some(l)));
+            if let Some(color) = arg.get("COLOR", 0) {
+                let mut suggested = "repeat".to_string();
+                if let Some(label) = &label {
+                    let text = label.text_at(0);
+                    suggested.push_str(" :");
+                    suggested.push_str(&text);
+                    suggested.push(';');
+                }
+                if let Some(stereo) = arg.get("STEREOGROUP", 0) {
+                    suggested.push(' ');
+                    suggested.push_str(stereo);
+                }
+                let mut original = format!("{color}:repeat");
+                if let Some(label) = &label {
+                    let text = label.text_at(0);
+                    original.push_str(" :");
+                    original.push_str(&text);
+                    original.push(';');
+                }
+                d.base.add_warning(vec![format!(
+                    "This syntax is deprecated and the color is ignored: write '{suggested} <<{color}>>' instead of '{original}'"
+                )]);
+            }
+            let stereogroup = Stereogroup::build(arg);
+            let colors = stereogroup.inner_colors();
+            let back = colors.color(ColorType::Back).cloned();
+            d.do_repeat(label, colors, back);
+            CommandExecutionResult::ok()
+        },
+    )
+}
+
+/// `repeat while (test)`: close the loop.
+fn repeat_while() -> Cmd {
+    single(
+        vec![
+            IRegex::start(),
+            IRegex::leaf("repeat"),
+            IRegex::space_zero_or_more(),
+            IRegex::leaf("while"),
+            IRegex::space_zero_or_more(),
+            IRegex::named("TEST", r"\(([^)]*)\)"),
+            IRegex::leaf(".*"),
+            IRegex::leaf(";?"),
+            IRegex::space_zero_or_more(),
+            Stereogroup::optional_stereogroup(),
+            IRegex::end(),
+        ],
+        |d, arg| d.end_repeat(Display::with_newlines(arg.get("TEST", 0))),
+    )
+}
+
 /// `while (test)`: start a loop.
 fn while_start() -> Cmd {
     single(
@@ -394,6 +465,8 @@ pub fn commands() -> Vec<Cmd> {
     cmds.push(end_fork());
     cmds.push(while_start());
     cmds.push(while_end());
+    cmds.push(repeat_start());
+    cmds.push(repeat_while());
 
     // CommandArrow3
     cmds.push(single(arrow_regex("(.*);"), |d, arg| {

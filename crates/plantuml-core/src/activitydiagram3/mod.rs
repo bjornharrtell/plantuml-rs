@@ -31,8 +31,8 @@ use crate::style::Style;
 use crate::url::Url;
 use ftile::box_style::BoxStyle;
 use instruction::{
-    InsRef, InstructionFork, InstructionGroup, InstructionNode, InstructionSimple, InstructionWhile,
-    NodeKind,
+    InsRef, InstructionFork, InstructionGroup, InstructionNode, InstructionRepeat, InstructionSimple,
+    InstructionWhile, NodeKind,
 };
 use rainbow::{LinkRendering, Rainbow};
 use std::cell::RefCell;
@@ -207,6 +207,51 @@ impl ActivityDiagram3 {
         self.current().borrow_mut().add(group.clone());
         self.group_stack.push(self.current());
         self.swimlanes.set_current(group);
+    }
+
+    /// Starts a `repeat` loop (`doRepeat`).
+    pub fn do_repeat(
+        &mut self,
+        start_label: Option<Display>,
+        colors: crate::klimt::color::colors::Colors,
+        back_color: Option<crate::klimt::color::HColor>,
+    ) {
+        self.manage_swimlane_strategy();
+        let repeat = InstructionRepeat::new(
+            start_label,
+            colors,
+            back_color,
+            self.swimlanes.current_swimlane(),
+            self.next_link_renderer(),
+        );
+        let repeat: InsRef = Rc::new(RefCell::new(repeat));
+        self.current().borrow_mut().add(repeat.clone());
+        self.group_stack.push(self.current());
+        self.swimlanes.set_current(repeat);
+    }
+
+    /// Closes a `repeat` loop (`repeat while (...)`).
+    pub fn end_repeat(&mut self, test: Display) -> CommandExecutionResult {
+        let current = self.current();
+        if !current.borrow().as_any().is::<InstructionRepeat>() {
+            return CommandExecutionResult::error("Cannot find repeat");
+        }
+        {
+            let mut current = current.borrow_mut();
+            let Some(repeat) = current.as_any_mut().downcast_mut::<InstructionRepeat>() else {
+                return CommandExecutionResult::error("Cannot find repeat");
+            };
+            repeat.set_test(test);
+            repeat.set_out_rendering(self.next_link_renderer());
+        }
+        self.reset_next_link();
+        match self.group_stack.pop() {
+            Some(parent) => {
+                self.swimlanes.set_current(parent);
+                CommandExecutionResult::ok()
+            }
+            None => CommandExecutionResult::error("Cannot find repeat"),
+        }
     }
 
     /// Starts a `while` loop (`doWhile`).
