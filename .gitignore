@@ -2,3 +2,5 @@ fidelity.json
 target/
 site/pkg/
 .claude/
+__pycache__/
+*.pyc

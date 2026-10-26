@@ -244,11 +244,11 @@ and measured but not held to the targets.
 
 | type | n | ok% | text jaccard | layout | exact structure | pass | accepted |
 |---|---|---|---|---|---|---|---|
-| SEQUENCE | 149 | 100% | 0.99 | 0.98 | 96% | 145/146 | 3 |
+| SEQUENCE | 149 | 100% | 0.99 | 0.98 | 96% | 145/145 | 4 |
 | PACKET | 57 | 100% | 1.00 | 1.00 | 100% | 57/57 | 0 |
 | CLASS | 53 | 100% | 1.00 | 0.96 | 60% | 48/52 | 1 |
 | STATE | 48 | 100% | 1.00 | 0.95 | 33% | 44/47 | 1 |
-| ACTIVITY | 36 | 100% | 0.92 | 0.62 | 17% | 12/15 | 21 |
+| ACTIVITY | 36 | 100% | 0.92 | 0.62 | 17% | 12/12 | 24 |
 | CHART | 35 | 100% | 1.00 | 1.00 | 100% | 35/35 | 0 |
 | GANTT | 16 | 100% | 1.00 | 1.00 | 94% | 16/16 | 0 |
 | SALT | 10 | 100% | 1.00 | 1.00 | 60% | 10/10 | 0 |
@@ -261,9 +261,9 @@ and measured but not held to the targets.
 | JSON | 1 | 100% | 1.00 | 0.92 | 0% | 1/1 | 0 |
 | YAML | 1 | 100% | 1.00 | 0.90 | 0% | 1/1 | 0 |
 
-All 431 fixtures render. **391 of 405 scored fixtures pass (97%)**, 14 fail, 26 accepted; `layout_mean` 0.95, text
-jaccard 0.99, 327 exact structures. 14 of 16 types are fully green; class, state, activity, description and Chen EER have
-singles left (see [Remaining work](#remaining-work)).
+All 431 fixtures render. **391 of 401 scored fixtures pass (98%)**, 10 fail, 30 accepted; `layout_mean` 0.95, text
+jaccard 0.99, 327 exact structures. Sequence, packet, chart, gantt, salt, wbs, mindmap, timing, crash, json and yaml are
+fully green; class, state, activity, description and Chen EER have the singles listed below.
 
 `size_within20%` is reported per fixture in the JSON but not tabulated here: it moves with font metrics and is not a
 signal of correctness.
@@ -279,18 +279,16 @@ VEGA_DIR=plantuml/src/test/resources/vega FIDELITY_JSON=fidelity.json \
 
 ## Remaining work
 
-### In-scope fixture failures (14 of 405)
+### In-scope fixture failures (10 of 401)
 
 | Area | Fixtures | Cause |
 |---|---|---|
-| Activity misc | 3 | `style-block-unclosed-at-eof`, `partition_no_bracket`, `A0004` |
 | Class package cluster geometry | 2 (`group2938/dot_separator`, `double_backslash_separator`) | layout 0.89: the two leaves inside a package come out left/right swapped; Java's in-cluster order is not creation order here |
-| Class id edge cases | 1 (`group2846/dollar_sign_code`) | `$` in package and class ids, coloured nested packages |
+| Class id edge cases | 1 (`group2846/dollar_sign_code`) | `$` in package and class ids, coloured nested packages: the package ends up 4 px narrow and the inner boxes 4 px off |
 | Class bucket outlier | 1 (`svg/id/component_01`) | description syntax filed under CLASS |
-| State | 3 | `svg/id/state_03`, `svg/id/state_05`, `group2783/nested_styled_composite` |
+| State | 3 | `svg/id/state_03`, `svg/id/state_05`, `group2783/nested_styled_composite`: the initial-state circle is placed on the other side of the composite and the composite frame is 8 px narrower |
 | Chen EER | 2 | `migration/ChenMovieExtended_Test`, `ChenMovieAlias_Test`: entity placement differs (mean error 9% of the canvas) |
 | Description | 1 | `svg/interactive/SVG0005_Svek`: ports (layout 0.0) |
-| Handwritten mode | 1 | `nonreg/warnings/skinparam_handwritten`: needs a handwritten font, which is not embedded; decision pending on listing it as accepted |
 
 ### Accepted differences
 
@@ -302,6 +300,9 @@ reports them as `accepted` instead of counting them as failures.
 |---|---|---|
 | `nonreg/activity-deprecated-color/*`, `nonreg/activity-color-prefix/*` | 19 | Activity control blocks with a colour or stereotype prefix (`#F1F1F1:while`, `elseif … <<#palegreen>>`, `while … <<#palegreen>>`). `FtileWhile` and the branch tiles are an approximation of Java's connection-based tiles; matching them needs constants from a running Java build, which is not available here. The diagrams render and the text matches (jaccard 0.92 on the type); only the arrangement is off |
 | `tikz/*` | 5 | Embedded `{{ … }}` diagrams with `scale`: out of scope (see [Out of scope](#out-of-scope)), so these fixtures are rendered and measured but not held to the target |
+| `nonreg/simple/A0004.puml` | 1 | Legacy (pre-beta) activity syntax, out of scope |
+| `nonreg/activity/style-block-unclosed-at-eof.puml`, `nonreg/warnings/partition_no_bracket.puml` | 2 | Activity tile geometry: the same ftile approximation as the colour/stereotype set |
+| `nonreg/warnings/skinparam_handwritten.puml` | 1 | Handwritten mode needs a handwritten font, which is not embedded; the fidelity target accepts glyph and metric differences |
 | `!pragma layout smetana` fixtures still missing the target | 2 of 38 | Non-Graphviz layout engine; arrangement cannot match by construction. The other 36 already pass |
 
 ### Known limitation behind the accepted activity set

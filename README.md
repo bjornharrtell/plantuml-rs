@@ -10,7 +10,7 @@ cargo run --release -p plantuml-cli -- diagram.puml > diagram.svg
 
 ## Status
 
-391 of 405 scored Vega fixtures meet the fidelity target (text overlap >= 0.95, relative element
+391 of 401 scored Vega fixtures meet the fidelity target (text overlap >= 0.95, relative element
 placement >= 0.90), 327 are structurally identical, and every one of the 431 reference fixtures
 renders. Supported today: sequence, class (with object and description diagrams), state, activity,
 packet, chart, gantt, timing, mindmap, WBS, salt, JSON/YAML/HCL, Chen EER, EBNF and the crash

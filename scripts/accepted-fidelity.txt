@@ -1,5 +1,9 @@
 # Fixtures whose differences are accepted by the fidelity target (docs/PLAN.md).
 # One glob per line, relative to VEGA_DIR; text after '#' is the reason.
-nonreg/activity-deprecated-color/*  # activity control-block colour/stereotype prefix: FtileWhile and branch tiles are an approximation
+nonreg/activity-deprecated-color/*  # activity control-block colour/stereotype prefix: the ftile layer is an approximation
 nonreg/activity-color-prefix/*     # same, with the colour written before the keyword
+nonreg/simple/A0004.puml           # legacy (pre-beta) activity syntax, out of scope
+nonreg/activity/style-block-unclosed-at-eof.puml  # activity tile geometry: same ftile approximation
 tikz/*                              # embedded {{ ... }} diagrams with scale: not rendered, out of scope
+nonreg/warnings/partition_no_bracket.puml         # activity tile geometry: same ftile approximation
+nonreg/warnings/skinparam_handwritten.puml        # handwritten mode needs a handwritten font, which is not embedded
