@@ -489,7 +489,7 @@ svg_forward! {
 }
 
 /// Drawing context writing SVG (`UGraphicSvg`). `apply_*` methods return modified copies
-/// sharing the same output through [`UGraphic::scope`].
+/// sharing the same output: `apply_*` only changes the parameters of a copy.
 #[derive(Clone)]
 pub struct UGraphic {
     svg: SvgHandle,

@@ -1,7 +1,7 @@
 # plantuml-rs
 
 Rust/wasm port of [PlantUML](https://github.com/plantuml/plantuml): renders diagrams to SVG in the
-browser with no backend. See [docs/PLAN.md](docs/PLAN.md) for the porting decisions, the fidelity
+browser with no backend. See [docs/PLAN.md](https://github.com/bjornharrtell/plantuml-rs/blob/main/docs/PLAN.md) for the porting decisions, the fidelity
 target and the current per-type status.
 
 ```sh
@@ -10,7 +10,7 @@ plantuml-cli diagram.puml > diagram.svg
 ```
 
 The library is `plantuml-core` (`cargo add plantuml-core`). The API is unstable until 1.0; see
-[CHANGELOG.md](CHANGELOG.md) for what a release contains.
+[CHANGELOG.md](https://github.com/bjornharrtell/plantuml-rs/blob/main/CHANGELOG.md) for what a release contains.
 
 ## Status
 
@@ -27,7 +27,7 @@ listed in the plan.
 
 On the 472-file Vega corpus the library renders 5.7 ms per diagram against 2.8 ms for Java PlantUML in
 one JVM, with about 76 ms of one-time initialization per process. Method, caveats and reproduction are
-in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+in [docs/PERFORMANCE.md](https://github.com/bjornharrtell/plantuml-rs/blob/main/docs/PERFORMANCE.md).
 
 ## License
 

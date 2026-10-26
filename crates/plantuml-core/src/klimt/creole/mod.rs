@@ -1,5 +1,5 @@
 //! Creole rich text, ported from `klimt/creole`: line parsing into atoms, stripes and
-//! sheets, then layout into a [`TextBlock`].
+//! sheets, then layout into a [`TextBlock`](crate::klimt::shape::TextBlock).
 
 mod atoms;
 pub mod body;
