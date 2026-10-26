@@ -5,8 +5,12 @@ browser with no backend. See [docs/PLAN.md](docs/PLAN.md) for the porting decisi
 target and the current per-type status.
 
 ```sh
-cargo run --release -p plantuml-cli -- diagram.puml > diagram.svg
+cargo install plantuml-cli          # or: cargo run --release -p plantuml-cli -- diagram.puml
+plantuml-cli diagram.puml > diagram.svg
 ```
+
+The library is `plantuml-core` (`cargo add plantuml-core`). The API is unstable until 1.0; see
+[CHANGELOG.md](CHANGELOG.md) for what a release contains.
 
 ## Status
 

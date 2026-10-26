@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/plantuml-core", "crates/plantuml-cli", "crates/plantuml-wasm"]
 
 [workspace.package]
-version = "0.0.1"
+version = "0.1.0"
 edition = "2021"
 rust-version = "1.85"
 license = "MIT"
@@ -11,7 +11,7 @@ repository = "https://github.com/bjornharrtell/plantuml-rs"
 
 [workspace.dependencies]
 log = "0.4"
-plantuml-core = { path = "crates/plantuml-core" }
+plantuml-core = { path = "crates/plantuml-core", version = "0.1.0" }
 
 [profile.release]
 opt-level = "z"

@@ -6,6 +6,10 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+readme = "../../README.md"
+documentation = "https://docs.rs/plantuml-core"
+keywords = ["plantuml", "uml", "svg", "diagram", "wasm"]
+categories = ["visualization", "rendering", "wasm"]
 
 [dependencies]
 fancy-regex = "0.20.0"
