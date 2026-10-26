@@ -249,7 +249,7 @@ and measured but not held to the targets.
 | ACTIVITY | 36 | 100% | 0.92 | 0.62 | 17% | 12/15 | 21 |
 | CHART | 35 | 100% | 1.00 | 1.00 | 100% | 35/35 | 0 |
 | GANTT | 16 | 100% | 1.00 | 1.00 | 94% | 16/16 | 0 |
-| SALT | 10 | 100% | 0.96 | 0.99 | 60% | 9/10 | 0 |
+| SALT | 10 | 100% | 1.00 | 1.00 | 60% | 10/10 | 0 |
 | WBS | 7 | 100% | 1.00 | 1.00 | 100% | 7/7 | 0 |
 | DESCRIPTION | 6 | 100% | 1.00 | 0.82 | 33% | 5/6 | 0 |
 | MINDMAP | 4 | 100% | 1.00 | 1.00 | 100% | 4/4 | 0 |
@@ -259,9 +259,9 @@ and measured but not held to the targets.
 | JSON | 1 | 100% | 1.00 | 0.92 | 0% | 1/1 | 0 |
 | YAML | 1 | 100% | 1.00 | 0.90 | 0% | 1/1 | 0 |
 
-All 431 fixtures render. **390 of 405 scored fixtures pass (96%)**, 15 fail, 26 accepted; `layout_mean` 0.95, text
-jaccard 0.99, 327 exact structures. 13 of 16 types are fully green; class, state, activity, description, Chen EER and salt
-have singles left (see [Remaining work](#remaining-work)).
+All 431 fixtures render. **391 of 405 scored fixtures pass (97%)**, 14 fail, 26 accepted; `layout_mean` 0.95, text
+jaccard 0.99, 327 exact structures. 14 of 16 types are fully green; class, state, activity, description and Chen EER have
+singles left (see [Remaining work](#remaining-work)).
 
 `size_within20%` is reported per fixture in the JSON but not tabulated here: it moves with font metrics and is not a
 signal of correctness.
@@ -277,7 +277,7 @@ VEGA_DIR=plantuml/src/test/resources/vega FIDELITY_JSON=fidelity.json \
 
 ## Remaining work
 
-### In-scope fixture failures (15 of 405)
+### In-scope fixture failures (14 of 405)
 
 | Area | Fixtures | Cause |
 |---|---|---|
@@ -287,7 +287,6 @@ VEGA_DIR=plantuml/src/test/resources/vega FIDELITY_JSON=fidelity.json \
 | Class bucket outlier | 1 (`svg/id/component_01`) | description syntax filed under CLASS |
 | State | 3 | `svg/id/state_03`, `svg/id/state_05`, `group2783/nested_styled_composite` |
 | Chen EER | 2 | `migration/ChenMovieExtended_Test`, `ChenMovieAlias_Test`: entity placement differs (mean error 9% of the canvas) |
-| Salt | 1 | `group2732/brace_escape`: escaped braces in `[[url{tooltip}]]` (text 0.60) |
 | Description | 1 | `svg/interactive/SVG0005_Svek`: ports (layout 0.0) |
 | Handwritten mode | 1 | `nonreg/warnings/skinparam_handwritten`: needs a handwritten font, which is not embedded; decision pending on listing it as accepted |
 

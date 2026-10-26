@@ -687,19 +687,24 @@ impl<'a> StripeBuilder<'a> {
 /// Label of `[[url label]]`, `[[url{tooltip} label]]` or `[[url]]`.
 fn link_label(inner: &str) -> String {
     let inner = inner.trim();
-    let url_end = inner.find(char::is_whitespace);
-    let (url, rest) = match url_end {
-        Some(i) => (&inner[..i], inner[i..].trim()),
-        None => (inner, ""),
-    };
-    if rest.is_empty() {
-        let url = match url.find('{') {
-            Some(i) if url.ends_with('}') => &url[..i],
-            _ => url,
+    // The URL runs up to the first whitespace or the optional tooltip block, so a tooltip that
+    // contains spaces (`[[http://x.com{a b}]]`) does not truncate the URL.
+    let cut = inner
+        .find(|c: char| c.is_whitespace() || c == '{')
+        .unwrap_or(inner.len());
+    let url = &inner[..cut];
+    let mut rest = inner[cut..].trim_start();
+    if let Some(after_open) = rest.strip_prefix('{') {
+        rest = match after_open.rfind('}') {
+            Some(close) => &after_open[close + 1..],
+            None => "",
         };
+    }
+    let label = rest.trim();
+    if label.is_empty() {
         url.to_string()
     } else {
-        rest.to_string()
+        label.to_string()
     }
 }
 
@@ -956,6 +961,12 @@ mod tests {
             .collect();
         assert_eq!(t, ["see ", "label", " and ", "http://c.d"]);
         assert_eq!(link_label("u{tip}"), "u");
+        // A tooltip may contain spaces; the label follows the closing brace, and without one the URL
+        // is the label. Nested braces stay inside the tooltip.
+        assert_eq!(link_label("http://x.com{tooltip test}"), "http://x.com");
+        assert_eq!(link_label("http://x.com{tooltip test} label"), "label");
+        assert_eq!(link_label("http://x.com{tooltip {test}}"), "http://x.com");
+        assert_eq!(link_label("http://x.com"), "http://x.com");
         let s = create_sheet(
             &["**x**".to_string(), "= y".to_string()],
             &fc(),
