@@ -8,10 +8,12 @@ Measured on the 472 `.puml` files of the PlantUML Vega corpus, best of three war
 
 | implementation | total | per diagram | diagrams/s |
 |---|---|---|---|
-| Rust library (`plantuml-core`) | 1.47 s | 3.07 ms | 326 |
-| Java PlantUML, one JVM | 1.31 s | 2.77 ms | 361 |
+| Rust library (`plantuml-core`) | 1.45 s | 3.07 ms | 326 |
+| Java PlantUML, one JVM | 1.32 s | 2.80 ms | 358 |
 
-Java is about 1.1x faster per diagram on this corpus: 3.07 ms against 2.77 ms. Two caveats: Java writes its SVGs to `/dev/shm`
+Java is about 10% faster per diagram on this corpus: 3.07 ms against 2.80 ms. Earlier revisions of this
+page reported 5.70 ms for the port; the style-index and pattern-sharing fixes below account for the
+difference. Two caveats: Java writes its SVGs to `/dev/shm`
 here while the Rust harness keeps them in memory, and class diagrams are not like-for-like — this port
 lays them out with `graphviz-pure`, while the Java run used Graphviz through its own DOT round trip.
 
