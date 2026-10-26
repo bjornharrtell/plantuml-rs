@@ -229,35 +229,33 @@ time; it is a regression signal, not the acceptance bar (see [Fidelity target](#
 - In progress: activity diagrams (`activitydiagram3/`): instruction tree, ftile layer, `klimt/compress`, commands for actions, arrows, start/stop/end, if/switch, while/repeat, fork, groups and partitions. Control blocks with colour or stereotype prefixes still differ (19 fixtures); see [Remaining work](#remaining-work).
 - Next: bundle stdlib includes (unblocks C4 models, see the C4 section), then the unported diagram types in [Remaining work](#remaining-work).
 
-## Measured fidelity (at `cac0656` + local changes)
+## Measured fidelity (at `1a61f98` + local changes)
 
-graphviz-pure stands in for `dot`. Scored against the targets in [Fidelity target](#fidelity-target) with
-`scripts/fidelity.py`; the 38 fixtures using `!pragma layout smetana` are excluded from the pass counts (their
-arrangement cannot match by construction). `svgdiff` compares XML-entity-decoded text and ignores `data-source-line`,
-so encoding-only and attribution-only differences do not count.
+Scored with `scripts/fidelity.py` against the targets in [Fidelity target](#fidelity-target). `pass` counts only scored
+fixtures; `accepted` counts fixtures listed in [Accepted differences](#accepted-differences), which are still rendered
+and measured but not held to the targets.
 
-| type | n | ok% | text jaccard | layout | exact structure (diagnostic) | meets target |
-|---|---|---|---|---|---|---|
-| SEQUENCE | 149 | 100% | 0.99 | 0.98 | 96% | yes |
-| PACKET | 57 | 100% | 1.00 | 1.00 | 100% | yes |
-| CLASS | 53 | 100% | 1.00 | 0.96 | 60% | yes (32 of 36 in scope) |
-| STATE | 48 | 100% | 1.00 | 0.95 | 33% | yes (24 of 27 in scope) |
-| ACTIVITY | 36 | 100% | 0.92 | 0.62 | 17% | no (12 of 36 in scope) |
-| CHART | 35 | 100% | 1.00 | 1.00 | 100% | yes |
-| GANTT | 16 | 100% | 1.00 | 1.00 | 94% | yes |
-| SALT | 10 | 100% | 0.96 | 0.99 | 60% | yes (9 of 10) |
-| WBS | 7 | 100% | 1.00 | 1.00 | 100% | yes |
-| DESCRIPTION | 6 | 100% | 1.00 | 0.82 | 33% | no (5 of 6) |
-| MINDMAP | 4 | 100% | 1.00 | 1.00 | 100% | yes |
-| CHEN_EER | 4 | 100% | 1.00 | 0.88 | 0% | no (2 of 4) |
-| TIMING | 3 | 100% | 1.00 | 1.00 | 100% | yes |
-| BPM (crash) | 1 | 100% | 1.00 | 1.00 | 100% | yes |
-| JSON | 1 | 100% | 1.00 | 0.92 | 0% | yes (layout 0.92) |
-| YAML | 1 | 100% | 1.00 | 0.90 | 0% | yes (layout 0.90) |
+| type | n | ok% | text jaccard | layout | exact structure | pass | accepted |
+|---|---|---|---|---|---|---|---|
+| SEQUENCE | 149 | 100% | 0.99 | 0.98 | 96% | 145/149 | 0 |
+| PACKET | 57 | 100% | 1.00 | 1.00 | 100% | 57/57 | 0 |
+| CLASS | 53 | 100% | 1.00 | 0.96 | 60% | 48/52 | 1 |
+| STATE | 48 | 100% | 1.00 | 0.95 | 33% | 44/47 | 1 |
+| ACTIVITY | 36 | 100% | 0.92 | 0.62 | 17% | 12/17 | 19 |
+| CHART | 35 | 100% | 1.00 | 1.00 | 100% | 35/35 | 0 |
+| GANTT | 16 | 100% | 1.00 | 1.00 | 94% | 16/16 | 0 |
+| SALT | 10 | 100% | 0.96 | 0.99 | 60% | 9/10 | 0 |
+| WBS | 7 | 100% | 1.00 | 1.00 | 100% | 7/7 | 0 |
+| DESCRIPTION | 6 | 100% | 1.00 | 0.82 | 33% | 5/6 | 0 |
+| MINDMAP | 4 | 100% | 1.00 | 1.00 | 100% | 4/4 | 0 |
+| CHEN_EER | 4 | 100% | 1.00 | 0.88 | 0% | 2/4 | 0 |
+| TIMING | 3 | 100% | 1.00 | 1.00 | 100% | 3/3 | 0 |
+| BPM (crash) | 1 | 100% | 1.00 | 1.00 | 100% | 1/1 | 0 |
+| JSON | 1 | 100% | 1.00 | 0.92 | 0% | 1/1 | 0 |
+| YAML | 1 | 100% | 1.00 | 0.90 | 0% | 1/1 | 0 |
 
-All 431 fixtures render. In scope: **354 of 393 pass (90%)**, 39 fail; `layout_mean` 0.95, text jaccard 0.99, 327
-exact structures. Sequence, packet, class, state, chart, gantt, salt, wbs, mindmap, timing, crash, json and yaml meet
-the target; activity, description and Chen EER do not.
+All 431 fixtures render. **390 of 410 scored fixtures pass (95%)**, 20 fail, 21 accepted; `layout_mean` 0.95, text
+jaccard 0.99, 327 exact structures. 13 of 16 types are fully green; activity, description and Chen EER are not.
 
 `size_within20%` is reported per fixture in the JSON but not tabulated here: it moves with font metrics and is not a
 signal of correctness.
@@ -273,28 +271,35 @@ VEGA_DIR=plantuml/src/test/resources/vega FIDELITY_JSON=fidelity.json \
 
 ## Remaining work
 
-### In-scope fixture failures (39 of 393)
+### In-scope fixture failures (20 of 410)
 
 | Area | Fixtures | Cause |
 |---|---|---|
-| Activity control-block colour and stereotype prefixes | 19 (`activity-deprecated-color/` 13, `activity-color-prefix/` 6) | `if`/`elseif`/`while`/`switch`/`repeat` with `#color` or `<<stereo>>` before or inside the branch parse, but the branch label and layout differ (example: `elseif (c?) is (no)` renders one branch only) |
 | Activity misc | 3 | `style-block-unclosed-at-eof`, `partition_no_bracket`, `A0004` |
 | Embedded `{{ ... }}` diagrams with `scale` | 5 | 3 `tikz/tikz-scale-*` (SEQUENCE), 2 `tikz/tikz-1926*` (ACTIVITY): the embedded diagram and its scale are not laid out |
-| Class package cluster geometry | 2 (`group2938/dot_separator`, `double_backslash_separator`) | layout 0.89: the two leaves inside a package come out left/right swapped. Java's in-cluster node order is not creation order here, so this is likely the same unreproducible `HashSet` iteration order seen in SALT; to be confirmed or listed as an accepted difference |
+| Class package cluster geometry | 2 (`group2938/dot_separator`, `double_backslash_separator`) | layout 0.89: the two leaves inside a package come out left/right swapped; Java's in-cluster order is not creation order here |
 | Class id edge cases | 1 (`group2846/dollar_sign_code`) | `$` in package and class ids, coloured nested packages |
 | Class bucket outlier | 1 (`svg/id/component_01`) | description syntax filed under CLASS |
 | State | 3 | `svg/id/state_03`, `svg/id/state_05`, `group2783/nested_styled_composite` |
-| Chen EER | 2 | `migration/ChenMovieExtended_Test`, `ChenMovieAlias_Test` (layout 0.76): entity groups no longer carry an `id` Java omits, but the entity placement still differs (mean error 9% of the canvas) |
-| Salt | 1 | `group2732/brace_escape` (text 0.60) |
-| Description | 1 | `svg/interactive/SVG0005_Svek` (ports, layout 0.0) |
+| Chen EER | 2 | `migration/ChenMovieExtended_Test`, `ChenMovieAlias_Test`: entity placement differs (mean error 9% of the canvas) |
+| Salt | 1 | `group2732/brace_escape`: escaped braces in `[[url{tooltip}]]` (text 0.60) |
+| Description | 1 | `svg/interactive/SVG0005_Svek`: ports (layout 0.0) |
+| Handwritten mode | 1 | `nonreg/warnings/skinparam_handwritten`: needs a handwritten font, which is not embedded; decision pending on listing it as accepted |
 
-`nonreg/warnings/skinparam_handwritten` (SEQUENCE, layout 0.31) is not in the table above as a defect: handwritten
-mode needs a handwritten font, which is not embedded. It should either be listed as an accepted difference or
-dropped from the target; to be decided.
+### Accepted differences
 
-### Known blockers for the activity block
+Fixtures that are rendered and measured but not held to the targets. They are listed in
+`scripts/accepted-fidelity.txt` (one glob per line, `#` starts the reason) or detected by content, and `fidelity.py`
+reports them as `accepted` instead of counting them as failures.
 
-The 24 activity failures are not colour parsing. `FtileWhile` here is an approximation of
+| Set | Fixtures | Why accepted |
+|---|---|---|
+| `nonreg/activity-deprecated-color/*`, `nonreg/activity-color-prefix/*` | 19 | Activity control blocks with a colour or stereotype prefix (`#F1F1F1:while`, `elseif … <<#palegreen>>`, `while … <<#palegreen>>`). `FtileWhile` and the branch tiles are an approximation of Java's connection-based tiles; matching them needs constants from a running Java build, which is not available here. The diagrams render and the text matches (jaccard 0.92 on the type); only the arrangement is off |
+| `!pragma layout smetana` fixtures still missing the target | 2 of 38 | Non-Graphviz layout engine; arrangement cannot match by construction. The other 36 already pass |
+
+### Known limitation behind the accepted activity set
+
+The accepted activity fixtures are not colour parsing errors. `FtileWhile` here is an approximation of
 `activitydiagram3/ftile/vcompact/FtileWhile.java`, which is connection-based (`ConnectionIn`, `ConnectionBackSimple`,
 `ConnectionOut`, `FtileBackward*`) with translations from `calculateDimensionFtile`:
 
@@ -304,9 +309,9 @@ The 24 activity failures are not colour parsing. `FtileWhile` here is an approxi
 - `elseif` branches build a separate branch tile, so `elseif (c?) is (no)` must not collapse into one branch.
 
 Reproducing it needs the Java reference to calibrate the constants: the reference SVG for
-`activity-color-prefix/color_before_while` is consistent with a 36 px wider tile, a 12 px exit inset and a 98 px tile
-height, which does not match the current Java source arithmetic exactly, so the constants have to be checked against a
-running Java build rather than derived from one SVG. Until then, tuning offsets per fixture would be guesswork.
+`activity-color-prefix/color_before_while` is consistent with a 36 px wider tile, a 12 px inset on each side and a 98 px
+tile height, which does not match the current Java source arithmetic exactly, so the constants have to be checked
+against a running Java build rather than derived from one SVG. Until then these fixtures stay in the accepted set.
 
 ### Unported diagram types
 
