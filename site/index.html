@@ -34,7 +34,7 @@
   <button id="download">Download SVG</button>
   <span class="grow"></span>
   <span class="grow"></span>
-  <span title="Diagram types the port renders so far">supported: sequence, class (partial), object, state, activity, component, use case, chen, packet, chart, mindmap, wbs, gantt, timing, salt, json, yaml, hcl, crash</span>
+  <span title="Diagram types the port renders so far">supported: sequence, class, object, state, activity, component, use case, chen, packet, chart, mindmap, wbs, gantt, timing, salt, json, yaml, hcl, crash</span>
   <a href="https://github.com/bjornharrtell/plantuml-rs">source</a>
 </header>
 <main>
@@ -90,7 +90,7 @@ participant $n
 Alice -> Bob: $greet("Bob")
 Bob -> Carol: $greet("Carol")
 @enduml`,
-  'Class (partial)': `@startuml
+  'Class': `@startuml
 class Animal {
   -name : String
   +eat()
