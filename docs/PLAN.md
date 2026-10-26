@@ -311,6 +311,14 @@ reports them as `accepted` instead of counting them as failures.
 | Residual layout deltas (class, state, Chen, description) | 10 | Element spacing a few percent off where Java mixes AWT text metrics with its internal iteration order; see [Residual differences](#residual-differences-accepted) |
 | `!pragma layout smetana` fixtures still missing the target | 2 of 38 | Non-Graphviz layout engine; arrangement cannot match by construction. The other 36 already pass |
 
+### Known defects
+
+- Activity arrows: a report of arrows that do not reach their target box and one case of wrong pathing.
+  A scan of the 36 Vega activity fixtures for segment ends that touch neither another segment nor a box
+  finds none, and the arrowing of a start/if/repeat/fork diagram connects everywhere, so the failing
+  structure is not covered by the corpus: a minimal reproduction is needed before the ftile geometry can
+  be fixed.
+
 ### Known limitation behind the accepted activity set
 
 The accepted activity fixtures are not colour parsing errors. `FtileWhile` here is an approximation of
