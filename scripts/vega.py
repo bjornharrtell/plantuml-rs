@@ -39,7 +39,7 @@ for dp, _, fs in sorted(os.walk(ROOT)):
         if os.environ.get("TYPE") and os.environ["TYPE"] != top:
             continue
         r = subprocess.run([CLI, "-"], input=src[m.start():].encode(), capture_output=True, timeout=30)
-        stats = results.setdefault(top, [0, 0, 0, []])
+        stats = results.setdefault(top, [0, 0, 0, [0]])
         stats[0] += 1
         if r.returncode != 0:
             stats[2] += 1
@@ -54,13 +54,17 @@ for dp, _, fs in sorted(os.walk(ROOT)):
             continue
         out = []
         svgdiff.walk(want, got, "", 0.002, out)
+        close = []
+        svgdiff.walk(want, got, "", float(os.environ.get("CLOSE_TOL", "0.7")), close)
+        if not close:
+            stats[3][0] += 1
         if not out:
             stats[1] += 1
         elif VERBOSE:
             print("DIFF", os.path.relpath(p, ROOT), len(out), out[0])
 total = [0, 0, 0]
-for top, (n, ok, err, _) in sorted(results.items()):
-    print(f"{top:12} total={n:3} identical={ok:3} errors={err:3}")
+for top, (n, ok, err, extra) in sorted(results.items()):
+    print(f"{top:12} total={n:3} identical={ok:3} close={extra[0]:3} errors={err:3}")
     total[0] += n
     total[1] += ok
     total[2] += err

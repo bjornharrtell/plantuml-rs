@@ -566,7 +566,7 @@ impl TextBlock for EntityImageClass {
         let mut attrs: Vec<(&str, String)> = vec![("class", "entity".to_string())];
         attrs.push(("data-qualified-name", self.entity.qualified_name()));
         if let Some(l) = self.entity.location() {
-            attrs.push(("data-source-line", (l.position + 1).to_string()));
+            attrs.push(("data-source-line", l.position.to_string()));
         }
         attrs.push(("id", self.entity.uid()));
         ug.start_group(&attrs);

@@ -654,6 +654,7 @@ impl UGraphic {
     fn limit_shape(&self, shape: &UShape, x: f64, y: f64, limit: &RefCell<MinMax>) {
         let clip = self.param.clip;
         let add = |px: f64, py: f64| {
+            log::trace!("limit {px} {py}");
             if clip.is_none_or(|c| c.is_inside(px, py)) {
                 let mut m = limit.borrow_mut();
                 *m = m.add_point(px, py);

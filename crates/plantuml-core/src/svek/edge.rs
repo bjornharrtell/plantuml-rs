@@ -865,11 +865,15 @@ fn move_away_from(cl: RectangleArea, p: Placed) -> Placed {
     }
 }
 
-fn skin_style_name(_skin: &SkinParam) -> crate::style::SName {
+pub(crate) fn skin_style_name(_skin: &SkinParam) -> crate::style::SName {
     crate::style::SName::ClassDiagram
 }
 
-fn role_block(role: &str, font: &FontConfiguration, skin: &SkinParam) -> Rc<dyn TextBlock> {
+pub(crate) fn role_block(
+    role: &str,
+    font: &FontConfiguration,
+    skin: &SkinParam,
+) -> Rc<dyn TextBlock> {
     use crate::skin::visibility::VisibilityModifier;
     let mut text = role.to_string();
     let mut modifier = None;

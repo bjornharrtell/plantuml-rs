@@ -19,7 +19,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 /// An image for a leaf of the diagram (`GeneralImageBuilder.createEntityImageBlock`).
-fn create_entity_image(
+pub(crate) fn create_entity_image(
     entity: &Entity,
     cuca: &CucaDiagram,
     skin: &SkinParam,
@@ -267,7 +267,7 @@ pub fn build_image(
         bib.next_color(),
     ];
     let root = Cluster::new_root(root_entity.clone(), colors);
-    if leafs.len() == 1 && cuca.groups().is_empty() && links.is_empty() {
+    if false && leafs.len() == 1 && cuca.groups().is_empty() && links.is_empty() {
         let single = leafs[0].clone();
         if single.parent_container().is_some_and(|p| p.is_root()) {
             let image = create_entity_image(&single, cuca, skin);
@@ -357,7 +357,7 @@ fn entity_has_node(bib: &Bibliotekon, ent: &Entity) -> bool {
 }
 
 /// Links grouped by the entities they connect (`getOrderedLinks`).
-fn ordered_links(cuca: &CucaDiagram) -> Vec<Link> {
+pub(crate) fn ordered_links(cuca: &CucaDiagram) -> Vec<Link> {
     let mut result: Vec<Link> = Vec::new();
     for link in cuca.links() {
         let mut inserted = false;

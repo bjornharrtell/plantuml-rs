@@ -150,7 +150,7 @@ impl Diagram for ClassDiagram {
     }
 
     fn text_block(&self, sb: &Rc<dyn StringBounder>, skin: &Rc<SkinParam>) -> Rc<dyn TextBlock> {
-        crate::svek::builder::build_image(&self.cuca, skin, sb)
+        crate::sdot::build_image(&self.cuca, skin, sb)
     }
 }
 
