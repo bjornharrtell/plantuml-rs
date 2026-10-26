@@ -8,10 +8,10 @@ Measured on the 472 `.puml` files of the PlantUML Vega corpus, best of three war
 
 | implementation | total | per diagram | diagrams/s |
 |---|---|---|---|
-| Rust library (`plantuml-core`) | 2.69 s | 5.70 ms | 176 |
+| Rust library (`plantuml-core`) | 1.81 s | 3.82 ms | 261 |
 | Java PlantUML, one JVM | 1.31 s | 2.77 ms | 361 |
 
-Java is about 2x faster per diagram on this corpus. Two caveats: Java writes its SVGs to `/dev/shm`
+Java is about 1.4x faster per diagram on this corpus. Two caveats: Java writes its SVGs to `/dev/shm`
 here while the Rust harness keeps them in memory, and class diagrams are not like-for-like — this port
 lays them out with `graphviz-pure`, while the Java run used Graphviz through its own DOT round trip.
 
@@ -45,36 +45,30 @@ The Rust library spends about 76 ms on its first render in a process (font table
 regex compilation) and about 1 ms per tiny diagram afterwards. That cost is paid once per process or
 per wasm instance, so it matters for one-shot use and not for a server that renders continuously.
 
-## Where the time actually goes
+## Where the time goes
 
-`perf` is not available in the environment this was measured in, and `pprof` failed to symbolise
-(frame walking produced only `__libc_start_call_main`), so the split below comes from instrumenting
-the library itself: wall time around the four phases of `render_with`, on the 149 sequence and 53
-class diagrams of the corpus.
+Profiled with `perf` (frame pointers plus debug info; `perf record -F 1999 -g --call-graph fp` over
+eight passes of the 149 sequence diagrams). Ranked self time before the first optimisation:
 
-| phase | sequence | class |
+| cost | share | cause |
 |---|---|---|
-| preprocess | 10% | 11% |
-| parse (commands, model) | 21% | 48% |
-| layout (`text_block`) | 20% | 19% |
-| export (SVG writing) | 49% | 8% |
+| `DefaultHasher` + SipHash rounds | ~20% | `style::StyleIndex::find_matching` rebuilt its trie and hashed every atom of every style on every lookup |
+| `malloc`/`free` and friends | ~16% | allocation churn from the same trie plus style merging |
+| regex-automata NFA construction | ~12% | lazy DFA caches built during matching inside fancy-regex |
 
-Inside export, the draw pass costs 85% and the dimension pass 15%. Text measurement is negligible:
-the whole sequence run performs 170,466 measurements in 11 ms (0.4% of the run), so memoising the
-font tables would not help — the initial guess in the previous section of this document was wrong.
+Landed:
 
-So the two real targets are:
+1. **Style index trie built once.** `StyleIndex` now caches its signature trie in a `OnceCell`; the
+   lookup no longer rebuilds it. Sequence corpus 1040 -> 560 ms, whole corpus 2550 -> 1810 ms
+   (5.4 -> 3.8 ms per diagram), fidelity untouched.
+2. **`format_decimal` in one pass**, without the intermediate `String` and `insert` calls that ran for
+   every coordinate of the SVG (about 3% on the sequence corpus).
 
-1. **Sequence drawing** (dominant). 149 diagrams produce only 882 KB of SVG yet take 2.5 s to draw:
-   about 27 us per emitted element, far above string writing. The suspects are the creole sheet of
-   every label being rebuilt during drawing and a full `UGraphic` clone for each `apply_*` of an
-   element's colour, stroke and translation.
-2. **Class parsing** (48% of that type). Each source line is offered to every command in the list,
-   each of which runs its own regex, so member-heavy classes pay per line per command.
+Next target: the regex machinery. Simple patterns (no lookaround, no backreference) could go through
+`regex::Regex`, which keeps a thread-local cache pool, instead of `fancy-regex`, which builds its NFA
+state caches per match; that is the remaining ~12% plus part of the allocation churn.
 
-One optimisation is landed: `format_decimal` builds its result in a single pass instead of going
-through an intermediate `String` and `insert` calls (it runs for every coordinate and length in the
-SVG). It is worth about 3% on the sequence corpus and leaves fidelity untouched.
+Text measurement is not a factor: the whole sequence run performs 170,466 measurements in 11 ms.
 
 ## Reproducing
 

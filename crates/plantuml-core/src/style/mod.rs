@@ -609,6 +609,9 @@ impl TrieNode {
 #[derive(Clone, Default)]
 pub struct StyleIndex {
     all: Rc<Vec<Style>>,
+    /// The signature trie, built on first lookup. Rebuilding it per lookup used to cost more than
+    /// the lookup itself (a hash of every atom of every style).
+    trie: Rc<std::cell::OnceCell<Rc<TrieNode>>>,
 }
 
 impl StyleIndex {
@@ -634,7 +637,10 @@ impl StyleIndex {
         for s in new {
             Self::merge_or_append(&mut v, s);
         }
-        StyleIndex { all: Rc::new(v) }
+        StyleIndex {
+            all: Rc::new(v),
+            trie: Rc::new(std::cell::OnceCell::new()),
+        }
     }
 
     pub fn all_styles(&self) -> &[Style] {
@@ -643,8 +649,18 @@ impl StyleIndex {
 
     /// Styles whose signature is contained in `query`, in trie order.
     pub fn find_matching(&self, query: &StyleQuery) -> Vec<&Style> {
+        let trie = self
+            .trie
+            .get_or_init(|| Rc::new(Self::build_trie(&self.all)));
+        let atoms: Vec<StyleAtom> = query.atoms.iter().cloned().collect();
+        let mut idx = Vec::new();
+        trie.collect(&atoms, 0, query.level, &mut idx);
+        idx.into_iter().map(|i| &self.all[i]).collect()
+    }
+
+    fn build_trie(styles: &[Style]) -> TrieNode {
         let mut root = TrieNode::new();
-        for (i, s) in self.all.iter().enumerate() {
+        for (i, s) in styles.iter().enumerate() {
             let mut cur = &mut root;
             for atom in s.query.atoms.iter() {
                 cur = cur
@@ -654,10 +670,7 @@ impl StyleIndex {
             }
             cur.here.push((s.query.level, i));
         }
-        let atoms: Vec<StyleAtom> = query.atoms.iter().cloned().collect();
-        let mut idx = Vec::new();
-        root.collect(&atoms, 0, query.level, &mut idx);
-        idx.into_iter().map(|i| &self.all[i]).collect()
+        root
     }
 
     pub fn merged_style(&self, query: &StyleQuery) -> Option<Style> {
