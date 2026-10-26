@@ -1,0 +1,3 @@
+@startebnf
+rule = { "a" } ;
+@endebnf

@@ -293,6 +293,29 @@ Calibrating the constants needs a running Java build to compare against: the ref
 tile height, which does not match the current Java source arithmetic exactly, so they cannot be derived from one SVG.
 Until then these fixtures stay in the accepted set.
 
+### Measured beyond the Vega corpus
+
+`fixtures/` holds EBNF and C4 sources with PlantUML-generated references, scored by the same harness:
+
+| fixture | layout | text |
+|---|---|---|
+| EBNF one production, or one special sequence | 1.00 | 1.00 |
+| EBNF one alternation / optional / repetition / concatenation | 1.00 | 1.00 |
+| EBNF a whole grammar (several productions) | 0.38 | 1.00 |
+| EBNF a nested expression grammar, with a comment | 0.72 | 1.00 |
+| C4 context | 0.58 | 1.00 |
+| C4 container, with a boundary | 0.38 | 1.00 |
+
+Single tiles are placed exactly, so the tile geometry is right; the gap is in how a diagram stacks several
+tiles and productions and, for C4, in the boundary/caption layout. Text matches every fixture, so none of
+this is missing content.
+
+The stacking gap is traced to the text height: Java's `FileFormat.getJavaDimension` is a line of
+ascent+descent+line gap (26.3 px at size 14), while `TableFontBounder` reports the point size (14), so a rule
+is ~2 px short and several rules drift apart. Making that global change drops the Vega score (393 -> 385
+scored fixtures, 327 -> 0 exact structures), so it has to be done together with re-baselining the layouts
+that were tuned around the shorter line, not on its own.
+
 ### In scope, not done
 
 Nothing: every scored fixture passes or is declared under [Accepted differences](#accepted-differences), and the only
