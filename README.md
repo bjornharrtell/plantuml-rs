@@ -10,7 +10,9 @@ plantuml-cli diagram.puml > diagram.svg
 ```
 
 The library is `plantuml-core` (`cargo add plantuml-core`). The API is unstable until 1.0; see
-[CHANGELOG.md](https://github.com/bjornharrtell/plantuml-rs/blob/main/CHANGELOG.md) for what a release contains.
+[CHANGELOG.md](https://github.com/bjornharrtell/plantuml-rs/blob/main/CHANGELOG.md) for what a release contains
+and [docs/RELEASING.md](https://github.com/bjornharrtell/plantuml-rs/blob/main/docs/RELEASING.md) for how releases
+are cut (publishing to crates.io runs on pushed tags).
 
 ## Status
 
