@@ -34,7 +34,7 @@
   <button id="download">Download SVG</button>
   <span class="grow"></span>
   <span class="grow"></span>
-  <span title="Diagram types the port renders so far">supported: sequence, class (partial), packet, chart</span>
+  <span title="Diagram types the port renders so far">supported: sequence, class (partial), packet, chart, mindmap, wbs, salt, json, yaml</span>
   <a href="https://github.com/bjornharrtell/plantuml-rs">source</a>
 </header>
 <main>
@@ -101,6 +101,48 @@ Animal <|-- Dog
 Pet <|.. Dog : implements
 Dog --> Animal : owner
 @enduml`,
+  'Mindmap': `@startmindmap
+* Project
+** Plan
+*** Scope
+*** Budget
+** Build
+*** Code
+*** Test
+left side
+** Ship
+@endmindmap`,
+  'WBS': `@startwbs
+* Release
+** Build
+*** Compile
+*** Package
+** Test
+*** Unit
+*** Integration
+@endwbs`,
+  'Salt': `@startsalt
+{
+  Login    | "admin   "
+  Password | "****    "
+  [Cancel] | [  OK  ]
+}
+@endsalt`,
+  'JSON': `@startjson
+{
+  "name": "plantuml-rs",
+  "tags": ["uml", "wasm"],
+  "port": {"done": true, "types": 9}
+}
+@endjson`,
+  'YAML': `@startyaml
+name: plantuml-rs
+tags:
+  - uml
+  - wasm
+port:
+  done: true
+@endyaml`,
   'Chart': `@startchart
 h-axis [1, 2, 3]
 stackMode grouped
