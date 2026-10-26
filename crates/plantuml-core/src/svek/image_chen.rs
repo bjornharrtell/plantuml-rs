@@ -91,7 +91,10 @@ fn attributes(entity: &Entity) -> (bool, bool, bool, String) {
 }
 
 fn start_group(ug: &UGraphic, entity: &Entity) {
-    ug.start_group(&[("id", entity.uid().to_string())]);
+    // Java starts a group with `UGroupType.ID` for these images, which carries no attribute in the
+    // generated SVG; only the bare `<g>` shows up, so no attributes are written here either.
+    let _ = entity;
+    ug.start_group(&[]);
 }
 
 /// An entity (`EntityImageChenEntity`): a rectangle, doubled when `<<weak>>`.
