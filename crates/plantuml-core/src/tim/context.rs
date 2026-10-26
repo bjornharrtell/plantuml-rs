@@ -864,9 +864,31 @@ impl TContext {
                 s,
             ));
         };
-        let mut lines = crate::preproc::read_lines(&content);
-        // The metadata block (leading `!$` comment lines) is not interpreted here.
-        let body = std::mem::take(&mut lines);
+        let lines = crate::preproc::read_lines(&content);
+        // A leading `---` block is the metadata of the theme (`ReadLineWithYamlHeader`).
+        let mut body = lines.clone();
+        if lines.first().is_some_and(|l| l.string() == "---") {
+            let mut metadata = Vec::new();
+            let mut end = lines.len();
+            for (i, l) in lines.iter().enumerate().skip(1) {
+                if l.string() == "---" {
+                    end = i + 1;
+                    break;
+                }
+                let tmp = l.string();
+                if let Some(idx) = tmp.find(':') {
+                    if idx > 0 {
+                        metadata.push((
+                            tmp[..idx].trim().to_string(),
+                            JsonValue::String(tmp[idx + 1..].trim().to_string()),
+                        ));
+                    }
+                }
+                end = i + 1;
+            }
+            body = lines[end.min(lines.len())..].to_vec();
+            self.theme_metadata = JsonValue::Object(metadata);
+        }
         self.execute_lines(mem, &body, None, false)?;
         Ok(())
     }

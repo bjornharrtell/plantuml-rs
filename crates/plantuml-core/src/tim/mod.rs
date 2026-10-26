@@ -10,6 +10,7 @@ pub mod line_type;
 pub mod loader;
 pub mod memory;
 pub mod resolver;
+pub mod themes;
 pub mod trie;
 
 use crate::text::StringLocated;

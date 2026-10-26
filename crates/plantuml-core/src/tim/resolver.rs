@@ -75,3 +75,47 @@ impl Resolver for MemoryResolver {
         self.files.contains_key(path)
     }
 }
+
+/// Resolver with the themes bundled in the library and nothing else.
+pub struct BundledResolver;
+
+impl Resolver for BundledResolver {
+    fn read_file(&self, _name: &str, _current_dir: Option<&str>) -> Option<ResolvedFile> {
+        None
+    }
+
+    fn read_theme(
+        &self,
+        name: &str,
+        from: Option<&str>,
+        _current_dir: Option<&str>,
+    ) -> Option<String> {
+        if from.is_some() {
+            return None;
+        }
+        super::themes::THEMES
+            .iter()
+            .find(|(n, _)| *n == name)
+            .map(|(_, c)| (*c).to_string())
+    }
+
+    fn all_theme_names(&self) -> Vec<String> {
+        super::themes::THEMES
+            .iter()
+            .map(|(n, _)| (*n).to_string())
+            .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bundled_themes() {
+        let r = BundledResolver;
+        assert!(r.read_theme("amiga", None, None).is_some());
+        assert!(r.read_theme("nope", None, None).is_none());
+        assert!(r.all_theme_names().len() >= 40);
+    }
+}

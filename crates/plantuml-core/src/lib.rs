@@ -77,7 +77,10 @@ fn diagram_kind(source: &str) -> Option<&str> {
 
 /// Renders the first diagram in `source` to SVG; nothing outside the source can be included.
 pub fn render(source: &str) -> Result<String, Error> {
-    render_with(source, std::rc::Rc::new(crate::tim::resolver::NoResolver))
+    render_with(
+        source,
+        std::rc::Rc::new(crate::tim::resolver::BundledResolver),
+    )
 }
 
 /// Renders the first diagram in `source`, resolving includes and themes with `resolver`.
@@ -323,5 +326,12 @@ mod tests {
     fn kind_stops_at_non_alphanumeric() {
         assert_eq!(diagram_kind("@startmindmap(x)"), Some("mindmap"));
         assert_eq!(diagram_kind("@start"), Some(""));
+    }
+
+    #[test]
+    fn bundled_theme_sets_the_background() {
+        let svg = render("@startuml\n!theme amiga\nA -> B\n@enduml").expect("renders");
+        assert!(svg.contains("#0B58A8"));
+        assert!(render("@startuml\n!theme nonexistent\nA -> B\n@enduml").is_err());
     }
 }
