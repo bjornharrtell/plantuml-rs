@@ -432,6 +432,117 @@ impl Instruction for InstructionFork {
     }
 }
 
+/// A `switch` with its branches (`InstructionSwitch`).
+pub struct InstructionSwitch {
+    branches: Vec<(InstructionList, Option<Display>)>,
+    test: Display,
+    back_color: Option<HColor>,
+    swimlane: Option<Rc<Swimlane>>,
+    in_link_rendering: LinkRendering,
+    out_link_rendering: LinkRendering,
+}
+
+impl InstructionSwitch {
+    pub fn new(
+        test: Display,
+        back_color: Option<HColor>,
+        swimlane: Option<Rc<Swimlane>>,
+        in_link_rendering: LinkRendering,
+    ) -> Self {
+        Self {
+            branches: Vec::new(),
+            test,
+            back_color,
+            swimlane,
+            in_link_rendering,
+            out_link_rendering: LinkRendering::none(),
+        }
+    }
+
+    pub fn case(&mut self, label: Option<Display>) {
+        self.branches
+            .push((InstructionList::new(self.swimlane.clone()), label));
+    }
+
+    pub fn set_out_rendering(&mut self, link: LinkRendering) {
+        self.out_link_rendering = link;
+    }
+}
+
+impl Instruction for InstructionSwitch {
+    fn create_ftile(&self, factory: &dyn FtileFactory) -> FtileRef {
+        let skin = factory.skin();
+        let branches = self
+            .branches
+            .iter()
+            .map(|(list, label)| super::ftile::if_::Branch {
+                tile: list.create_ftile(factory),
+                label: label
+                    .as_ref()
+                    .and_then(|d| super::ftile::factory::arrow_text_block(&skin, d)),
+            })
+            .collect();
+        super::ftile::if_::FtileIf::new(
+            self.test.clone(),
+            branches,
+            super::ftile::if_::ConditionalLayout::switch(),
+            self.back_color.clone(),
+            skin,
+            self.in_link_rendering.clone(),
+            self.out_link_rendering.clone(),
+        )
+    }
+
+    fn add(&mut self, other: InsRef) -> CommandExecutionResult {
+        match self.branches.last_mut() {
+            Some((list, _)) => list.add(other),
+            None => CommandExecutionResult::error("No 'case' in this switch"),
+        }
+    }
+
+    fn kill(&mut self) -> bool {
+        self.branches
+            .last_mut()
+            .is_some_and(|(list, _)| list.kill())
+    }
+
+    fn in_link_rendering(&self) -> LinkRendering {
+        self.in_link_rendering.clone()
+    }
+
+    fn contains_break(&self) -> bool {
+        self.branches.iter().any(|(l, _)| l.contains_break())
+    }
+
+    fn swimlanes(&self) -> Vec<Rc<Swimlane>> {
+        let mut result = Vec::new();
+        for (list, _) in &self.branches {
+            for lane in list.swimlanes() {
+                if !result.iter().any(|l| Rc::ptr_eq(l, &lane)) {
+                    result.push(lane);
+                }
+            }
+        }
+        result
+    }
+
+    fn swimlane_in(&self) -> Option<Rc<Swimlane>> {
+        self.swimlane.clone()
+    }
+
+    fn swimlane_out(&self) -> Option<Rc<Swimlane>> {
+        self.branches.last().and_then(|(l, _)| l.swimlane_out())
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+}
+
 /// An `if` with its branches (`InstructionIf`).
 pub struct InstructionIf {
     branches: Vec<(InstructionList, Option<Display>)>,
@@ -486,6 +597,7 @@ impl Instruction for InstructionIf {
         super::ftile::if_::FtileIf::new(
             self.test.clone(),
             branches,
+            super::ftile::if_::ConditionalLayout::if_(),
             self.back_color.clone(),
             skin,
             self.in_link_rendering.clone(),

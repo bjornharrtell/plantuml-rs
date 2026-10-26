@@ -193,3 +193,19 @@ fn endif_outside_if_is_an_error() {
     assert!(render("@startuml\nendif\n@enduml").is_err());
     assert!(render("@startuml\nelse\n@enduml").is_err());
 }
+
+#[test]
+fn switch_renders_cases_and_labels() {
+    let out = svg("switch (x?)\ncase (a)\n:A;\ncase (b)\n:B;\nendswitch");
+    assert!(out.contains(">x?</text>"));
+    assert!(out.contains(">a</text>") && out.contains(">b</text>"));
+    assert!(out.contains(">A</text>") && out.contains(">B</text>"));
+    let out = svg("switch (x?)\ncase (a)\n:A;\ncase (b)\n:B;\ncase (c)\n:C;\nendswitch");
+    assert!(out.contains(">C</text>"));
+}
+
+#[test]
+fn switch_commands_outside_switch_are_errors() {
+    assert!(render("@startuml\ncase (a)\n@enduml").is_err());
+    assert!(render("@startuml\nendswitch\n@enduml").is_err());
+}

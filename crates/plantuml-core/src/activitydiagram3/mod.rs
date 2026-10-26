@@ -32,7 +32,7 @@ use crate::url::Url;
 use ftile::box_style::BoxStyle;
 use instruction::{
     InsRef, InstructionFork, InstructionGroup, InstructionIf, InstructionNode, InstructionRepeat,
-    InstructionSimple, InstructionWhile, NodeKind,
+    InstructionSimple, InstructionSwitch, InstructionWhile, NodeKind,
 };
 use rainbow::{LinkRendering, Rainbow};
 use std::cell::RefCell;
@@ -207,6 +207,62 @@ impl ActivityDiagram3 {
         self.current().borrow_mut().add(group.clone());
         self.group_stack.push(self.current());
         self.swimlanes.set_current(group);
+    }
+
+    /// Starts a `switch` (`startSwitch`).
+    pub fn start_switch(
+        &mut self,
+        test: Display,
+        back_color: Option<crate::klimt::color::HColor>,
+    ) {
+        self.manage_swimlane_strategy();
+        let switch = InstructionSwitch::new(
+            test,
+            back_color,
+            self.swimlanes.current_swimlane(),
+            self.next_link_renderer(),
+        );
+        let switch: InsRef = Rc::new(RefCell::new(switch));
+        self.current().borrow_mut().add(switch.clone());
+        self.group_stack.push(self.current());
+        self.swimlanes.set_current(switch);
+    }
+
+    /// Adds a branch to the current `switch` (`switchCase`).
+    pub fn switch_case(&mut self, label: Option<Display>) -> CommandExecutionResult {
+        let current = self.current();
+        if !current.borrow().as_any().is::<InstructionSwitch>() {
+            return CommandExecutionResult::error("Cannot find switch");
+        }
+        let mut current = current.borrow_mut();
+        let Some(switch) = current.as_any_mut().downcast_mut::<InstructionSwitch>() else {
+            return CommandExecutionResult::error("Cannot find switch");
+        };
+        switch.case(label);
+        CommandExecutionResult::ok()
+    }
+
+    /// Closes the `switch` (`endswitch`).
+    pub fn end_switch(&mut self) -> CommandExecutionResult {
+        let current = self.current();
+        if !current.borrow().as_any().is::<InstructionSwitch>() {
+            return CommandExecutionResult::error("Cannot find switch");
+        }
+        {
+            let mut current = current.borrow_mut();
+            let Some(switch) = current.as_any_mut().downcast_mut::<InstructionSwitch>() else {
+                return CommandExecutionResult::error("Cannot find switch");
+            };
+            switch.set_out_rendering(self.next_link_renderer());
+        }
+        self.reset_next_link();
+        match self.group_stack.pop() {
+            Some(parent) => {
+                self.swimlanes.set_current(parent);
+                CommandExecutionResult::ok()
+            }
+            None => CommandExecutionResult::error("Cannot find switch"),
+        }
     }
 
     /// Starts an `if` (`startIf`).

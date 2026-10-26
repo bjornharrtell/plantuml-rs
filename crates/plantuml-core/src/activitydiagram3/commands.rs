@@ -314,6 +314,72 @@ fn end_fork() -> Cmd {
     )
 }
 
+/// `switch (test)`: start a switch.
+fn switch_start() -> Cmd {
+    single(
+        vec![
+            IRegex::start(),
+            crate::klimt::color::parser::exp4(),
+            IRegex::leaf("switch"),
+            IRegex::space_zero_or_more(),
+            IRegex::leaf(r"\("),
+            IRegex::named("TEST", "(.*?)"),
+            IRegex::leaf(r"\)"),
+            IRegex::space_zero_or_more(),
+            Stereogroup::optional_stereogroup(),
+            IRegex::end(),
+        ],
+        |d, arg| {
+            if let Some(color) = arg.get("COLOR", 0) {
+                d.base.add_warning(vec![format!(
+                    "This syntax is deprecated, you must add <<{color}>> at the end of the line"
+                )]);
+            }
+            let colors = Stereogroup::build(arg).inner_colors();
+            let back = colors.color(ColorType::Back).cloned();
+            d.start_switch(Display::with_newlines(arg.get("TEST", 0)), back);
+            CommandExecutionResult::ok()
+        },
+    )
+}
+
+/// `case (value)`: add a branch to the switch.
+fn switch_case() -> Cmd {
+    single(
+        vec![
+            IRegex::start(),
+            IRegex::leaf("case"),
+            IRegex::space_zero_or_more(),
+            IRegex::leaf(r"\("),
+            IRegex::named("TEST", "(.*?)"),
+            IRegex::leaf(r"\)"),
+            IRegex::space_zero_or_more(),
+            IRegex::end(),
+        ],
+        |d, arg| {
+            let label = arg
+                .get("TEST", 0)
+                .filter(|t| !t.is_empty())
+                .map(|t| Display::with_newlines(Some(t)));
+            d.switch_case(label)
+        },
+    )
+}
+
+/// `endswitch`: close the switch.
+fn end_switch() -> Cmd {
+    single(
+        vec![
+            IRegex::start(),
+            IRegex::leaf("endswitch"),
+            IRegex::space_zero_or_more(),
+            Stereogroup::optional_stereogroup(),
+            IRegex::end(),
+        ],
+        |d, _| d.end_switch(),
+    )
+}
+
 /// `if (test) then (yes)` or `if (test) is (yes) then`.
 fn if_start() -> Cmd {
     single(
@@ -591,6 +657,9 @@ pub fn commands() -> Vec<Cmd> {
     cmds.push(else_branch());
     cmds.push(elseif_branch());
     cmds.push(end_if());
+    cmds.push(switch_start());
+    cmds.push(switch_case());
+    cmds.push(end_switch());
 
     // CommandArrow3
     cmds.push(single(arrow_regex("(.*);"), |d, arg| {

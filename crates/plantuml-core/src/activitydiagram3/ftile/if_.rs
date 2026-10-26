@@ -17,8 +17,35 @@ use crate::style::{queries, PName};
 use std::rc::Rc;
 
 const MERGE: f64 = 24.0;
-const BRANCH_GAP: f64 = 40.0;
-const SPACE_AROUND: f64 = 10.0;
+
+/// Geometry of a conditional tile (`if` and `switch` differ slightly).
+#[derive(Clone, Copy)]
+pub struct ConditionalLayout {
+    pub branch_gap: f64,
+    pub branch_space: f64,
+    pub merge_gap: f64,
+    pub labels_above: bool,
+}
+
+impl ConditionalLayout {
+    pub fn if_() -> Self {
+        Self {
+            branch_gap: 40.0,
+            branch_space: 10.0,
+            merge_gap: 6.0,
+            labels_above: true,
+        }
+    }
+
+    pub fn switch() -> Self {
+        Self {
+            branch_gap: 50.0,
+            branch_space: 40.556,
+            merge_gap: 10.0,
+            labels_above: false,
+        }
+    }
+}
 
 pub struct Branch {
     pub tile: FtileRef,
@@ -29,6 +56,7 @@ pub struct Branch {
 pub struct FtileIf {
     condition: Diamond,
     branches: Vec<Branch>,
+    layout: ConditionalLayout,
     skin: Rc<SkinParam>,
     in_link_rendering: LinkRendering,
     out_link_rendering: LinkRendering,
@@ -38,6 +66,7 @@ impl FtileIf {
     pub fn new(
         condition: Display,
         branches: Vec<Branch>,
+        layout: ConditionalLayout,
         back: Option<HColor>,
         skin: Rc<SkinParam>,
         in_link_rendering: LinkRendering,
@@ -46,6 +75,7 @@ impl FtileIf {
         Rc::new(Self {
             condition: Diamond::new(condition, &skin, back),
             branches,
+            layout,
             skin,
             in_link_rendering,
             out_link_rendering,
@@ -60,15 +90,15 @@ impl FtileIf {
         let n = self.branches.len();
         let widths: f64 = (0..n).map(|i| self.branch_width(i, sb)).sum();
         let diamond = self.condition.width(sb);
-        (widths + BRANCH_GAP * (n.saturating_sub(1)) as f64).max(diamond)
+        (widths + self.layout.branch_gap * (n.saturating_sub(1)) as f64).max(diamond)
     }
 
     fn branch_offset(&self, i: usize, sb: &dyn StringBounder) -> (f64, f64) {
         let mut x = 0.0;
         for k in 0..i {
-            x += self.branch_width(k, sb) + BRANCH_GAP;
+            x += self.branch_width(k, sb) + self.layout.branch_gap;
         }
-        (x, self.condition.height + SPACE_AROUND)
+        (x, self.condition.height + self.layout.branch_space)
     }
 
     fn branch_y(&self, sb: &dyn StringBounder) -> f64 {
@@ -86,7 +116,7 @@ impl FtileIf {
         let width = self.width(sb);
         (
             (width - MERGE) / 2.0,
-            self.branch_y(sb) + self.branch_height(sb) + 6.0,
+            self.branch_y(sb) + self.branch_height(sb) + self.layout.merge_gap,
         )
     }
 
@@ -186,9 +216,14 @@ impl Ftile for FtileIf {
             g.draw_snake(down);
             if let Some(label) = &self.branches[i].label {
                 let dim = label.calculate_dimension(sb);
+                let y = if self.layout.labels_above {
+                    middle - dim.height - 2.0
+                } else {
+                    (self.condition.height + by - dim.height) / 2.0
+                };
                 label.draw(&g.ug().apply_translate(UTranslate::new(
                     center - dim.width / 2.0,
-                    middle - dim.height - 2.0,
+                    y,
                 )));
             }
 
