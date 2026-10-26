@@ -33,6 +33,7 @@ pub mod style;
 pub mod svek;
 pub mod text;
 pub mod tim;
+pub mod timingdiagram;
 pub mod url;
 pub mod wbs;
 pub mod yaml;
@@ -164,9 +165,9 @@ mod tests {
 
     #[test]
     fn unsupported_kind() {
-        let err = render("@starttiming\nx\n@endtiming").unwrap_err();
-        assert_eq!(err, Error::Unsupported("timing".into()));
-        assert_eq!(err.to_string(), "unsupported diagram type: timing");
+        let err = render("@startbpm\nAlice -> Bob\n@endbpm").unwrap_err();
+        assert_eq!(err, Error::Unsupported("bpm".into()));
+        assert_eq!(err.to_string(), "unsupported diagram type: bpm");
     }
 
     #[test]
