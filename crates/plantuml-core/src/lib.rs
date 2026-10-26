@@ -10,6 +10,7 @@ pub mod cucadiagram;
 pub mod decoration;
 pub mod diagram;
 pub mod export;
+pub mod gantt;
 pub mod hcl;
 pub mod json;
 pub mod jsondiagram;
@@ -144,6 +145,7 @@ pub fn render_with(
     };
     let mut opts = ExportOptions::new(&skin, base.diagram_type, margin);
     opts.back_color = base.calculate_back_color();
+    opts.scale = base.scale;
     opts.svg_title = pre.artifact.options.get(&OptionKey::SvgTitle).cloned();
     opts.svg_desc = pre.artifact.options.get(&OptionKey::SvgDesc).cloned();
     let block = crate::chrome::create(block, base, &skin, &diagram.title());
@@ -162,9 +164,9 @@ mod tests {
 
     #[test]
     fn unsupported_kind() {
-        let err = render("@startgantt\n[a] lasts 1 day\n@endgantt").unwrap_err();
-        assert_eq!(err, Error::Unsupported("gantt".into()));
-        assert_eq!(err.to_string(), "unsupported diagram type: gantt");
+        let err = render("@starttiming\nx\n@endtiming").unwrap_err();
+        assert_eq!(err, Error::Unsupported("timing".into()));
+        assert_eq!(err.to_string(), "unsupported diagram type: timing");
     }
 
     #[test]
