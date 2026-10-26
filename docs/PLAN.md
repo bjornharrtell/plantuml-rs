@@ -221,41 +221,42 @@ time; it is a regression signal, not the acceptance bar (see [Fidelity target](#
 - Done: wasm package and playground (`site/`, `scripts/build-site.sh`, `.github/workflows/pages.yml`; enable Pages with source "GitHub Actions" in the repository settings).
 - Done: chart diagrams (`chart/`: axes, bar/line/area/scatter series, legend, annotations). Vega CHART: 35/35 identical.
 - Done: salt diagrams (`salt/`: tokenizer, element factories, tables, trees, tabs, menus, droplists, scroll, border, images; sprites skipped). Vega SALT: 6/10 identical, 4 differ only by line order (Java HashSet) or by creole `[[url{tooltip}]]` links.
-- In progress: class diagrams. Ported: `abel` model, `plasma`, `cucadiagram`, link decorations, visibility icons, class/link commands, `set separator`/`namespaceSeparator`, `hide`/`show` (by name, stereotype, gender, visibility), `left to right`/`top to bottom direction`, `package`/`namespace` blocks with `}`, `DotPath`, `svek` (types, node, role labels, extremities, bibliotekon, cluster), `SvekEdge`, `DotStringFactory` on graphviz-pure, `EntityImageClass`. Next: cluster layout and drawing for `package`/`namespace` bodies (`Cluster::print_internal` and the cluster box), then notes on members and association classes.
+- In progress: class diagrams. Ported: `abel` model, `plasma`, `cucadiagram`, link decorations, visibility icons, class/link commands, `set separator`/`namespaceSeparator`, `hide`/`show`, direction statements, `package`/`namespace` blocks, association classes and points, notes on members, packages as clusters, object and description diagrams. Remaining class gaps are listed in [Remaining work](#remaining-work).
 - Done: mindmap and WBS diagrams (`mindmap/`, `wbs/`: tetris packing, fingers, forks, links). Vega MINDMAP 4/4, WBS 7/7 identical.
 - Done: state diagrams (`statediagram/`): state parser and commands (composite/concurrent regions, descriptions, history/fork/join pseudo-states, `hide $x`), model registered as `StateDiagramFactory`, layout on `sdot` with autarkic composite pre-rendering (`InnerStateAutonom`, `ConcurrentStates`, `PaddedEntityImage`), rounded state cluster headers (`RoundedContainer`). Vega STATE: 48/48 render, 16 identical, 33% exact structure.
 - Done: gantt diagrams (`gantt/`): tasks, dependencies, milestones, resources, calendars, colors. Vega GANTT: 16/16 render, 15 identical.
 - Done: timing diagrams (`timingdiagram/`): clocks, binary/bit signals, constraints, scales, highlights. Vega TIMING: 3/3 identical.
-- In progress: activity diagrams (`activitydiagram3/`): instruction tree, ftile layer (box, start/stop/end, assembly, arrows with `Snake`/`Worm` merging), `klimt/compress`, commands for actions, arrows, start/stop/end, box styles, stereogroup colors. Vega ACTIVITY: the plain action/arrow fixtures are identical. Next: if/switch, while/repeat, fork/split, groups/swimlanes, notes, goto/labels, spots, kill.
-- Next: description/component diagrams, then C4 models (see the C4 section).
+- In progress: activity diagrams (`activitydiagram3/`): instruction tree, ftile layer, `klimt/compress`, commands for actions, arrows, start/stop/end, if/switch, while/repeat, fork, groups and partitions. Control blocks with colour or stereotype prefixes still differ (19 fixtures); see [Remaining work](#remaining-work).
+- Next: bundle stdlib includes (unblocks C4 models, see the C4 section), then the unported diagram types in [Remaining work](#remaining-work).
 
-## Measured fidelity (2026-10-26)
+## Measured fidelity (at `8208623`)
 
-graphviz-pure stands in for `dot`. Scored against the targets in [Fidelity target](#fidelity-target);
-`!pragma layout smetana` fixtures are excluded from the layout target by construction.
+graphviz-pure stands in for `dot`. Scored against the targets in [Fidelity target](#fidelity-target) with
+`scripts/fidelity.py`; the 38 fixtures using `!pragma layout smetana` are excluded from the pass counts (their
+arrangement cannot match by construction).
 
 | type | n | ok% | text jaccard | layout | exact structure (diagnostic) | meets target |
 |---|---|---|---|---|---|---|
-| SEQUENCE | 149 | 97% | 0.95 | 0.94 | 93% | yes |
+| SEQUENCE | 149 | 100% | 0.99 | 0.98 | 95% | yes |
 | PACKET | 57 | 100% | 1.00 | 1.00 | 100% | yes |
+| CLASS | 53 | 100% | 0.99 | 0.93 | 57% | yes (30 of 36 in scope) |
+| STATE | 48 | 100% | 1.00 | 0.95 | 33% | yes (24 of 27 in scope) |
+| ACTIVITY | 36 | 100% | 0.92 | 0.62 | 17% | no (12 of 36 in scope) |
 | CHART | 35 | 100% | 1.00 | 1.00 | 100% | yes |
-| CLASS | 53 | 92% | 0.90 | 0.83 | 49% | no (layout) |
-| STATE | 48 | 100% | 1.00 | 0.95 | 33% | yes |
-| ACTIVITY | 36 | 22% | 0.18 | 0.19 | 17% | no |
 | GANTT | 16 | 100% | 1.00 | 1.00 | 94% | yes |
-| SALT | 10 | 100% | 0.96 | 0.99 | 60% | yes |
+| SALT | 10 | 100% | 0.96 | 0.99 | 60% | yes (9 of 10) |
 | WBS | 7 | 100% | 1.00 | 1.00 | 100% | yes |
-| DESCRIPTION | 6 | 17% | 0.08 | 0.00 | 0% | no |
+| DESCRIPTION | 6 | 100% | 1.00 | 0.82 | 33% | no (5 of 6) |
 | MINDMAP | 4 | 100% | 1.00 | 1.00 | 100% | yes |
-| CHEN_EER | 4 | 0% | - | 0.00 | 0% | no |
+| CHEN_EER | 4 | 100% | 1.00 | 0.88 | 0% | no (2 of 4) |
 | TIMING | 3 | 100% | 1.00 | 1.00 | 100% | yes |
-| BPM | 1 | 0% | - | 0.00 | 0% | no |
-| JSON | 1 | 100% | 1.00 | 0.92 | 0% | yes |
-| YAML | 1 | 100% | 1.00 | 0.90 | 0% | yes |
+| BPM (crash) | 1 | 100% | 1.00 | 1.00 | 100% | yes |
+| JSON | 1 | 100% | 1.00 | 0.92 | 0% | yes (layout 0.92) |
+| YAML | 1 | 100% | 1.00 | 0.90 | 0% | yes (layout 0.90) |
 
-All 431 fixtures: 89% render, `layout_mean` 0.86, text jaccard 0.88, 313 exact structures. Sequence, packet, chart,
-state, gantt, timing, mindmap, wbs, salt and json/yaml meet the target. CLASS renders 49 of 53 and is 0.83 on layout
-(association classes, notes on members). ACTIVITY, DESCRIPTION and CHEN_EER are the large remaining gaps.
+All 431 fixtures render. In scope: **352 of 393 pass (90%)**, 41 fail; `layout_mean` 0.94, text jaccard 0.99, 324
+exact structures. Sequence, packet, class, state, chart, gantt, salt, wbs, mindmap, timing, crash, json and yaml meet
+the target; activity, description and Chen EER do not.
 
 `size_within20%` is reported per fixture in the JSON but not tabulated here: it moves with font metrics and is not a
 signal of correctness.
@@ -268,4 +269,47 @@ cargo build -p plantuml-cli
 VEGA_DIR=plantuml/src/test/resources/vega FIDELITY_JSON=fidelity.json \
   python3 scripts/fidelity.py target/debug/plantuml-cli
 ```
-- Activity slices still to do: if/switch, while/repeat, fork/split, groups/partitions/swimlanes, notes, goto. Also open: SVG `<a>` hyperlinks, description/object diagrams (and C4 on top), EBNF/regex/bpm/wire/board/git/files, `!import` zip, handwritten mode.
+
+## Remaining work
+
+### In-scope fixture failures (41 of 393)
+
+| Area | Fixtures | Cause |
+|---|---|---|
+| Activity control-block colour and stereotype prefixes | 19 (`activity-deprecated-color/` 13, `activity-color-prefix/` 6) | `if`/`elseif`/`while`/`switch`/`repeat` with `#color` or `<<stereo>>` before or inside the branch parse, but the branch label and layout differ (example: `elseif (c?) is (no)` renders one branch only) |
+| Activity misc | 3 | `style-block-unclosed-at-eof`, `partition_no_bracket`, `A0004` |
+| Embedded `{{ ... }}` diagrams with `scale` | 5 | 3 `tikz/tikz-scale-*` (SEQUENCE), 2 `tikz/tikz-1926*` (ACTIVITY): the embedded diagram and its scale are not laid out |
+| Class package `USymbol` | 2 (`group2846/correct_code`, `bug`) | `package "Hello" as uid <<Frame>>` draws a plain cluster: `open_group` ignores the stereotype as a `USymbol` |
+| Class package cluster geometry | 2 (`group2938/dot_separator`, `double_backslash_separator`) | layout 0.89: cluster title/offset tuning |
+| Class id edge cases | 1 (`group2846/dollar_sign_code`) | `$` in package and class ids, coloured nested packages |
+| Class bucket outlier | 1 (`svg/id/component_01`) | description syntax filed under CLASS |
+| State | 3 | `svg/id/state_03`, `svg/id/state_05`, `group2783/nested_styled_composite` |
+| Chen EER | 2 | `migration/ChenMovieExtended_Test`, `ChenMovieAlias_Test` (layout 0.76) |
+| Salt | 1 | `group2732/brace_escape` (text 0.60) |
+| Description | 1 | `svg/interactive/SVG0005_Svek` |
+
+`nonreg/warnings/skinparam_handwritten` (SEQUENCE, layout 0.31) is not in the table above as a defect: handwritten
+mode needs a handwritten font, which is not embedded. It should either be listed as an accepted difference or
+dropped from the target; to be decided.
+
+### Unported diagram types
+
+No Vega fixture covers these, so they are unmeasured. All currently return `Unsupported`: `@startebnf`, `@startregex`,
+`@startwire`, `@startboard`, `@startgit`, `@startfiles`, `@startditaa`, `@startdot`, `@startmath`, `@startlatex`,
+`@startjcckit`, plus `@startflow`/`@startdef` and the help/sprites pages. Legacy (non-beta) activity diagrams are
+not ported either.
+
+### Foundations
+
+- Stdlib includes: `read_stdlib` exists in `tim` but no stdlib data is bundled, so `!include <C4/...>` and other
+  stdlib files fail. 44 themes are bundled and `!theme spacelab` works.
+- C4 models: blocked on stdlib only; the DESCRIPTION diagram type they expand to now exists (see the C4 section).
+- Creole gaps: tables, trees, code blocks, images, sprites, emoji, math, and links as `<a>`.
+- Handwritten mode (`!option handwritten`, `skinparam handwritten`).
+
+### Packaging
+
+- wasm size budget: the release wasm is 6.5 MB raw before `wasm-bindgen` (5.1 MB before the diagram types landed), so the
+  size work is still open. npm package, demo page and the speed comparison against the TeaVM baseline are also open;
+  render speed itself has not been re-measured here (the CLI is a debug build, so its process time is not
+  representative).
