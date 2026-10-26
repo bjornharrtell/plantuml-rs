@@ -28,8 +28,22 @@ skipped, so re-running a failed release is safe.
 
 ## One-time setup
 
-Add a crates.io API token as the repository secret `CARGO_REGISTRY_TOKEN` (Settings → Secrets and
-variables → Actions). Without it the publish steps fail with `no token found`.
+No secret is needed: publishing uses crates.io **trusted publishing**. On crates.io, under each crate's
+settings, add a trusted publisher of type GitHub with
+
+| field | value |
+|---|---|
+| repository | `bjornharrtell/plantuml-rs` |
+| workflow | `release.yml` |
+| environment | only if you also set `environment:` on the job, and then both must match |
+
+Do this for `plantuml-core` and for `plantuml-cli`. The workflow then exchanges its GitHub OIDC identity
+for a short-lived token (`rust-lang/crates-io-auth-action`, pinned to `v1.0.6`), which is why the job
+carries `id-token: write` and no long-lived `CARGO_REGISTRY_TOKEN` secret exists. Trusted publishing can
+only be configured for a crate that already exists, which is why `0.1.0` was published by hand.
+
+Trusted publishing covers CI only: publishing from a workstation still needs `cargo login` with a
+personal token. The skip-if-already-published check in the workflow makes it safe to re-run a tag.
 
 ## Notes
 
