@@ -34,7 +34,7 @@
   <button id="download">Download SVG</button>
   <span class="grow"></span>
   <span class="grow"></span>
-  <span title="Diagram types the port renders so far">supported: sequence, class (partial), state, activity (partial), packet, chart, mindmap, wbs, gantt, timing, salt, json, yaml, hcl</span>
+  <span title="Diagram types the port renders so far">supported: sequence, class, object, state, activity, component, use case, chen, packet, chart, mindmap, wbs, gantt, timing, salt, json, yaml, hcl, crash</span>
   <a href="https://github.com/bjornharrtell/plantuml-rs">source</a>
 </header>
 <main>
@@ -101,6 +101,49 @@ Animal <|-- Dog
 Pet <|.. Dog : implements
 Dog --> Animal : owner
 @enduml`,
+  'Object': `@startuml
+object "Alice" as alice {
+  name = "Alice"
+  age = 34
+}
+object "Bob" as bob {
+  name = "Bob"
+}
+alice --> bob : knows
+@enduml`,
+  'Component': `@startuml
+component "Web UI" as web
+component "REST API" as api
+database "PostgreSQL" as db
+web --> api : HTTPS
+api --> db : SQL
+@enduml`,
+  'Use case': `@startuml
+left to right direction
+actor Customer
+usecase "Place order" as place
+usecase "Pay" as pay
+Customer --> place
+place ..> pay : include
+@enduml`,
+  'Chen EER': `@startchen
+entity DIRECTOR {
+  Number <<key>>
+  Name {
+    Fname
+    Lname
+  }
+  Born : DATE
+}
+entity MOVIE {
+  Code
+}
+relationship RENTED_TO {
+  Date
+}
+RENTED_TO -1- DIRECTOR
+RENTED_TO -N- MOVIE
+@endchen`,
   'State': `@startuml
 [*] --> Idle
 Idle --> Running : start
@@ -114,11 +157,22 @@ state Running {
   Waiting --> Working : ready
 }
 @enduml`,
-  'Activity (partial)': `@startuml
+  'Activity: control flow': `@startuml
 start
 :Receive order;
-:Check stock;
-:Ship order;
+if (in stock?) then (yes)
+  :Reserve item;
+else (no)
+  :Back-order;
+endif
+while (more items?)
+  :Pack item;
+endwhile
+fork
+  :Print label;
+fork again
+  :Send email;
+end fork
 stop
 @enduml`,
   'Mindmap': `@startmindmap
@@ -217,6 +271,9 @@ colwidth = 32
 100-105: Reserved
 106-111: Flags
 @endpacketdiag`,
+  'Crash test': `@startcrash
+This is working
+@endcrash`,
 };
 
 const editor = document.getElementById('editor');
