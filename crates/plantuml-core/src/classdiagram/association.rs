@@ -71,6 +71,7 @@ impl ClassDiagram {
     }
 
     /// `(a, b) .. associed` (`associationClass` with a mode).
+    #[allow(clippy::too_many_arguments)]
     pub fn association_class(
         &mut self,
         loc: Option<LineLocation>,
@@ -257,6 +258,7 @@ impl ClassDiagram {
     }
 
     /// `(a, b) .. (c, d)`: a link between two association points.
+    #[allow(clippy::too_many_arguments)]
     pub fn association_between(
         &mut self,
         loc: Option<LineLocation>,
