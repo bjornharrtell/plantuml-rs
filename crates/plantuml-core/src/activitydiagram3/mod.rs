@@ -31,7 +31,8 @@ use crate::style::Style;
 use crate::url::Url;
 use ftile::box_style::BoxStyle;
 use instruction::{
-    InsRef, InstructionFork, InstructionGroup, InstructionNode, InstructionSimple, NodeKind,
+    InsRef, InstructionFork, InstructionGroup, InstructionNode, InstructionSimple, InstructionWhile,
+    NodeKind,
 };
 use rainbow::{LinkRendering, Rainbow};
 use std::cell::RefCell;
@@ -206,6 +207,48 @@ impl ActivityDiagram3 {
         self.current().borrow_mut().add(group.clone());
         self.group_stack.push(self.current());
         self.swimlanes.set_current(group);
+    }
+
+    /// Starts a `while` loop (`doWhile`).
+    pub fn do_while(
+        &mut self,
+        test: Display,
+        back_color: Option<crate::klimt::color::HColor>,
+    ) {
+        self.manage_swimlane_strategy();
+        let while_ = InstructionWhile::new(
+            test,
+            back_color,
+            self.swimlanes.current_swimlane(),
+            self.next_link_renderer(),
+        );
+        let while_: InsRef = Rc::new(RefCell::new(while_));
+        self.current().borrow_mut().add(while_.clone());
+        self.group_stack.push(self.current());
+        self.swimlanes.set_current(while_);
+    }
+
+    /// Closes a `while` loop (`endwhile`).
+    pub fn end_while(&mut self) -> CommandExecutionResult {
+        let current = self.current();
+        if !current.borrow().as_any().is::<InstructionWhile>() {
+            return CommandExecutionResult::error("Cannot find while");
+        }
+        {
+            let mut current = current.borrow_mut();
+            let Some(while_) = current.as_any_mut().downcast_mut::<InstructionWhile>() else {
+                return CommandExecutionResult::error("Cannot find while");
+            };
+            while_.set_out_rendering(self.next_link_renderer());
+        }
+        self.reset_next_link();
+        match self.group_stack.pop() {
+            Some(parent) => {
+                self.swimlanes.set_current(parent);
+                CommandExecutionResult::ok()
+            }
+            None => CommandExecutionResult::error("Cannot find while"),
+        }
     }
 
     /// Starts parallel branches (`fork`).

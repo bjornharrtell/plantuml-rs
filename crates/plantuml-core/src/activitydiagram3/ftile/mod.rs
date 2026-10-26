@@ -10,6 +10,7 @@ pub mod fork;
 pub mod group;
 pub mod leaf;
 pub mod snake;
+pub mod while_;
 pub mod wrap;
 
 use super::rainbow::LinkRendering;

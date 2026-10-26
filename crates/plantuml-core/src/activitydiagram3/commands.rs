@@ -314,6 +314,63 @@ fn end_fork() -> Cmd {
     )
 }
 
+/// `while (test)`: start a loop.
+fn while_start() -> Cmd {
+    single(
+        vec![
+            IRegex::start(),
+            crate::klimt::color::parser::exp4(),
+            IRegex::leaf("while"),
+            IRegex::space_zero_or_more(),
+            IRegex::leaf(r"\("),
+            IRegex::named("TEST", "(.*?)"),
+            IRegex::leaf(r"\)"),
+            IRegex::optional(IRegex::group(vec![
+                IRegex::space_zero_or_more(),
+                IRegex::named("IS", "(is|equals?)"),
+                IRegex::space_zero_or_more(),
+                IRegex::named("YES", r"\((.+?)\)"),
+            ])),
+            IRegex::leaf(";?"),
+            IRegex::space_zero_or_more(),
+            Stereogroup::optional_stereogroup(),
+            IRegex::end(),
+        ],
+        |d, arg| {
+            if let Some(color) = arg.get("COLOR", 0) {
+                d.base.add_warning(vec![format!(
+                    "This syntax is deprecated, you must add <<{color}>> at the end of the line"
+                )]);
+            }
+            let colors = Stereogroup::build(arg).inner_colors();
+            let back = colors.color(ColorType::Back).cloned();
+            d.do_while(
+                Display::with_newlines(arg.get("TEST", 0)),
+                back,
+            );
+            CommandExecutionResult::ok()
+        },
+    )
+}
+
+/// `endwhile`: close the loop.
+fn while_end() -> Cmd {
+    single(
+        vec![
+            IRegex::start(),
+            IRegex::or(vec![
+                IRegex::leaf("end[%s]*while"),
+                IRegex::leaf("while[%s]*end"),
+            ]),
+            IRegex::space_zero_or_more(),
+            IRegex::optional(IRegex::named("OUT", r"\((.+?)\)")),
+            IRegex::leaf(";?"),
+            IRegex::end(),
+        ],
+        |d, _| d.end_while(),
+    )
+}
+
 pub fn commands() -> Vec<Cmd> {
     let mut cmds: Vec<Cmd> = Vec::new();
     // CommandFootboxIgnored
@@ -335,6 +392,8 @@ pub fn commands() -> Vec<Cmd> {
     cmds.push(fork());
     cmds.push(fork_again());
     cmds.push(end_fork());
+    cmds.push(while_start());
+    cmds.push(while_end());
 
     // CommandArrow3
     cmds.push(single(arrow_regex("(.*);"), |d, arg| {

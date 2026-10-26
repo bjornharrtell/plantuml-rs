@@ -146,3 +146,18 @@ fn fork_again_outside_fork_is_an_error() {
     assert!(render("@startuml\nfork again\n@enduml").is_err());
     assert!(render("@startuml\nend fork\n@enduml").is_err());
 }
+
+#[test]
+fn while_loop_renders_condition_and_body() {
+    let out = svg("while (more?)\n:A;\nendwhile");
+    assert!(out.contains(">more?</text>"));
+    assert!(out.contains(">A</text>"));
+    assert!(out.contains("<polygon"));
+    let out = svg("#red:while (more?)\n:A;\nendwhile");
+    assert!(out.contains("deprecated"));
+}
+
+#[test]
+fn endwhile_outside_loop_is_an_error() {
+    assert!(render("@startuml\nendwhile\n@enduml").is_err());
+}
