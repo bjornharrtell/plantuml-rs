@@ -284,6 +284,7 @@ impl ActivityDiagram3 {
 
     /// Adds an `else` / `elseif` branch to the current `if`.
     pub fn else_branch(&mut self, label: Option<Display>) -> CommandExecutionResult {
+        let next = self.next_link_renderer();
         let current = self.current();
         if !current.borrow().as_any().is::<InstructionIf>() {
             return CommandExecutionResult::error("Cannot find if");
@@ -292,7 +293,9 @@ impl ActivityDiagram3 {
         let Some(if_) = current.as_any_mut().downcast_mut::<InstructionIf>() else {
             return CommandExecutionResult::error("Cannot find if");
         };
+        if_.branch_out(next);
         if_.else_branch(label);
+        self.reset_next_link();
         CommandExecutionResult::ok()
     }
 
@@ -304,10 +307,12 @@ impl ActivityDiagram3 {
         }
         {
             let mut current = current.borrow_mut();
+            let next = self.next_link_renderer();
             let Some(if_) = current.as_any_mut().downcast_mut::<InstructionIf>() else {
                 return CommandExecutionResult::error("Cannot find if");
             };
-            if_.set_out_rendering(self.next_link_renderer());
+            if_.branch_out(next.clone());
+            if_.set_out_rendering(next);
         }
         self.reset_next_link();
         match self.group_stack.pop() {

@@ -4,6 +4,7 @@
 use super::rainbow::Rainbow;
 use super::stereogroup::Stereogroup;
 use super::ActivityDiagram3;
+use crate::activitydiagram3::ftile::box_style::BoxStyle;
 use crate::command::{Command, CommandExecutionResult, MultiLineCommand, SingleLineCommand};
 use crate::decoration::usymbol::USymbol;
 use crate::klimt::color::colors::ColorType;
@@ -316,6 +317,150 @@ fn end_fork() -> Cmd {
     )
 }
 
+/// The legacy `(*) --> Activity` start of a flow.
+fn legacy_start() -> Cmd {
+    single(
+        vec![
+            IRegex::start(),
+            IRegex::leaf(r"\(\*\)"),
+            IRegex::space_zero_or_more(),
+            IRegex::named("ARROW", "(-->|->)"),
+            IRegex::space_zero_or_more(),
+            IRegex::optional(IRegex::group(vec![
+                IRegex::leaf(r"\["),
+                IRegex::named("LABEL", r"([^]]*)"),
+                IRegex::leaf(r"\]"),
+                IRegex::space_zero_or_more(),
+            ])),
+            IRegex::named("NAME", "(.+)"),
+            IRegex::end(),
+        ],
+        |d, arg| {
+            d.start(crate::klimt::color::colors::Colors::empty());
+            if let Some(label) = arg.get("LABEL", 0) {
+                d.set_label_next_arrow(Display::with_newlines(Some(label)));
+            }
+            add_legacy_activity(d, arg.get("NAME", 0));
+            CommandExecutionResult::ok()
+        },
+    )
+}
+
+fn add_legacy_activity(d: &mut ActivityDiagram3, name: Option<&str>) {
+    if let Some(name) = name {
+        d.add_activity(
+            Display::with_newlines(Some(name.trim())),
+            BoxStyle::Plain,
+            None,
+            &Stereogroup::default(),
+        );
+    }
+}
+
+/// A line that is only a spot name (`===Y1===`).
+fn legacy_spot() -> Cmd {
+    single(
+        vec![IRegex::start(), IRegex::leaf(r"===.*==="), IRegex::end()],
+        |_, _| CommandExecutionResult::ok(),
+    )
+}
+
+/// `===Y1=== --> Activity`: the spot is transparent, the activity follows.
+fn legacy_spot_arrow() -> Cmd {
+    single(
+        vec![
+            IRegex::start(),
+            IRegex::leaf(r"===.*==="),
+            IRegex::space_zero_or_more(),
+            IRegex::named("ARROW", "(-->|->)"),
+            IRegex::space_zero_or_more(),
+            IRegex::optional(IRegex::group(vec![
+                IRegex::leaf(r"\["),
+                IRegex::named("LABEL", r"([^]]*)"),
+                IRegex::leaf(r"\]"),
+                IRegex::space_zero_or_more(),
+            ])),
+            IRegex::named("NAME", "(.+)"),
+            IRegex::end(),
+        ],
+        |d, arg| {
+            if let Some(label) = arg.get("LABEL", 0) {
+                d.set_label_next_arrow(Display::with_newlines(Some(label)));
+            }
+            add_legacy_activity(d, arg.get("NAME", 0));
+            CommandExecutionResult::ok()
+        },
+    )
+}
+
+/// `--> (*)`: the legacy end of a flow.
+fn legacy_stop() -> Cmd {
+    single(
+        vec![
+            IRegex::start(),
+            IRegex::named("ARROW", "(-->|->)"),
+            IRegex::space_zero_or_more(),
+            IRegex::leaf(r"\(\*\)"),
+            IRegex::end(),
+        ],
+        |d, _| {
+            d.stop(crate::klimt::color::colors::Colors::empty());
+            CommandExecutionResult::ok()
+        },
+    )
+}
+
+/// `--> ===Y1===`: a trailing arrow to a transparent spot.
+fn legacy_arrow_spot() -> Cmd {
+    single(
+        vec![
+            IRegex::start(),
+            IRegex::named("ARROW", "(-->|->)"),
+            IRegex::space_zero_or_more(),
+            IRegex::optional(IRegex::group(vec![
+                IRegex::leaf(r"\["),
+                IRegex::named("LABEL", r"([^]]*)"),
+                IRegex::leaf(r"\]"),
+                IRegex::space_zero_or_more(),
+            ])),
+            IRegex::leaf(r"===.*==="),
+            IRegex::end(),
+        ],
+        |d, arg| {
+            if let Some(label) = arg.get("LABEL", 0) {
+                d.set_label_next_arrow(Display::with_newlines(Some(label)));
+            }
+            CommandExecutionResult::ok()
+        },
+    )
+}
+
+/// `--> Activity`: the legacy activity declaration after an arrow.
+fn legacy_arrow_activity() -> Cmd {
+    single(
+        vec![
+            IRegex::start(),
+            IRegex::named("ARROW", "(-->|->)"),
+            IRegex::space_zero_or_more(),
+            IRegex::optional(IRegex::group(vec![
+                IRegex::leaf(r"\["),
+                IRegex::named("LABEL", r"([^]]*)"),
+                IRegex::leaf(r"\]"),
+            ])),
+            IRegex::space_zero_or_more(),
+            IRegex::named("NAME", "([^;]+)"),
+            IRegex::end(),
+        ],
+        |d, arg| {
+            if let Some(label) = arg.get("LABEL", 0) {
+                d.set_label_next_arrow(Display::with_newlines(Some(label)));
+            }
+            add_legacy_activity(d, arg.get("NAME", 0));
+            CommandExecutionResult::ok()
+        },
+    )
+}
+
 /// `switch (test)`: start a switch.
 fn switch_start() -> Cmd {
     single(
@@ -418,6 +563,44 @@ fn if_start() -> Cmd {
             let back = colors.color(ColorType::Back).cloned();
             d.start_if(
                 Display::with_newlines(arg.get("TEST", 0)),
+                arg.get("YES", 0).map(|y| Display::with_newlines(Some(y))),
+                back,
+            );
+            CommandExecutionResult::ok()
+        },
+    )
+}
+
+/// Legacy `if TEST then` without parentheses around the test.
+fn if_legacy() -> Cmd {
+    single(
+        vec![
+            IRegex::start(),
+            IRegex::leaf("if"),
+            IRegex::space_one_or_more(),
+            IRegex::named("TEST", "(.*?)"),
+            IRegex::space_one_or_more(),
+            IRegex::leaf("then"),
+            IRegex::space_zero_or_more(),
+            IRegex::optional(IRegex::group(vec![
+                IRegex::leaf(r"\("),
+                IRegex::named("YES", "(.+?)"),
+                IRegex::leaf(r"\)"),
+            ])),
+            IRegex::leaf(";?"),
+            IRegex::space_zero_or_more(),
+            Stereogroup::optional_stereogroup(),
+            IRegex::end(),
+        ],
+        |d, arg| {
+            let colors = Stereogroup::build(arg).inner_colors();
+            let back = colors.color(ColorType::Back).cloned();
+            let test = match arg.get("TEST", 0) {
+                Some("\"\"") | None => Display::with_newlines(None),
+                other => Display::with_newlines(other),
+            };
+            d.start_if(
+                test,
                 arg.get("YES", 0).map(|y| Display::with_newlines(Some(y))),
                 back,
             );
@@ -651,6 +834,7 @@ pub fn commands() -> Vec<Cmd> {
     cmds.push(repeat_start());
     cmds.push(repeat_while());
     cmds.push(if_start());
+    cmds.push(if_legacy());
     cmds.push(else_branch());
     cmds.push(elseif_branch());
     cmds.push(end_if());
@@ -810,5 +994,12 @@ pub fn commands() -> Vec<Cmd> {
         },
     ));
     // CommandLabel, CommandGoto
+    // Legacy arrows are tried last so that the multi-line arrow commands win.
+    cmds.push(legacy_start());
+    cmds.push(legacy_spot());
+    cmds.push(legacy_spot_arrow());
+    cmds.push(legacy_stop());
+    cmds.push(legacy_arrow_spot());
+    cmds.push(legacy_arrow_activity());
     cmds
 }

@@ -209,3 +209,21 @@ fn switch_commands_outside_switch_are_errors() {
     assert!(render("@startuml\ncase (a)\n@enduml").is_err());
     assert!(render("@startuml\nendswitch\n@enduml").is_err());
 }
+
+#[test]
+fn legacy_start_stop_and_arrows_render() {
+    let out = svg(
+        "(*) --> Verify\nif \"\" then\n-> [incorrect] Send\n--> (*)\nelse\n--> [correct] Get\n--> ===Y1===\nendif\n===Y1=== --> Print\n--> ===Y2===\n--> Give\n--> (*)",
+    );
+    for text in [
+        "Verify",
+        "Send",
+        "Get",
+        "Print",
+        "Give",
+        "incorrect",
+        "correct",
+    ] {
+        assert!(out.contains(text), "missing {text}: {out}");
+    }
+}

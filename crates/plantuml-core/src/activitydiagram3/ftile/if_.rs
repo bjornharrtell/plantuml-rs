@@ -231,6 +231,24 @@ impl Ftile for FtileIf {
                 );
             }
 
+            let incoming = self.branches[i].tile.in_link_rendering();
+            if let Some(label) = super::factory::arrow_text_block(&self.skin, incoming.display()) {
+                let dim = label.calculate_dimension(sb);
+                label.draw(&g.ug().apply_translate(UTranslate::new(
+                    center - dim.width / 2.0,
+                    (self.condition.height + by - dim.height) / 2.0,
+                )));
+            }
+
+            let outgoing = self.branches[i].tile.out_link_rendering();
+            if let Some(label) = super::factory::arrow_text_block(&self.skin, outgoing.display()) {
+                let dim = label.calculate_dimension(sb);
+                label.draw(&g.ug().apply_translate(UTranslate::new(
+                    center - dim.width / 2.0,
+                    my - dim.height - 2.0,
+                )));
+            }
+
             let to = if i == 0 {
                 Direction::Right
             } else if i == n - 1 {

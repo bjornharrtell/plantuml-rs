@@ -577,6 +577,13 @@ impl InstructionIf {
     pub fn set_out_rendering(&mut self, link: LinkRendering) {
         self.out_link_rendering = link;
     }
+
+    /// Remembers the arrow leaving the current branch (`addElse`).
+    pub fn branch_out(&mut self, link: LinkRendering) {
+        if let Some((list, _)) = self.branches.last_mut() {
+            list.set_out_rendering(link);
+        }
+    }
 }
 
 impl Instruction for InstructionIf {
