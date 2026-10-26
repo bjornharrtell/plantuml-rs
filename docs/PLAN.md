@@ -213,6 +213,7 @@ time; it is a regression signal, not the acceptance bar (see [Fidelity target](#
 - Done: notes (`NoteTile`, `NotesTile`, note-on-message tiles, group end notes, rose note components, `BodyEnhanced`, note commands) and parallel sibling disjoint constraints. Vega SEQUENCE: 45/109 identical.
 - Done: participant figures (actor styles, boundary, control, entity, database, queue). Vega SEQUENCE: 57/109.
 - Done: participant boxes (`Dolls`, englober), `ref over` (`ReferenceTile`), `StringUtils` helpers. Vega SEQUENCE: 73/109.
+- Done: JSON, YAML and HCL data diagrams (`jsondiagram/`, `yaml/`, `hcl/`): value parsers, key/value boxes (`TextBlockJson`), links laid out with `graphviz-pure` on fixed-size HTML-table nodes (stand-in for the patched Smetana records); `skinparam handwritten` not drawn. Vega JSON 1/1 matches in structure (x drift from text widths); YAML fixture needs `!theme` resolution in the CLI.
 - Done: border (exo) messages (`CommunicationExoTile`, exo arrow commands). Vega SEQUENCE: 75/109.
 - Done: diagram chrome (title, header, footer, legend, caption, mainframe, warnings banner): `chrome.rs`, `DecorateEntityImage`. Vega SEQUENCE: 77/109.
 - Done: preprocessor (`tim`: comments, variables, expressions, functions/procedures, conditionals, loops, includes, subs, options, builtins), source block splitting (`preproc.rs`), `json.rs`, HSLuv. Vega SEQUENCE: 101/109.

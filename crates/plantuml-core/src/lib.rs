@@ -9,7 +9,9 @@ pub mod cucadiagram;
 pub mod decoration;
 pub mod diagram;
 pub mod export;
+pub mod hcl;
 pub mod json;
+pub mod jsondiagram;
 pub mod klimt;
 pub mod nwdiag;
 pub mod packetdiag;
@@ -29,6 +31,7 @@ pub mod svek;
 pub mod text;
 pub mod tim;
 pub mod url;
+pub mod yaml;
 
 /// Version reported by `%version()`.
 pub const VERSION: &str = "1.2026.0";
