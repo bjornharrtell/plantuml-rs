@@ -589,6 +589,11 @@ impl UGraphic {
         &self.param.backcolor
     }
 
+    /// Accumulated translation of the drawing context (`getTranslate`).
+    pub fn translate(&self) -> UTranslate {
+        self.translate
+    }
+
     pub fn string_bounder(&self) -> &dyn StringBounder {
         self.bounder.as_ref()
     }

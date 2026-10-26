@@ -13,6 +13,7 @@ pub mod hcl;
 pub mod json;
 pub mod jsondiagram;
 pub mod klimt;
+pub mod mindmap;
 pub mod nwdiag;
 pub mod packetdiag;
 pub mod plasma;
@@ -32,6 +33,7 @@ pub mod text;
 pub mod tim;
 pub mod url;
 pub mod yaml;
+pub mod wbs;
 
 /// Version reported by `%version()`.
 pub const VERSION: &str = "1.2026.0";
@@ -156,9 +158,9 @@ mod tests {
 
     #[test]
     fn unsupported_kind() {
-        let err = render("@startmindmap\n* a\n@endmindmap").unwrap_err();
-        assert_eq!(err, Error::Unsupported("mindmap".into()));
-        assert_eq!(err.to_string(), "unsupported diagram type: mindmap");
+        let err = render("@startgantt\n[a] lasts 1 day\n@endgantt").unwrap_err();
+        assert_eq!(err, Error::Unsupported("gantt".into()));
+        assert_eq!(err.to_string(), "unsupported diagram type: gantt");
     }
 
     #[test]

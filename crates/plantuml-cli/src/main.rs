@@ -44,7 +44,7 @@ mod tests {
     #[test]
     fn unsupported_diagram_is_an_error() {
         let path = std::env::temp_dir().join("plantuml-cli-test.puml");
-        std::fs::write(&path, "@startmindmap\n* a\n@endmindmap\n").unwrap();
+        std::fs::write(&path, "@startgantt\n[a] lasts 1 day\n@endgantt\n").unwrap();
         let mut out = Vec::new();
         let err = run(path.to_str(), &mut out).unwrap_err();
         assert!(err.contains("unsupported"));
