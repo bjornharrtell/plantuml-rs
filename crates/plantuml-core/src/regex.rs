@@ -56,8 +56,17 @@ pub fn transform(input: &str) -> String {
 
 /// Compiles with PlantUML semantics (case-insensitive, shorthands expanded).
 pub fn compile(pattern: &str) -> Engine {
+    thread_local! {
+        static CACHE: std::cell::RefCell<std::collections::HashMap<String, Engine>> =
+            std::cell::RefCell::new(std::collections::HashMap::new());
+    }
+    if let Some(e) = CACHE.with(|c| c.borrow().get(pattern).cloned()) {
+        return e;
+    }
     let full = format!("(?i){}", transform(pattern));
-    Engine::new(&full).unwrap_or_else(|e| panic!("invalid regex {full}: {e}"))
+    let engine = Engine::new(&full).unwrap_or_else(|e| panic!("invalid regex {full}: {e}"));
+    CACHE.with(|c| c.borrow_mut().insert(pattern.to_string(), engine.clone()));
+    engine
 }
 
 /// Values of the named groups of one match (`RegexResult`).
