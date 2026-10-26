@@ -534,6 +534,25 @@ pub fn common_commands<D: HasBase + 'static>() -> Vec<Cmd<D>> {
     cmds.push(mainframe());
     cmds.extend(scale_commands());
     cmds.extend(style_commands());
+    cmds.push(Box::new(SingleLineCommand::new(
+        IRegex::concat(vec![
+            IRegex::start(),
+            IRegex::named("HIDE", "(hide|show)"),
+            IRegex::space_one_or_more(),
+            IRegex::leaf("empty"),
+            IRegex::space_one_or_more(),
+            IRegex::leaf("description"),
+            IRegex::end(),
+        ]),
+        |d: &mut D, _, arg, _| {
+            let hide = arg
+                .get("HIDE", 0)
+                .unwrap_or("")
+                .eq_ignore_ascii_case("hide");
+            d.base_mut().hide_empty_description = hide;
+            CommandExecutionResult::ok()
+        },
+    )));
     cmds
 }
 

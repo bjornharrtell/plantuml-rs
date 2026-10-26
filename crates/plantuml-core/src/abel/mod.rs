@@ -2,6 +2,7 @@
 
 pub mod bodier;
 pub mod entity;
+pub mod entity_utils;
 pub mod gender;
 pub mod hide;
 pub mod link;
@@ -9,6 +10,7 @@ pub mod member;
 
 pub use bodier::Bodier;
 pub use entity::Entity;
+pub use entity_utils::{is_autarkic, is_pure_inner_link12};
 pub use link::{Link, LinkArg, LinkConstraint};
 pub use member::Member;
 
@@ -207,6 +209,57 @@ impl EntityPosition {
 
     pub fn use_port_p(self) -> bool {
         self.is_port() || matches!(self, EntityPosition::ExitPoint | EntityPosition::EntryPoint)
+    }
+
+    /// Draws the symbol of an entry or exit point, a pin or an expansion node
+    /// (`EntityPosition.drawSymbol`).
+    pub fn draw_symbol(self, ug: &crate::klimt::drawing::ugraphic::UGraphic) {
+        use crate::klimt::drawing::ugraphic::{UEllipse, ULine, URectangle, UTranslate};
+        let size = Self::RADIUS * 2.0;
+        match self {
+            EntityPosition::Normal => {}
+            EntityPosition::EntryPoint | EntityPosition::ExitPoint => {
+                ug.draw(UEllipse::build(size, size));
+                if self == EntityPosition::ExitPoint {
+                    let (xc, yc) = (Self::RADIUS + 0.5, Self::RADIUS + 0.5);
+                    let radius = Self::RADIUS - 0.5;
+                    let point = |angle: f64| (xc + radius * angle.cos(), yc + radius * angle.sin());
+                    for angle in [std::f64::consts::FRAC_PI_4, -std::f64::consts::FRAC_PI_4] {
+                        let (x1, y1) = point(angle);
+                        let (x2, y2) = point(angle + std::f64::consts::PI);
+                        ug.apply_translate(UTranslate::new(x1, y1))
+                            .draw(ULine::new(x2 - x1, y2 - y1));
+                    }
+                }
+            }
+            EntityPosition::InputPin | EntityPosition::OutputPin => {
+                ug.draw(URectangle::build(size, size));
+            }
+            EntityPosition::ExpansionInput | EntityPosition::ExpansionOutput => {
+                ug.draw(URectangle::build(size * 4.0, size));
+                for i in 1..4 {
+                    ug.apply_translate(UTranslate::dx(size * f64::from(i)))
+                        .draw(ULine::vline(size));
+                }
+            }
+            EntityPosition::Portin | EntityPosition::Portout => {
+                ug.draw(URectangle::build(size, size));
+            }
+        }
+    }
+
+    /// Size of the symbol (`EntityPosition.getDimension`), without a rankdir:
+    /// expansion nodes are horizontal.
+    pub fn dimension(self) -> (f64, f64) {
+        let size = Self::RADIUS * 2.0;
+        if matches!(
+            self,
+            EntityPosition::ExpansionInput | EntityPosition::ExpansionOutput
+        ) {
+            (size * 4.0, size)
+        } else {
+            (size, size)
+        }
     }
 }
 

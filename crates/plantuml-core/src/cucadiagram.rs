@@ -14,6 +14,12 @@ use crate::stereo::{Guillemet, Stereotype};
 use crate::text::LineLocation;
 use std::rc::Rc;
 
+/// A diagram that owns a [`CucaDiagram`], so commands can be shared between diagram types.
+pub trait CucaHolder: crate::command::common::HasBase {
+    fn cuca(&self) -> &CucaDiagram;
+    fn cuca_mut(&mut self) -> &mut CucaDiagram;
+}
+
 /// What the stack of open groups holds (`Bag`).
 #[derive(Debug, Clone)]
 pub enum Bag {

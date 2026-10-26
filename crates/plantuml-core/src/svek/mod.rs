@@ -11,10 +11,12 @@ pub mod image;
 pub mod image_class;
 pub mod image_misc;
 pub mod image_note;
+pub mod image_state;
 pub mod image_tips;
 pub mod node;
 pub mod note_link;
 pub mod role_labels;
+pub mod rounded_container;
 mod shapes;
 pub mod types;
 

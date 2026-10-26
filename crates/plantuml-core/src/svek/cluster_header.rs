@@ -14,6 +14,7 @@ use std::rc::Rc;
 pub struct ClusterHeader {
     pub title: Rc<dyn TextBlock>,
     pub stereo: Rc<dyn TextBlock>,
+    pub attribute: Rc<dyn TextBlock>,
     pub title_alignment: HorizontalAlignment,
     pub width: i32,
     pub height: i32,
@@ -107,8 +108,19 @@ impl ClusterHeader {
             alignment,
         };
         let dim_label = merged.calculate_dimension(sb);
+        let attribute = if diagram_style == SName::StateDiagram {
+            super::image_state::state_description_block(g, skin)
+        } else {
+            empty()
+        };
         let (mut width, mut height) = (0, 0);
         if dim_label.width > 0.0 {
+            let dim_attribute = attribute.calculate_dimension(sb);
+            let attribute_margin = if dim_attribute.height > 0.0 {
+                super::image::MARGIN
+            } else {
+                0.0
+            };
             let (supp_w, supp_h) = match g.usymbol() {
                 Some(u) => (
                     u.supp_width_because_of_shape(),
@@ -116,12 +128,15 @@ impl ClusterHeader {
                 ),
                 None => (0, 0),
             };
-            width = dim_label.width as i32 + supp_w;
-            height = (dim_label.height + f64::from(supp_h)) as i32;
+            width = dim_label.width.max(dim_attribute.width) as i32 + supp_w;
+            height =
+                (dim_label.height + dim_attribute.height + attribute_margin + f64::from(supp_h))
+                    as i32;
         }
         ClusterHeader {
             title,
             stereo,
+            attribute,
             title_alignment: alignment,
             width,
             height,

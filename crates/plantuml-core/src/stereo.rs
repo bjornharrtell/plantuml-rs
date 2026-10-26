@@ -289,6 +289,100 @@ pub fn stereostyles(label: &str) -> Vec<String> {
     v
 }
 
+/// Several stereotypes in a row that may also carry colors, `<<history>> <<#gold>>` (`Stereogroup`).
+#[derive(Debug, Clone, Default)]
+pub struct Stereogroup {
+    definition: Option<String>,
+}
+
+impl Stereogroup {
+    pub const KEY: &'static str = "STEREOGROUP";
+
+    /// `optionalStereogroup`.
+    pub fn optional_pattern() -> IRegex {
+        IRegex::optional(IRegex::named(
+            Self::KEY,
+            r"(<<[^<>]+>>(?:[%s]*<<[^<>]+>>)*)",
+        ))
+    }
+
+    pub fn build(arg: &crate::regex::RegexResult) -> Stereogroup {
+        Stereogroup {
+            definition: arg.get(Self::KEY, 0).map(str::to_string),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.definition.is_none()
+    }
+
+    pub fn build_stereotype(&self) -> Option<Stereotype> {
+        self.definition.as_deref().map(Stereotype::build)
+    }
+
+    pub fn labels(&self) -> Vec<String> {
+        static P: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<<([^<>]+)>>").expect("valid"));
+        match &self.definition {
+            None => Vec::new(),
+            Some(d) => P
+                .captures_iter(d)
+                .map(|c| c[1].trim().to_string())
+                .collect(),
+        }
+    }
+
+    /// Kind of state selected by the first label (`getLeafType`).
+    pub fn leaf_type(&self) -> Option<crate::abel::LeafType> {
+        use crate::abel::LeafType;
+        let labels = self.labels();
+        match labels.first()?.to_lowercase().as_str() {
+            "choice" => Some(LeafType::StateChoice),
+            "fork" | "join" => Some(LeafType::StateForkJoin),
+            "start" => Some(LeafType::CircleStart),
+            "junction" => Some(LeafType::Junction),
+            "end" => Some(LeafType::CircleEnd),
+            "history" => Some(LeafType::PseudoState),
+            "history*" => Some(LeafType::DeepHistory),
+            _ => None,
+        }
+    }
+
+    /// Colors given as `<<#back>>`, `<<##line>>` and `<<###text>>` (`getInnerColors`).
+    pub fn inner_colors(&self) -> crate::klimt::color::colors::Colors {
+        use crate::klimt::color::colors::{ColorType, Colors};
+        let mut colors = Colors::empty();
+        for label in self.labels() {
+            if let Some(l) = label.strip_prefix("###") {
+                if let Some(c) = HColor::parse(l) {
+                    colors = colors.add(ColorType::Text, Some(c));
+                }
+            } else if let Some(mut l) = label.strip_prefix("##") {
+                if l.starts_with('[') {
+                    match l.find(']') {
+                        Some(x) => {
+                            colors = colors.add_legacy_stroke(&l[1..x]);
+                            l = &l[x + 1..];
+                        }
+                        None => l = "",
+                    }
+                }
+                if !l.is_empty() {
+                    if let Some(c) = HColor::parse(l) {
+                        colors = colors.add(ColorType::Line, Some(c));
+                    }
+                }
+            } else if label.starts_with('#') {
+                if let Some(c) = Colors::parse(&label, ColorType::Back) {
+                    colors = colors.merge_with(Some(&c));
+                }
+            } else if label.contains(':') && label.contains(';') {
+                log::debug!("inline stereogroup style {label} is ignored");
+            }
+        }
+        colors
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

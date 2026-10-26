@@ -223,10 +223,13 @@ time; it is a regression signal, not the acceptance bar (see [Fidelity target](#
 - Done: salt diagrams (`salt/`: tokenizer, element factories, tables, trees, tabs, menus, droplists, scroll, border, images; sprites skipped). Vega SALT: 6/10 identical, 4 differ only by line order (Java HashSet) or by creole `[[url{tooltip}]]` links.
 - In progress: class diagrams. Ported: `abel` model, `plasma`, `cucadiagram`, link decorations, visibility icons, class/link commands, `set separator`/`namespaceSeparator`, `hide`/`show` (by name, stereotype, gender, visibility), `left to right`/`top to bottom direction`, `package`/`namespace` blocks with `}`, `DotPath`, `svek` (types, node, role labels, extremities, bibliotekon, cluster), `SvekEdge`, `DotStringFactory` on graphviz-pure, `EntityImageClass`. Next: cluster layout and drawing for `package`/`namespace` bodies (`Cluster::print_internal` and the cluster box), then notes on members and association classes.
 - Done: mindmap and WBS diagrams (`mindmap/`, `wbs/`: tetris packing, fingers, forks, links). Vega MINDMAP 4/4, WBS 7/7 identical.
+- Done: state diagrams (`statediagram/`): state parser and commands (composite/concurrent regions, descriptions, history/fork/join pseudo-states, `hide $x`), model registered as `StateDiagramFactory`, layout on `sdot` with autarkic composite pre-rendering (`InnerStateAutonom`, `ConcurrentStates`, `PaddedEntityImage`), rounded state cluster headers (`RoundedContainer`). Vega STATE: 48/48 render, 16 identical, 33% exact structure.
+- Done: gantt diagrams (`gantt/`): tasks, dependencies, milestones, resources, calendars, colors. Vega GANTT: 16/16 render, 15 identical.
+- Done: timing diagrams (`timingdiagram/`): clocks, binary/bit signals, constraints, scales, highlights. Vega TIMING: 3/3 identical.
 - In progress: activity diagrams (`activitydiagram3/`): instruction tree, ftile layer (box, start/stop/end, assembly, arrows with `Snake`/`Worm` merging), `klimt/compress`, commands for actions, arrows, start/stop/end, box styles, stereogroup colors. Vega ACTIVITY: the plain action/arrow fixtures are identical. Next: if/switch, while/repeat, fork/split, groups/swimlanes, notes, goto/labels, spots, kill.
 - Next: description/component diagrams, then C4 models (see the C4 section).
 
-## Measured fidelity (2026-10-25)
+## Measured fidelity (2026-10-26)
 
 graphviz-pure stands in for `dot`. Scored against the targets in [Fidelity target](#fidelity-target);
 `!pragma layout smetana` fixtures are excluded from the layout target by construction.
@@ -236,21 +239,23 @@ graphviz-pure stands in for `dot`. Scored against the targets in [Fidelity targe
 | SEQUENCE | 149 | 97% | 0.95 | 0.94 | 93% | yes |
 | PACKET | 57 | 100% | 1.00 | 1.00 | 100% | yes |
 | CHART | 35 | 100% | 1.00 | 1.00 | 100% | yes |
-| CLASS | 53 | 62% (33, 12 empty) | 0.39 | 0.11 | 0% | no |
-| STATE | 48 | 0% | - | 0.00 | 0% | no |
-| ACTIVITY | 36 | 0% | - | 0.00 | 0% | no |
-| GANTT | 16 | 0% | - | 0.00 | 0% | no |
-| SALT | 10 | 0% | - | 0.00 | 0% | no |
-| WBS | 7 | 0% | - | 0.00 | 0% | no |
-| DESCRIPTION | 6 | 0% | - | 0.00 | 0% | no |
-| MINDMAP, CHEN_EER | 4 each | 0% | - | 0.00 | 0% | no |
-| TIMING | 3 | 0% | - | 0.00 | 0% | no |
-| BPM, JSON, YAML | 1 each | 0% | - | 0.00 | 0% | no |
+| CLASS | 53 | 92% | 0.90 | 0.83 | 49% | no (layout) |
+| STATE | 48 | 100% | 1.00 | 0.95 | 33% | yes |
+| ACTIVITY | 36 | 22% | 0.18 | 0.19 | 17% | no |
+| GANTT | 16 | 100% | 1.00 | 1.00 | 94% | yes |
+| SALT | 10 | 100% | 0.96 | 0.99 | 60% | yes |
+| WBS | 7 | 100% | 1.00 | 1.00 | 100% | yes |
+| DESCRIPTION | 6 | 17% | 0.08 | 0.00 | 0% | no |
+| MINDMAP | 4 | 100% | 1.00 | 1.00 | 100% | yes |
+| CHEN_EER | 4 | 0% | - | 0.00 | 0% | no |
+| TIMING | 3 | 100% | 1.00 | 1.00 | 100% | yes |
+| BPM | 1 | 0% | - | 0.00 | 0% | no |
+| JSON | 1 | 100% | 1.00 | 0.92 | 0% | yes |
+| YAML | 1 | 100% | 1.00 | 0.90 | 0% | yes |
 
-All 431 fixtures: 62% render, `layout_mean` 0.55, text jaccard 0.59, 230 exact structures. Sequence, packet and chart
-meet the target. CLASS renders 33 of 53 after `set separator`, `hide`/`show`, direction, `package`/`namespace` and
-`!pragma`; 12 of those are empty because grouped entities are not laid out yet, and 20 still fail (association
-classes, notes on members, object/description diagrams).
+All 431 fixtures: 89% render, `layout_mean` 0.86, text jaccard 0.88, 313 exact structures. Sequence, packet, chart,
+state, gantt, timing, mindmap, wbs, salt and json/yaml meet the target. CLASS renders 49 of 53 and is 0.83 on layout
+(association classes, notes on members). ACTIVITY, DESCRIPTION and CHEN_EER are the large remaining gaps.
 
 `size_within20%` is reported per fixture in the JSON but not tabulated here: it moves with font metrics and is not a
 signal of correctness.
@@ -263,4 +268,4 @@ cargo build -p plantuml-cli
 VEGA_DIR=plantuml/src/test/resources/vega FIDELITY_JSON=fidelity.json \
   python3 scripts/fidelity.py target/debug/plantuml-cli
 ```
-- Unfinished work saved on local branches (not merged, may not compile): `worktree-agent-a192ada23969d77e8` (gantt), `worktree-agent-a42e83c1bc53e12c3` (state diagrams), `worktree-agent-ab990208859063f62` (timing). Resume them or restart from them. Activity slices still to do: if/switch, while/repeat, fork/split, groups/partitions/swimlanes, notes, goto. Also open: SVG `<a>` hyperlinks, description/object diagrams (and C4 on top), EBNF/regex/bpm/wire/board/git/files, `!import` zip, handwritten mode.
+- Activity slices still to do: if/switch, while/repeat, fork/split, groups/partitions/swimlanes, notes, goto. Also open: SVG `<a>` hyperlinks, description/object diagrams (and C4 on top), EBNF/regex/bpm/wire/board/git/files, `!import` zip, handwritten mode.

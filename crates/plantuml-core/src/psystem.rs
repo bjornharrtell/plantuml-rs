@@ -9,6 +9,7 @@ pub fn factories() -> Vec<Box<dyn DiagramFactory>> {
         Box::new(crate::sequencediagram::SequenceDiagramFactory),
         Box::new(crate::packetdiag::PacketDiagramFactory),
         Box::new(crate::classdiagram::ClassDiagramFactory),
+        Box::new(crate::statediagram::StateDiagramFactory),
         Box::new(crate::activitydiagram3::ActivityDiagramFactory3),
         Box::new(crate::chart::ChartDiagramFactory),
         Box::new(crate::salt::SaltDiagramFactory),

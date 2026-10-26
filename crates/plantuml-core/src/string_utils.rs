@@ -68,6 +68,40 @@ pub fn md5_hex(s: &str) -> String {
     digest.iter().map(|b| format!("{b:02x}")).collect()
 }
 
+/// `StringUtils.getQueueDirection`.
+pub fn get_queue_direction(s: &str) -> crate::klimt::geom::Direction {
+    use crate::klimt::geom::Direction;
+    let s = s.to_lowercase();
+    if s.contains("left") {
+        return Direction::Left;
+    }
+    if s.contains("right") {
+        return Direction::Right;
+    }
+    if s.contains("up") {
+        return Direction::Up;
+    }
+    if s.contains("down") {
+        return Direction::Down;
+    }
+    if s.contains('l') {
+        return Direction::Left;
+    }
+    if s.contains('r') {
+        return Direction::Right;
+    }
+    if s.contains('u') {
+        return Direction::Up;
+    }
+    if s.contains('d') {
+        return Direction::Down;
+    }
+    if s.chars().count() == 1 {
+        return Direction::Right;
+    }
+    Direction::Down
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

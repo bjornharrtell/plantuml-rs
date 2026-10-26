@@ -3,6 +3,7 @@
 use super::ClassDiagram;
 use crate::abel::LeafType;
 use crate::command::{Command, CommandExecutionResult, SingleLineCommand};
+use crate::cucadiagram::CucaHolder;
 use crate::klimt::creole::display::Display;
 use crate::regex::IRegex;
 use crate::skin::visibility::VisibilityModifier;
@@ -12,23 +13,23 @@ use crate::url::{UrlBuilder, UrlMode};
 
 type Cmd = Box<dyn Command<ClassDiagram>>;
 
-fn single(
+fn single<D: 'static>(
     parts: Vec<IRegex>,
     f: impl Fn(
-            &mut ClassDiagram,
+            &mut D,
             Option<crate::text::LineLocation>,
             &crate::regex::RegexResult,
         ) -> CommandExecutionResult
         + 'static,
-) -> Cmd {
+) -> Box<dyn Command<D>> {
     Box::new(SingleLineCommand::new(
         IRegex::concat(parts),
-        move |d: &mut ClassDiagram, loc, arg, _| f(d, loc, arg),
+        move |d: &mut D, loc, arg, _| f(d, loc, arg),
     ))
 }
 
 fn add_method() -> Cmd {
-    single(
+    single::<ClassDiagram>(
         vec![
             IRegex::start(),
             IRegex::named("NAME", "([%pLN_.]+|[%g][^%g]+[%g])"),
@@ -63,8 +64,8 @@ fn add_method() -> Cmd {
     )
 }
 
-fn remove_restore() -> Cmd {
-    single(
+pub fn remove_restore<D: CucaHolder + 'static>() -> Box<dyn Command<D>> {
+    single::<D>(
         vec![
             IRegex::start(),
             IRegex::named("COMMAND", "(remove|restore)"),
@@ -78,14 +79,14 @@ fn remove_restore() -> Cmd {
                 .unwrap_or("")
                 .eq_ignore_ascii_case("restore");
             let what = arg.get("WHAT", 0).unwrap_or("").trim();
-            d.cuca.remove_or_restore(what, show);
+            d.cuca_mut().remove_or_restore(what, show);
             CommandExecutionResult::ok()
         },
     )
 }
 
 fn allow_mixing() -> Cmd {
-    single(
+    single::<ClassDiagram>(
         vec![
             IRegex::start(),
             IRegex::leaf("allow"),
@@ -101,7 +102,7 @@ fn allow_mixing() -> Cmd {
 }
 
 fn layout_new_line() -> Cmd {
-    single(
+    single::<ClassDiagram>(
         vec![
             IRegex::start(),
             IRegex::leaf("layout_new_line"),
@@ -115,7 +116,7 @@ fn layout_new_line() -> Cmd {
 }
 
 fn stereotype_command() -> Cmd {
-    single(
+    single::<ClassDiagram>(
         vec![
             IRegex::start(),
             IRegex::named("NAME", "([%pLN_.]+|[%g][^%g]+[%g])"),
@@ -142,8 +143,8 @@ fn stereotype_command() -> Cmd {
     )
 }
 
-fn url_command() -> Cmd {
-    single(
+pub fn url_command<D: CucaHolder + 'static>() -> Box<dyn Command<D>> {
+    single::<D>(
         vec![
             IRegex::start(),
             IRegex::leaf("url"),
@@ -158,15 +159,15 @@ fn url_command() -> Cmd {
             IRegex::end(),
         ],
         |d, _, arg| {
-            let code = d.cuca.clean_id(arg.get("CODE", 0)).unwrap_or_default();
-            let quark = match d.cuca.quark_in_context(true, &code) {
+            let code = d.cuca().clean_id(arg.get("CODE", 0)).unwrap_or_default();
+            let quark = match d.cuca().quark_in_context(true, &code) {
                 Ok(q) => q,
                 Err((m, s)) => return CommandExecutionResult::error_with_score(m, s),
             };
             let Some(entity) = quark.data() else {
                 return CommandExecutionResult::error(format!("{} does not exist", quark.name()));
             };
-            let top = d.cuca.base.skin_param.get_value("topurl");
+            let top = d.cuca().base.skin_param.get_value("topurl");
             if let Some(u) = arg.get(crate::url::URL_KEY, 0) {
                 if let Some(url) = UrlBuilder::new(top, UrlMode::Strict).url(u) {
                     entity.add_url(url);
@@ -177,8 +178,8 @@ fn url_command() -> Cmd {
     )
 }
 
-fn rank_dir() -> Cmd {
-    single(
+pub fn rank_dir<D: CucaHolder + 'static>() -> Box<dyn Command<D>> {
+    single::<D>(
         vec![
             IRegex::start(),
             IRegex::named("DIRECTION", "(left[%s]to[%s]right|top[%s]to[%s]bottom)"),
@@ -188,7 +189,7 @@ fn rank_dir() -> Cmd {
         ],
         |d, _, arg| {
             let s = arg.get("DIRECTION", 0).unwrap_or("").to_lowercase();
-            d.cuca.base.skin_param.rankdir = if s.starts_with("left") {
+            d.cuca_mut().base.skin_param.rankdir = if s.starts_with("left") {
                 Rankdir::LeftToRight
             } else {
                 Rankdir::TopToBottom
@@ -200,11 +201,11 @@ fn rank_dir() -> Cmd {
 
 pub fn commands() -> Vec<Cmd> {
     vec![
-        rank_dir(),
+        rank_dir::<ClassDiagram>(),
         allow_mixing(),
         layout_new_line(),
-        remove_restore(),
-        url_command(),
+        remove_restore::<ClassDiagram>(),
+        url_command::<ClassDiagram>(),
         stereotype_command(),
         add_method(),
     ]

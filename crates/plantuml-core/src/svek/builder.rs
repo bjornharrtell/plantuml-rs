@@ -25,6 +25,12 @@ pub(crate) fn create_entity_image(
     skin: &SkinParam,
 ) -> Rc<dyn IEntityImage> {
     match entity.leaf_type() {
+        Some(_) if skin.is_state_diagram() => {
+            if let Some(image) = super::image_state::state_image(entity, cuca, skin) {
+                return image;
+            }
+            Rc::new(EntityImageSimpleEmpty)
+        }
         Some(t) if t.is_like_class() => Rc::new(EntityImageClass::new(entity.clone(), cuca, skin)),
         Some(crate::abel::LeafType::PointForAssociation) => Rc::new(
             super::image_misc::EntityImageAssociationPoint::new(entity, cuca, skin),

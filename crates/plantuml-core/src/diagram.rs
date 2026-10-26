@@ -234,6 +234,7 @@ pub struct DiagramBase {
     pub pragma: std::collections::HashMap<String, String>,
     /// Warnings shown in a banner, one entry per warning with its lines.
     pub warnings: Vec<Vec<String>>,
+    pub hide_empty_description: bool,
 }
 
 /// Requested scaling of the image (`Scale`).
@@ -268,7 +269,11 @@ impl DiagramBase {
         Self {
             source,
             diagram_type,
-            skin_param: SkinParam::new(),
+            skin_param: {
+                let mut skin = SkinParam::new();
+                skin.diagram_style = Some(diagram_type.style_name());
+                skin
+            },
             title: DisplayPositioned::none(
                 Some(HorizontalAlignment::Center),
                 Some(VerticalAlignment::Top),
@@ -287,6 +292,7 @@ impl DiagramBase {
             scale: None,
             pragma: std::collections::HashMap::new(),
             warnings: Vec::new(),
+            hide_empty_description: false,
         }
     }
 

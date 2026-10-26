@@ -1,10 +1,10 @@
 //! Class diagrams (`classdiagram` package).
 
 mod association;
-mod commands;
+pub(crate) mod commands;
 mod commands_group;
-mod commands_misc;
-mod commands_note;
+pub(crate) mod commands_misc;
+pub(crate) mod commands_note;
 
 use crate::abel::{Entity, Link};
 use crate::command::common::HasBase;
@@ -114,6 +114,15 @@ impl ClassDiagram {
 
     pub fn links(&self) -> Vec<Link> {
         self.cuca.links().to_vec()
+    }
+}
+
+impl crate::cucadiagram::CucaHolder for ClassDiagram {
+    fn cuca(&self) -> &CucaDiagram {
+        &self.cuca
+    }
+    fn cuca_mut(&mut self) -> &mut CucaDiagram {
+        &mut self.cuca
     }
 }
 

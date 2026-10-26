@@ -25,8 +25,19 @@ impl std::fmt::Debug for SymbolRef {
     }
 }
 
+/// Image given to a group that is drawn as a single block (`overrideImage`).
+#[derive(Clone)]
+pub struct SvekImageRef(pub Rc<dyn crate::svek::image::IEntityImage>);
+
+impl std::fmt::Debug for SvekImageRef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("SvekImage")
+    }
+}
+
 #[derive(Debug)]
 pub struct EntityData {
+    pub svek_image: Option<SvekImageRef>,
     pub symbol: Option<SymbolRef>,
     pub quark: Quark<Entity>,
     pub url: Option<Url>,
@@ -108,6 +119,7 @@ impl Entity {
             EntityKind::Group(g) => (None, Some(g)),
         };
         let e = Entity(Rc::new(RefCell::new(EntityData {
+            svek_image: None,
             symbol: None,
             quark: quark.clone(),
             url: None,
@@ -412,6 +424,39 @@ impl Entity {
         }
         d.group_type = None;
         d.leaf_type = Some(new_type);
+    }
+
+    pub fn svek_image(&self) -> Option<Rc<dyn crate::svek::image::IEntityImage>> {
+        self.get().svek_image.as_ref().map(|i| i.0.clone())
+    }
+
+    pub fn set_svek_image(&self, image: Option<Rc<dyn crate::svek::image::IEntityImage>>) {
+        self.get_mut().svek_image = image.map(SvekImageRef);
+    }
+
+    /// `overrideImage`: the group becomes a leaf drawn as `image`.
+    pub fn override_image(
+        &self,
+        image: Rc<dyn crate::svek::image::IEntityImage>,
+        leaf_type: LeafType,
+    ) {
+        let mut d = self.get_mut();
+        d.svek_image = Some(SvekImageRef(image));
+        d.url = None;
+        d.group_type = None;
+        d.leaf_type = Some(leaf_type);
+    }
+
+    /// Whether a group above this entity was replaced by an image.
+    pub fn is_inside_overridden(&self) -> bool {
+        let mut current = self.parent_container();
+        while let Some(p) = current {
+            if p.get().svek_image.is_some() {
+                return true;
+            }
+            current = p.parent_container();
+        }
+        false
     }
 
     pub fn mute_to_group_type(&self, new_type: GroupType) {

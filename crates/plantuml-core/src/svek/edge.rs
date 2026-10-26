@@ -865,8 +865,8 @@ fn move_away_from(cl: RectangleArea, p: Placed) -> Placed {
     }
 }
 
-pub(crate) fn skin_style_name(_skin: &SkinParam) -> crate::style::SName {
-    crate::style::SName::ClassDiagram
+pub(crate) fn skin_style_name(skin: &SkinParam) -> crate::style::SName {
+    skin.diagram_style_name()
 }
 
 pub(crate) fn role_block(

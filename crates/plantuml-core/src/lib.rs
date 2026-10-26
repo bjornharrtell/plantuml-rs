@@ -27,6 +27,7 @@ pub mod salt;
 pub mod sdot;
 pub mod sequencediagram;
 pub mod skin;
+pub mod statediagram;
 pub mod stereo;
 pub mod string_utils;
 pub mod style;

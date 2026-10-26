@@ -51,6 +51,7 @@ struct EdgeTexts {
 struct LaidEdge {
     link: Link,
     texts: EdgeTexts,
+    hidden: bool,
     path: Option<DotPath>,
     label_pos: Option<Point>,
     head_label_pos: Option<Point>,
@@ -278,6 +279,7 @@ fn collect_groups(
     sb: &Rc<dyn StringBounder>,
     parent: &Entity,
     parent_cluster: &Cluster,
+    nested: bool,
     c: &mut Collected,
 ) -> Vec<GroupNode> {
     let mut out = Vec::new();
@@ -289,10 +291,10 @@ fn collect_groups(
             log::warn!("empty package {} is not drawn", g.name());
             continue;
         }
-        if g.group_type() == Some(crate::abel::GroupType::ConcurrentState) {
+        if nested && g.group_type() == Some(crate::abel::GroupType::ConcurrentState) {
             continue;
         }
-        let header = ClusterHeader::new(&g, cuca, skin, crate::style::SName::ClassDiagram, &**sb);
+        let header = ClusterHeader::new(&g, cuca, skin, skin.diagram_style_name(), &**sb);
         let colors = [
             c.bib.next_color(),
             c.bib.next_color(),
@@ -310,7 +312,7 @@ fn collect_groups(
             add_node(cuca, skin, sb, &leaf, &cluster, c);
             leaves.push(leaf);
         }
-        let children = collect_groups(cuca, skin, sb, &g, &cluster, c);
+        let children = collect_groups(cuca, skin, sb, &g, &cluster, nested, c);
         out.push(GroupNode {
             group: g,
             cluster,
@@ -329,8 +331,9 @@ fn add_node(
     cluster: &Cluster,
     c: &mut Collected,
 ) {
-    let image: Rc<dyn crate::svek::image::IEntityImage> = if ent.leaf_type() == Some(LeafType::Tips)
-    {
+    let image: Rc<dyn crate::svek::image::IEntityImage> = if let Some(image) = ent.svek_image() {
+        image
+    } else if ent.leaf_type() == Some(LeafType::Tips) {
         Rc::new(crate::svek::image_tips::EntityImageTips::new(
             ent, cuca, skin, &c.bib,
         ))
@@ -397,7 +400,7 @@ fn group_dot(
     }
     if core_groups.contains(&g.group) {
         out.push_str(&format!(
-            "{} [shape=box,width=0.1,height=0.1];\n",
+            "{} [shape=box,label=\"\",width=0.1,height=0.1];\n",
             group_core_name(&g.group)
         ));
     }
@@ -419,6 +422,11 @@ fn build_dot(
     sb: &dyn StringBounder,
 ) -> String {
     let mut out = String::from("digraph g {\n");
+    if skin.is_state_diagram() {
+        out.push_str("margin=16;\n");
+        out.push_str("remincross=true;\n");
+        out.push_str("searchsize=500;\n");
+    }
     let ns = skin.as_int("nodesep", 0);
     if ns != 0 {
         out.push_str(&format!(
@@ -526,28 +534,51 @@ fn bb_of(o: &JsonValue) -> Option<(Point, Point)> {
 }
 
 fn layout(cuca: &CucaDiagram, skin: &SkinParam, sb: &Rc<dyn StringBounder>) -> Option<Layout> {
+    layout_from(cuca, skin, sb, None)
+}
+
+/// Lays out the whole diagram, or the content of `root` when it is a nested
+/// sub-layout (`CucaDiagramFileMakerSmetana` with a non-root group).
+fn layout_from(
+    cuca: &CucaDiagram,
+    skin: &SkinParam,
+    sb: &Rc<dyn StringBounder>,
+    root: Option<&Entity>,
+) -> Option<Layout> {
+    let nested = root.is_some();
     let bib = Bibliotekon::new();
-    let root_entity = cuca.root_group();
+    let root_entity = root.cloned().unwrap_or_else(|| cuca.root_group());
     let colors = [
         bib.next_color(),
         bib.next_color(),
         bib.next_color(),
         bib.next_color(),
     ];
-    let root = Cluster::new_root(root_entity.clone(), colors);
-    let links: Vec<Link> = ordered_links(cuca);
+    let root_cluster = Cluster::new_root(root_entity.clone(), colors);
+    let links: Vec<Link> = if nested {
+        cuca.links()
+            .iter()
+            .filter(|l| crate::abel::is_pure_inner_link12(&root_entity, l))
+            .cloned()
+            .collect()
+    } else {
+        ordered_links(cuca)
+    };
     let mut c = Collected {
         bib: bib.clone(),
         root_leaves: Vec::new(),
         groups: Vec::new(),
         nodes: Vec::new(),
     };
-    c.groups = collect_groups(cuca, skin, sb, &root_entity, &root, &mut c);
+    c.groups = collect_groups(cuca, skin, sb, &root_entity, &root_cluster, nested, &mut c);
     for ent in root_entity.leafs() {
         if cuca.is_entity_removed(&ent) {
             continue;
         }
-        add_node(cuca, skin, sb, &ent, &root, &mut c);
+        if nested && ent.leaf_type() == Some(LeafType::StateConcurrent) {
+            continue;
+        }
+        add_node(cuca, skin, sb, &ent, &root_cluster, &mut c);
         c.root_leaves.push(ent);
     }
     mark_opale_links(cuca, &links, &c.nodes);
@@ -633,6 +664,7 @@ fn layout(cuca: &CucaDiagram, skin: &SkinParam, sb: &Rc<dyn StringBounder>) -> O
         let prop = |k: &str| je.and_then(|e| e.get(k)).and_then(JsonValue::as_str);
         let path = prop("pos").and_then(parse_spline);
         laid.push(LaidEdge {
+            hidden: cuca.is_link_hidden(&link),
             link,
             texts,
             path,
@@ -648,7 +680,7 @@ fn layout(cuca: &CucaDiagram, skin: &SkinParam, sb: &Rc<dyn StringBounder>) -> O
         clusters: cluster_boxes,
         edges: laid,
         min_max: mm,
-        canvas_margin: 6.0,
+        canvas_margin: if nested { 0.0 } else { 6.0 },
     })
 }
 
@@ -716,7 +748,7 @@ impl Drawing {
             image.draw(&ug_node.apply_translate(UTranslate::new(corner.0, corner.1)));
         }
         for edge in &self.layout.edges {
-            if edge.link.is_invis() || edge.link.is_opale() {
+            if edge.hidden || edge.link.is_invis() || edge.link.is_opale() {
                 continue;
             }
             self.draw_edge(ug, edge, max);
@@ -917,7 +949,7 @@ impl TextBlock for EmptyImage {
     fn draw(&self, _ug: &UGraphic) {}
 }
 
-/// Lays the diagram out and returns what draws it.
+/// Lays a diagram out and returns what draws it.
 pub fn build_image(
     cuca: &CucaDiagram,
     skin: &SkinParam,
@@ -930,4 +962,114 @@ pub fn build_image(
         }),
         None => Rc::new(EmptyImage),
     }
+}
+
+/// Lays a state diagram out and returns what draws it.
+pub fn build_state_image(
+    cuca: &CucaDiagram,
+    skin: &SkinParam,
+    sb: &Rc<dyn StringBounder>,
+) -> Rc<dyn TextBlock> {
+    simplify_states(cuca, skin, sb);
+    build_image(cuca, skin, sb)
+}
+
+fn collect_groups_postorder(entity: &Entity, out: &mut Vec<Entity>) {
+    for g in entity.groups() {
+        collect_groups_postorder(&g, out);
+        out.push(g);
+    }
+}
+
+/// Turns autarkic composite states into pre-rendered leaves
+/// (`CucaDiagramSimplifierStateSmetana`).
+fn simplify_states(cuca: &CucaDiagram, skin: &SkinParam, sb: &Rc<dyn StringBounder>) {
+    let root = cuca.root_group();
+    let mut groups = Vec::new();
+    collect_groups_postorder(&root, &mut groups);
+    for group in groups {
+        if !group.is_group() {
+            continue;
+        }
+        let group_type = group.group_type();
+        if group_type != Some(crate::abel::GroupType::State)
+            && group_type != Some(crate::abel::GroupType::ConcurrentState)
+        {
+            continue;
+        }
+        if !crate::abel::is_autarkic(&group, cuca.links()) {
+            continue;
+        }
+        let image = state_group_image(cuca, skin, sb, &group);
+        let leaf_type = if group_type == Some(crate::abel::GroupType::ConcurrentState) {
+            LeafType::StateConcurrent
+        } else {
+            LeafType::State
+        };
+        group.override_image(image, leaf_type);
+    }
+}
+
+fn nested_state_image(
+    cuca: &CucaDiagram,
+    skin: &SkinParam,
+    sb: &Rc<dyn StringBounder>,
+    root: &Entity,
+) -> Rc<dyn crate::svek::image::IEntityImage> {
+    let block: Rc<dyn TextBlock> = match layout_from(cuca, skin, sb, Some(root)) {
+        Some(layout) => Rc::new(Drawing {
+            layout,
+            measured: RefCell::new(None),
+        }),
+        None => Rc::new(EmptyImage),
+    };
+    Rc::new(crate::svek::image_state::TextBlockToEntityImage::new(block))
+}
+
+/// `GroupMakerStateSmetana.getImage`.
+fn state_group_image(
+    cuca: &CucaDiagram,
+    skin: &SkinParam,
+    sb: &Rc<dyn StringBounder>,
+    group: &Entity,
+) -> Rc<dyn crate::svek::image::IEntityImage> {
+    use crate::svek::image_state::{ConcurrentStates, InnerStateAutonom, PaddedEntityImage};
+    const REGION_PADDING: f64 = 6.0;
+    const SEPARATOR_OVERSHOOT: f64 = 8.0;
+    if group.count_children() == 0 && group.groups().is_empty() {
+        return Rc::new(crate::svek::image_state::EntityImageState::new(
+            group, cuca, skin,
+        ));
+    }
+    if group.group_type() == Some(crate::abel::GroupType::ConcurrentState) {
+        let inner = nested_state_image(cuca, skin, sb, group);
+        return Rc::new(PaddedEntityImage::uniform(inner, REGION_PADDING));
+    }
+    let nested = nested_state_image(cuca, skin, sb, group);
+    let concurrent: Vec<Rc<dyn crate::svek::image::IEntityImage>> = group
+        .leafs()
+        .iter()
+        .filter(|l| l.leaf_type() == Some(LeafType::StateConcurrent))
+        .filter_map(|l| l.svek_image())
+        .collect();
+    if concurrent.is_empty() {
+        return Rc::new(InnerStateAutonom::new(group, nested, cuca, skin));
+    }
+    let mut inners = vec![Rc::new(PaddedEntityImage::uniform(nested, REGION_PADDING))
+        as Rc<dyn crate::svek::image::IEntityImage>];
+    inners.extend(concurrent);
+    let separator = group.concurrent_separator();
+    let stacked = Rc::new(ConcurrentStates::new(inners, separator, skin));
+    let right = if separator == '-' {
+        SEPARATOR_OVERSHOOT
+    } else {
+        0.0
+    };
+    let bottom = if separator == '|' {
+        SEPARATOR_OVERSHOOT
+    } else {
+        0.0
+    };
+    let padded = Rc::new(PaddedEntityImage::new(stacked, 0.0, 0.0, right, bottom));
+    Rc::new(InnerStateAutonom::new(group, padded, cuca, skin))
 }

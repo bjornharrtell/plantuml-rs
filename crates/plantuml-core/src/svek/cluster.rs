@@ -261,7 +261,7 @@ impl Cluster {
         if !full_name.starts_with("##") {
             ug.draw(UShape::Comment(format!("cluster {full_name}")));
         }
-        let diagram_style = crate::style::SName::ClassDiagram;
+        let diagram_style = skin.diagram_style_name();
         let symbol = group
             .usymbol()
             .unwrap_or_else(|| crate::decoration::usymbol::usymbols::package());
@@ -304,6 +304,13 @@ impl Cluster {
         } else {
             back
         };
+        if skin.is_state_diagram() && group.usymbol().is_none() {
+            draw_state_cluster(
+                ug, &group, &header, area, skin, border, stroke, rounded, shadowing,
+            );
+            ug.close_group();
+            return;
+        }
         let package_style = skin.package_style();
         let symbol = group
             .usymbol()
@@ -324,5 +331,99 @@ impl Cluster {
         );
         big.draw(&ug.apply_translate(UTranslate::new(area.min_x, area.min_y)));
         ug.close_group();
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn draw_state_cluster(
+    ug: &crate::klimt::drawing::ugraphic::UGraphic,
+    group: &Entity,
+    header: &ClusterHeader,
+    area: crate::klimt::dotpath::RectangleArea,
+    skin: &crate::skin::SkinParam,
+    border: crate::klimt::color::HColor,
+    stroke: crate::klimt::drawing::ugraphic::UStroke,
+    rounded: f64,
+    shadowing: f64,
+) {
+    use crate::klimt::color::colors::ColorType;
+    use crate::klimt::drawing::ugraphic::UTranslate;
+    use crate::style::{queries, PName, SName};
+
+    let description_style = skin
+        .style_builder()
+        .merged_style(
+            &queries::STATEDIAG_STATE
+                .clone()
+                .add(SName::Description)
+                .with_stereotype_obj(group.stereotype().as_ref()),
+        )
+        .expect("state description style");
+    let name_style = skin
+        .style_builder()
+        .merged_style(
+            &queries::STATEDIAG_STATE
+                .clone()
+                .add(SName::Name)
+                .with_stereotype_obj(group.stereotype().as_ref()),
+        )
+        .expect("state name style");
+    let attribute = header.attribute.clone();
+    let sb = ug.string_bounder();
+    let title = header.title.calculate_dimension(sb);
+    let attribute_dim = attribute.calculate_dimension(sb);
+    let name_height = title.height + super::image::MARGIN;
+    let description_height = if attribute_dim.height > 0.0 {
+        attribute_dim.height + super::image::MARGIN
+    } else {
+        0.0
+    };
+    let name_back = group
+        .colors()
+        .color(ColorType::Back)
+        .cloned()
+        .unwrap_or_else(|| name_style.value(PName::BackGroundColor).as_color());
+    let description_back = group
+        .colors()
+        .color(ColorType::Back)
+        .cloned()
+        .unwrap_or_else(|| description_style.value(PName::BackGroundColor).as_color());
+    let body_style = skin
+        .style_builder()
+        .merged_style(
+            &queries::STATEDIAG_STATE
+                .clone()
+                .add(SName::Body)
+                .with_stereotype_obj(group.stereotype().as_ref()),
+        )
+        .expect("state body style");
+    let body_back = group
+        .colors()
+        .color(ColorType::Back)
+        .cloned()
+        .unwrap_or_else(|| body_style.value(PName::BackGroundColor).as_color());
+    let container = crate::svek::rounded_container::RoundedContainer::new(
+        border.clone(),
+        area.width(),
+        area.height(),
+        name_height,
+        description_height,
+        name_back,
+        description_back,
+        body_back,
+        stroke,
+        rounded,
+        shadowing,
+    );
+    container.draw(&ug.apply_translate(UTranslate::new(area.min_x, area.min_y)));
+    let title_x = (area.width() - title.width) / 2.0;
+    header
+        .title
+        .draw(&ug.apply_translate(UTranslate::new(area.min_x + title_x, area.min_y)));
+    if attribute_dim.height > 0.0 {
+        attribute.draw(&ug.apply_translate(UTranslate::new(
+            area.min_x + super::image::MARGIN,
+            area.min_y + name_height + super::image::MARGIN / 2.0,
+        )));
     }
 }

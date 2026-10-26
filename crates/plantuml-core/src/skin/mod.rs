@@ -48,6 +48,8 @@ pub struct SkinParam {
     style_builder: RefCell<Option<StyleBuilder>>,
     default_skin: RefCell<Option<String>>,
     pub rankdir: Rankdir,
+    /// Style name of the diagram type that owns these parameters (`getDiagramType().getStyleName()`).
+    pub diagram_style: Option<crate::style::SName>,
 }
 
 impl std::fmt::Debug for StyleBuilder {
@@ -111,6 +113,16 @@ fn clean_for_key(key: &str) -> Vec<String> {
 impl SkinParam {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Style name of the diagram type; class diagrams when unknown.
+    pub fn diagram_style_name(&self) -> crate::style::SName {
+        self.diagram_style
+            .unwrap_or(crate::style::SName::ClassDiagram)
+    }
+
+    pub fn is_state_diagram(&self) -> bool {
+        self.diagram_style == Some(crate::style::SName::StateDiagram)
     }
 
     /// The current style sheet, loaded on first use.

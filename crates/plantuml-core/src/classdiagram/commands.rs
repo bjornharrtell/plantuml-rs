@@ -776,7 +776,7 @@ fn hide_show_by_visibility() -> Cmd {
 }
 
 /// `hide`/`show` of whole elements by name or stereotype (`CommandHideShow2`).
-fn hide_show2() -> Cmd {
+pub(crate) fn hide_show2<D: crate::cucadiagram::CucaHolder + 'static>() -> Box<dyn Command<D>> {
     let r = IRegex::concat(vec![
         IRegex::start(),
         IRegex::named("COMMAND", "(hide|hide-class|show|show-class)"),
@@ -784,17 +784,14 @@ fn hide_show2() -> Cmd {
         IRegex::named("WHAT", r"([^%s]+|\<\<.*\>\>)"),
         IRegex::end(),
     ]);
-    Box::new(SingleLineCommand::new(
-        r,
-        |d: &mut ClassDiagram, _, arg, _| {
-            let show = arg
-                .get("COMMAND", 0)
-                .is_some_and(|c| c.to_lowercase().starts_with('s'));
-            let what = arg.get("WHAT", 0).unwrap_or("").trim();
-            d.cuca.hide_or_show2(what, show);
-            CommandExecutionResult::ok()
-        },
-    ))
+    Box::new(SingleLineCommand::new(r, |d: &mut D, _, arg, _| {
+        let show = arg
+            .get("COMMAND", 0)
+            .is_some_and(|c| c.to_lowercase().starts_with('s'));
+        let what = arg.get("WHAT", 0).unwrap_or("").trim();
+        d.cuca_mut().hide_or_show2(what, show);
+        CommandExecutionResult::ok()
+    }))
 }
 
 fn arrow_head(arg: &RegexResult, key: &str) -> String {
@@ -812,37 +809,7 @@ fn full_arrow(arg: &RegexResult) -> String {
     )
 }
 
-fn queue_direction(s: &str) -> Direction {
-    let s = s.to_lowercase();
-    if s.contains("left") {
-        return Direction::Left;
-    }
-    if s.contains("right") {
-        return Direction::Right;
-    }
-    if s.contains("up") {
-        return Direction::Up;
-    }
-    if s.contains("down") {
-        return Direction::Down;
-    }
-    if s.contains('l') {
-        return Direction::Left;
-    }
-    if s.contains('r') {
-        return Direction::Right;
-    }
-    if s.contains('u') {
-        return Direction::Up;
-    }
-    if s.contains('d') {
-        return Direction::Down;
-    }
-    if s.chars().count() == 1 {
-        return Direction::Right;
-    }
-    Direction::Down
-}
+use crate::string_utils::get_queue_direction as queue_direction;
 
 fn get_direction(arg: &RegexResult) -> Direction {
     let s: String = full_arrow(arg)
@@ -1229,7 +1196,7 @@ pub fn commands() -> Vec<Cmd> {
     cmds.push(namespace_separator());
     cmds.push(hide_show_by_visibility());
     cmds.push(hide_show_by_gender());
-    cmds.push(hide_show2());
+    cmds.push(hide_show2::<ClassDiagram>());
     cmds.push(create_package());
     cmds.push(create_namespace());
     cmds.extend(super::commands_misc::commands());

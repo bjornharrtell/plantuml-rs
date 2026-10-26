@@ -118,6 +118,42 @@ pub trait Command<D> {
     }
 }
 
+/// Restricts a command to some passes (`isEligibleFor`).
+pub struct OnPasses<D> {
+    inner: Box<dyn Command<D>>,
+    passes: Vec<ParserPass>,
+}
+
+impl<D> Command<D> for OnPasses<D> {
+    fn execute(
+        &self,
+        diagram: &mut D,
+        lines: &BlocLines,
+        pass: ParserPass,
+    ) -> CommandExecutionResult {
+        self.inner.execute(diagram, lines, pass)
+    }
+
+    fn is_valid(&self, lines: &BlocLines) -> CommandControl {
+        self.inner.is_valid(lines)
+    }
+
+    fn is_eligible_for(&self, pass: ParserPass) -> bool {
+        self.passes.contains(&pass)
+    }
+}
+
+/// Wraps `inner` so that it only runs on `passes`.
+pub fn on_passes<D: 'static>(
+    inner: Box<dyn Command<D>>,
+    passes: &[ParserPass],
+) -> Box<dyn Command<D>> {
+    Box::new(OnPasses {
+        inner,
+        passes: passes.to_vec(),
+    })
+}
+
 /// How whitespace around the last line of a multiline command is handled (`Trim`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Trim {

@@ -4,6 +4,7 @@
 use super::ClassDiagram;
 use crate::abel::{CucaNote, LeafType, Link, LinkArg, Stereotag};
 use crate::command::{Command, CommandExecutionResult, MultiLineCommand, SingleLineCommand, Trim};
+use crate::cucadiagram::CucaHolder;
 use crate::decoration::link::{LinkDecor, LinkType};
 use crate::klimt::color::colors::{ColorType, Colors};
 use crate::klimt::color::parser::ColorParser;
@@ -47,27 +48,27 @@ fn starting_of(lines: &BlocLines, re: &IRegex) -> Option<RegexResult> {
     re.matcher(lines.first()?.trimmed().string())
 }
 
-type Exec =
-    fn(&mut ClassDiagram, Option<LineLocation>, &RegexResult, Display) -> CommandExecutionResult;
+type Exec<D> = fn(&mut D, Option<LineLocation>, &RegexResult, Display) -> CommandExecutionResult;
 
-fn single_cmd(re: IRegex, key: &'static str, exec: Exec) -> Cmd {
-    Box::new(SingleLineCommand::new(
-        re,
-        move |d: &mut ClassDiagram, loc, arg, _| {
-            let display = Display::with_newlines(arg.get(key, 0));
-            exec(d, loc, arg, display)
-        },
-    ))
+fn single_cmd<D: CucaHolder + 'static>(
+    re: IRegex,
+    key: &'static str,
+    exec: Exec<D>,
+) -> Box<dyn Command<D>> {
+    Box::new(SingleLineCommand::new(re, move |d: &mut D, loc, arg, _| {
+        let display = Display::with_newlines(arg.get(key, 0));
+        exec(d, loc, arg, display)
+    }))
 }
 
-fn multi_cmd(re: IRegex, end: &str, exec: Exec) -> Cmd {
+fn multi_cmd<D: CucaHolder + 'static>(re: IRegex, end: &str, exec: Exec<D>) -> Box<dyn Command<D>> {
     let starting = re.clone();
     Box::new(MultiLineCommand::new(
         re,
         MultilinesStrategy::KeepStartingQuote,
         Trim::Both,
         end,
-        move |d: &mut ClassDiagram, lines: &BlocLines, _| {
+        move |d: &mut D, lines: &BlocLines, _| {
             let Some(arg) = starting_of(lines, &starting) else {
                 return CommandExecutionResult::error("Bad note");
             };
@@ -90,14 +91,17 @@ fn floating_tail() -> Vec<IRegex> {
     ]
 }
 
-fn execute_floating(
-    d: &mut ClassDiagram,
+fn execute_floating<D: CucaHolder>(
+    d: &mut D,
     loc: Option<LineLocation>,
     arg: &RegexResult,
     display: Display,
 ) -> CommandExecutionResult {
-    let id = d.cuca.clean_id(arg.get("CODE", 0)).unwrap_or_default();
-    let quark = match d.cuca.quark_in_context(false, &id) {
+    let id = d
+        .cuca_mut()
+        .clean_id(arg.get("CODE", 0))
+        .unwrap_or_default();
+    let quark = match d.cuca_mut().quark_in_context(false, &id) {
         Ok(q) => q,
         Err((m, s)) => return CommandExecutionResult::error_with_score(m, s),
     };
@@ -105,7 +109,7 @@ fn execute_floating(
         return CommandExecutionResult::error(format!("Note already created: {}", quark.name()));
     }
     let entity = d
-        .cuca
+        .cuca_mut()
         .really_create_leaf(loc, quark, display, LeafType::Note);
     let Some(colors) = back_color().colors(arg) else {
         return CommandExecutionResult::bad_color();
@@ -118,7 +122,7 @@ fn execute_floating(
     CommandExecutionResult::ok()
 }
 
-fn floating_single() -> Cmd {
+fn floating_single<D: CucaHolder + 'static>() -> Box<dyn Command<D>> {
     let mut parts = vec![
         IRegex::start(),
         IRegex::leaf("note"),
@@ -134,7 +138,7 @@ fn floating_single() -> Cmd {
     single_cmd(IRegex::concat(parts), "DISPLAY", execute_floating)
 }
 
-fn floating_multi() -> Cmd {
+fn floating_multi<D: CucaHolder + 'static>() -> Box<dyn Command<D>> {
     let mut parts = vec![
         IRegex::start(),
         IRegex::leaf("note"),
@@ -148,7 +152,7 @@ fn floating_multi() -> Cmd {
 
 // note on entity
 
-fn on_entity_regex(single: bool, multi_bracket: Option<bool>) -> IRegex {
+fn on_entity_regex(code: &str, single: bool, multi_bracket: Option<bool>) -> IRegex {
     let mut v = vec![
         IRegex::start(),
         IRegex::leaf("note"),
@@ -159,7 +163,7 @@ fn on_entity_regex(single: bool, multi_bracket: Option<bool>) -> IRegex {
                 IRegex::space_one_or_more(),
                 IRegex::leaf("of"),
                 IRegex::space_one_or_more(),
-                IRegex::named("CODE", CODE),
+                IRegex::named("CODE", code),
             ]),
             IRegex::leaf(""),
         ]),
@@ -185,19 +189,19 @@ fn on_entity_regex(single: bool, multi_bracket: Option<bool>) -> IRegex {
     IRegex::concat(v)
 }
 
-fn execute_on_entity(
-    d: &mut ClassDiagram,
+fn execute_on_entity<D: CucaHolder>(
+    d: &mut D,
     loc: Option<LineLocation>,
     arg: &RegexResult,
     display: Display,
 ) -> CommandExecutionResult {
-    let cl1 = match d.cuca.clean_id(arg.get("CODE", 0)) {
-        None => match d.cuca.last_entity() {
+    let cl1 = match d.cuca_mut().clean_id(arg.get("CODE", 0)) {
+        None => match d.cuca_mut().last_entity() {
             Some(e) => e,
             None => return CommandExecutionResult::error("Nothing to note to"),
         },
         Some(id) => {
-            let quark = match d.cuca.quark_in_context(true, &id) {
+            let quark = match d.cuca_mut().quark_in_context(true, &id) {
                 Ok(q) => q,
                 Err((m, s)) => return CommandExecutionResult::error_with_score(m, s),
             };
@@ -209,33 +213,33 @@ fn execute_on_entity(
     };
     let position = Position::from_string(arg.get("POSITION", 0).unwrap_or("right"))
         .unwrap_or(Position::Right)
-        .with_rankdir(d.cuca.base.skin_param.rankdir);
+        .with_rankdir(d.cuca_mut().base.skin_param.rankdir);
     let Some(mut colors) = back_color().colors(arg) else {
         return CommandExecutionResult::bad_color();
     };
     let mut stereotype = None;
     if let Some(s) = arg.get("STEREO", 0) {
         let st = Stereotype::build(s);
-        match d.cuca.base.skin_param.colors_for_note(&colors, &st) {
+        match d.cuca_mut().base.skin_param.colors_for_note(&colors, &st) {
             Some(c) => colors = c,
             None => return CommandExecutionResult::bad_color(),
         }
         stereotype = Some(st);
     }
-    let tmp = d.cuca.unique_sequence("GMN");
-    let quark = match d.cuca.quark_in_context(true, &tmp) {
+    let tmp = d.cuca_mut().unique_sequence("GMN");
+    let quark = match d.cuca_mut().quark_in_context(true, &tmp) {
         Ok(q) => q,
         Err((m, s)) => return CommandExecutionResult::error_with_score(m, s),
     };
     let note = d
-        .cuca
+        .cuca_mut()
         .really_create_leaf(loc, quark, display, LeafType::Note);
     if stereotype.is_some() {
         note.set_stereotype(stereotype);
     }
     note.set_colors(colors);
     if let Some(u) = arg.get(url::URL_KEY, 0) {
-        let top = d.cuca.base.skin_param.get_value("topurl");
+        let top = d.cuca_mut().base.skin_param.get_value("topurl");
         if let Some(u) = UrlBuilder::new(top, UrlMode::Strict).url(u) {
             note.add_url(u);
         }
@@ -248,22 +252,22 @@ fn execute_on_entity(
         Position::Bottom => (cl1, note, 2),
         Position::Top => (note, cl1, 2),
     };
-    let uid = d.cuca.unique_sequence("lnk");
+    let uid = d.cuca_mut().unique_sequence("lnk");
     let link = Link::new(loc, uid, a, b, link_type, LinkArg::no_display(length));
     if length == 1 {
         link.get_mut().horizontal_solitary = true;
     }
-    d.cuca.add_link(link);
+    d.cuca_mut().add_link(link);
     CommandExecutionResult::ok()
 }
 
-fn on_entity_single() -> Cmd {
-    single_cmd(on_entity_regex(true, None), "NOTE", execute_on_entity)
+fn on_entity_single<D: CucaHolder + 'static>() -> Box<dyn Command<D>> {
+    single_cmd(on_entity_regex(CODE, true, None), "NOTE", execute_on_entity)
 }
 
-fn on_entity_multi(bracket: bool) -> Cmd {
+fn on_entity_multi<D: CucaHolder + 'static>(bracket: bool) -> Box<dyn Command<D>> {
     multi_cmd(
-        on_entity_regex(false, Some(bracket)),
+        on_entity_regex(CODE, false, Some(bracket)),
         if bracket { END_BRACKET } else { END_NOTE },
         execute_on_entity,
     )
@@ -395,13 +399,13 @@ fn on_link_regex(single: bool) -> IRegex {
     IRegex::concat(v)
 }
 
-fn execute_on_link(
-    d: &mut ClassDiagram,
+fn execute_on_link<D: CucaHolder>(
+    d: &mut D,
     _loc: Option<LineLocation>,
     arg: &RegexResult,
     display: Display,
 ) -> CommandExecutionResult {
-    let Some(link) = d.cuca.last_link() else {
+    let Some(link) = d.cuca_mut().last_link() else {
         return CommandExecutionResult::error("No link defined");
     };
     if display.size() == 0 {
@@ -420,16 +424,56 @@ fn execute_on_link(
     CommandExecutionResult::ok()
 }
 
-fn on_link_single() -> Cmd {
+fn on_link_single<D: CucaHolder + 'static>() -> Box<dyn Command<D>> {
     single_cmd(on_link_regex(true), "NOTE", execute_on_link)
 }
 
-fn on_link_multi() -> Cmd {
+fn on_link_multi<D: CucaHolder + 'static>() -> Box<dyn Command<D>> {
     multi_cmd(on_link_regex(false), END_NOTE, execute_on_link)
 }
 
+/// Notes on an entity for another diagram type: its own `code` pattern, one pass.
+pub fn on_entity_commands_for<D: CucaHolder + 'static>(
+    code: &str,
+    pass: crate::command::ParserPass,
+) -> Vec<Box<dyn Command<D>>> {
+    let wrap = |c| crate::command::on_passes(c, &[pass]);
+    vec![
+        wrap(multi_cmd(
+            on_entity_regex(code, false, Some(true)),
+            END_BRACKET,
+            execute_on_entity,
+        )),
+        wrap(multi_cmd(
+            on_entity_regex(code, false, Some(false)),
+            END_NOTE,
+            execute_on_entity,
+        )),
+        wrap(single_cmd(
+            on_entity_regex(code, true, None),
+            "NOTE",
+            execute_on_entity,
+        )),
+    ]
+}
+
+/// Notes on a link, all forms, for one pass.
+pub fn on_link_commands_for<D: CucaHolder + 'static>(
+    pass: crate::command::ParserPass,
+) -> Vec<Box<dyn Command<D>>> {
+    vec![
+        crate::command::on_passes(on_link_single(), &[pass]),
+        crate::command::on_passes(on_link_multi(), &[pass]),
+    ]
+}
+
+/// Floating note, single and multi line (pass one).
+pub fn floating_all_commands<D: CucaHolder + 'static>() -> Vec<Box<dyn Command<D>>> {
+    vec![floating_single(), floating_multi()]
+}
+
 /// Floating note, `Java order: after CommandCreateElementFull2`.
-pub fn floating_commands() -> Vec<Cmd> {
+pub fn floating_commands<D: CucaHolder + 'static>() -> Vec<Box<dyn Command<D>>> {
     vec![floating_single()]
 }
 
@@ -439,7 +483,7 @@ pub fn on_entity_single_commands() -> Vec<Cmd> {
 }
 
 /// Multi-line forms, in Java order.
-pub fn multi_commands() -> Vec<Cmd> {
+pub fn multi_commands<D: CucaHolder + 'static>() -> Vec<Box<dyn Command<D>>> {
     vec![
         on_entity_multi(true),
         on_entity_multi(false),
