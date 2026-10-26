@@ -238,6 +238,17 @@ mod tests {
     }
 
     #[test]
+    fn tips_point_at_members() {
+        let svg = crate::render(
+            "@startuml\nclass E {\n int field1\n doThing()\n}\nnote right of E::field1 #yellow\n tip one\nend note\nnote left of E::doThing\n tip two\nend note\n@enduml",
+        )
+        .expect("renders");
+        assert!(svg.contains("tip one"));
+        assert!(svg.contains("tip two"));
+        assert!(svg.contains("fill=\"#FF0\""));
+    }
+
+    #[test]
     fn note_linked_twice_is_drawn_normally() {
         let svg = crate::render(
             "@startuml\nclass A\nclass B\nnote as N\n  n\nend note\nN .. A\nN .. B\n@enduml",

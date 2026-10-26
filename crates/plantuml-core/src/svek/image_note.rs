@@ -7,10 +7,11 @@ use crate::cucadiagram::CucaDiagram;
 use crate::klimt::color::colors::ColorType;
 use crate::klimt::color::HColor;
 use crate::klimt::creole::body::BodyEnhanced;
+use crate::klimt::creole::display::Display;
 use crate::klimt::dotpath::{distance, Point};
 use crate::klimt::drawing::ugraphic::{UGraphic, UPath, UStroke, UTranslate};
 use crate::klimt::font::{Dimension, StringBounder};
-use crate::klimt::geom::Direction;
+use crate::klimt::geom::{Direction, HorizontalAlignment};
 use crate::klimt::shape::{EmptyBlock, RectangleStencil, TextBlock};
 use crate::skin::rose::note::{corner, polygon_normal};
 use crate::skin::SkinParam;
@@ -134,17 +135,81 @@ pub struct OpalePath {
     pub end: Point,
 }
 
+/// The note box with its optional pointer (`Opale`).
+pub struct Opale {
+    pub shadowing: f64,
+    pub border: HColor,
+    pub back: HColor,
+    pub text: Rc<dyn TextBlock>,
+    pub stroke: UStroke,
+    pub round_corner: f64,
+}
+
+impl Opale {
+    pub fn width(&self, sb: &dyn StringBounder) -> f64 {
+        self.text.calculate_dimension(sb).width + MARGIN_X1 + MARGIN_X2
+    }
+
+    pub fn height(&self, sb: &dyn StringBounder) -> f64 {
+        self.text.calculate_dimension(sb).height + 2.0 * MARGIN_Y
+    }
+
+    pub fn dimension(&self, sb: &dyn StringBounder) -> Dimension {
+        Dimension::new(self.width(sb), self.height(sb))
+    }
+
+    /// Draws the note; `pointer` is the side, the base and the tip of the pointer.
+    pub fn draw(&self, ug: &UGraphic, pointer: Option<(Direction, Point, Point)>) {
+        let sb = ug.string_bounder();
+        let (width, height) = (self.width(sb), self.height(sb));
+        let mut polygon = match pointer {
+            None => polygon_normal(width, height, self.round_corner),
+            Some((strategy, base, tip)) => {
+                polygon_with_pointer(strategy, base, tip, width, height, self.round_corner)
+            }
+        };
+        polygon.delta_shadow = self.shadowing;
+        let ug = ug
+            .apply_back_color(self.back.clone())
+            .apply_color(self.border.clone())
+            .apply_stroke(self.stroke);
+        ug.draw(polygon);
+        ug.draw(corner(width, self.round_corner));
+        let stencil = ug.apply_stencil(Rc::new(RectangleStencil(width)), UStroke::simple());
+        self.text
+            .draw(&stencil.apply_translate(UTranslate::new(MARGIN_X1, MARGIN_Y)));
+    }
+}
+
+/// Text of a note, split on separator lines (`BodyFactory.create3`).
+pub fn note_body(
+    display: Display,
+    skin: &SkinParam,
+    style: &Style,
+    align: HorizontalAlignment,
+) -> Rc<dyn TextBlock> {
+    if display.size() == 1 && display.text_at(0).is_empty() {
+        return Rc::new(EmptyBlock {
+            width: 0.0,
+            height: 0.0,
+        });
+    }
+    Rc::new(BodyEnhanced::new(
+        display,
+        skin.skin_simple(),
+        align,
+        style.font_configuration(None),
+        style.wrap_width(),
+        style.value(PName::MinimumWidth).as_double(),
+        style.value(PName::LineThickness).as_double(),
+    ))
+}
+
 pub struct EntityImageNote {
     entity: Entity,
-    back: HColor,
-    border: HColor,
-    shadowing: f64,
-    round_corner: f64,
-    style: Style,
-    text: Rc<dyn TextBlock>,
-    colors: crate::klimt::color::colors::Colors,
+    opale: Opale,
     hidden: bool,
-    opale: Cell<Option<OpalePath>>,
+    link: Cell<Option<OpalePath>>,
 }
 
 impl EntityImageNote {
@@ -158,34 +223,18 @@ impl EntityImageNote {
             .color(ColorType::Back)
             .cloned()
             .unwrap_or_else(|| style.value(PName::BackGroundColor).as_color());
-        let display = entity.display();
-        let text: Rc<dyn TextBlock> = if display.size() == 1 && display.text_at(0).is_empty() {
-            Rc::new(EmptyBlock {
-                width: 0.0,
-                height: 0.0,
-            })
-        } else {
-            Rc::new(BodyEnhanced::new(
-                display,
-                skin.skin_simple(),
-                style.horizontal_alignment(),
-                style.font_configuration(None),
-                style.wrap_width(),
-                style.value(PName::MinimumWidth).as_double(),
-                style.value(PName::LineThickness).as_double(),
-            ))
-        };
         Self {
             entity: entity.clone(),
-            back,
-            border: style.value(PName::LineColor).as_color(),
-            shadowing: style.shadowing(),
-            round_corner: f64::from(skin.as_int("roundcorner", 0)),
-            style,
-            text,
-            colors,
+            opale: Opale {
+                shadowing: style.shadowing(),
+                border: style.value(PName::LineColor).as_color(),
+                back,
+                text: note_body(entity.display(), skin, &style, style.horizontal_alignment()),
+                stroke: colors.mute_stroke(style.stroke()),
+                round_corner: f64::from(skin.as_int("roundcorner", 0)),
+            },
             hidden: cuca.is_entity_hidden(entity),
-            opale: Cell::new(None),
+            link: Cell::new(None),
         }
     }
 
@@ -195,58 +244,29 @@ impl EntityImageNote {
 
     /// Tells where the link of the note goes (`setOpaleLink`, `setOpaleLine`).
     pub fn set_opale_path(&self, path: Option<OpalePath>) {
-        self.opale.set(path);
-    }
-
-    fn text_width(&self, sb: &dyn StringBounder) -> f64 {
-        self.text.calculate_dimension(sb).width + MARGIN_X1 + MARGIN_X2
-    }
-
-    fn text_height(&self, sb: &dyn StringBounder) -> f64 {
-        self.text.calculate_dimension(sb).height + 2.0 * MARGIN_Y
-    }
-
-    fn stroke(&self) -> UStroke {
-        self.colors.mute_stroke(self.style.stroke())
-    }
-
-    fn draw_body(&self, ug: &UGraphic, polygon: UPath, width: f64) {
-        let ug = ug
-            .apply_back_color(self.back.clone())
-            .apply_color(self.border.clone())
-            .apply_stroke(self.stroke());
-        ug.draw(polygon);
-        ug.draw(corner(width, self.round_corner));
-        let stencil = ug.apply_stencil(Rc::new(RectangleStencil(width)), UStroke::simple());
-        self.text
-            .draw(&stencil.apply_translate(UTranslate::new(MARGIN_X1, MARGIN_Y)));
+        self.link.set(path);
     }
 
     fn draw_internal(&self, ug: &UGraphic) {
         let sb = ug.string_bounder();
-        let (width, height) = (self.text_width(sb), self.text_height(sb));
-        let mut polygon = match self.opale.get() {
-            None => polygon_normal(width, height, self.round_corner),
-            Some(OpalePath { start, end }) => {
-                let center = (width / 2.0, height / 2.0);
-                // The end of the link nearest to the note is where the pointer leaves it.
-                let (near, far) = if distance(start, center) < distance(end, center) {
-                    (start, end)
-                } else {
-                    (end, start)
-                };
-                let strategy = opale_strategy(width, height, near);
-                polygon_with_pointer(strategy, near, far, width, height, self.round_corner)
-            }
-        };
-        polygon.delta_shadow = self.shadowing;
-        self.draw_body(ug, polygon, width);
+        let (width, height) = (self.opale.width(sb), self.opale.height(sb));
+        let pointer = self.link.get().map(|OpalePath { start, end }| {
+            let center = (width / 2.0, height / 2.0);
+            // The end of the link nearest to the note is where the pointer leaves it.
+            let (near, far) = if distance(start, center) < distance(end, center) {
+                (start, end)
+            } else {
+                (end, start)
+            };
+            (opale_strategy(width, height, near), near, far)
+        });
+        self.opale.draw(ug, pointer);
     }
 }
 
 impl TextBlock for EntityImageNote {
     fn calculate_dimension(&self, sb: &dyn StringBounder) -> Dimension {
-        Dimension::new(self.text_width(sb), self.text_height(sb))
+        self.opale.dimension(sb)
     }
 
     fn draw(&self, ug: &UGraphic) {

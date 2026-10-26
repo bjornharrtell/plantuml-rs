@@ -11,6 +11,7 @@ use crate::klimt::creole::display::Display;
 use crate::klimt::geom::Position;
 use crate::regex::{IRegex, RegexResult};
 use crate::stereo::{optional_pattern, Stereotype};
+use crate::string_utils::eventually_remove_starting_and_ending_double_quote as unquote;
 use crate::text::{BlocLines, LineLocation, MultilinesStrategy};
 use crate::url::{self, UrlBuilder, UrlMode};
 
@@ -268,6 +269,107 @@ fn on_entity_multi(bracket: bool) -> Cmd {
     )
 }
 
+// note on a member (tip)
+
+fn tip_regex(bracket: bool) -> IRegex {
+    let mut v = vec![
+        IRegex::start(),
+        IRegex::leaf("note"),
+        IRegex::space_one_or_more(),
+        IRegex::named("POSITION", "(right|left)"),
+        IRegex::space_one_or_more(),
+        IRegex::leaf("of"),
+        IRegex::space_one_or_more(),
+        IRegex::named(
+            "CODE",
+            "([^%s{}%g<>:]+|[%g][^%g]+[%g])::([%g][^%g]+[%g]|[^%s]+)",
+        ),
+        IRegex::space_zero_or_more(),
+        tags("TAGS1"),
+        optional_pattern("STEREO"),
+        tags("TAGS2"),
+        IRegex::space_zero_or_more(),
+        back_color().regex(),
+        IRegex::space_zero_or_more(),
+        url::optional(),
+    ];
+    if bracket {
+        v.push(IRegex::space_zero_or_more());
+        v.push(IRegex::leaf(r"\{"));
+    }
+    v.push(IRegex::end());
+    IRegex::concat(v)
+}
+
+fn execute_tip(
+    d: &mut ClassDiagram,
+    loc: Option<LineLocation>,
+    arg: &RegexResult,
+    display: Display,
+) -> CommandExecutionResult {
+    let id_short = arg.get("CODE", 0).unwrap_or("").to_string();
+    let member = unquote(arg.get("CODE", 1).unwrap_or(""));
+    let quark = match d.cuca.quark_in_context(true, &id_short) {
+        Ok(q) => q,
+        Err((m, s)) => return CommandExecutionResult::error_with_score(m, s),
+    };
+    let Some(cl1) = quark.data() else {
+        return CommandExecutionResult::error("Nothing to note to");
+    };
+    let position = Position::from_string(arg.get("POSITION", 0).unwrap_or("right"))
+        .unwrap_or(Position::Right)
+        .with_rankdir(d.cuca.base.skin_param.rankdir);
+    let pos_name = format!("{position:?}").to_uppercase();
+    let tmp = unquote(&format!("{id_short}$$${pos_name}"));
+    let ident_tip = match d.cuca.quark_in_context(true, &tmp) {
+        Ok(q) => q,
+        Err((m, s)) => return CommandExecutionResult::error_with_score(m, s),
+    };
+    let tips = match ident_tip.data() {
+        Some(t) => t,
+        None => {
+            let tips = d.cuca.really_create_leaf(
+                loc,
+                ident_tip,
+                Display::with_newlines(Some("")),
+                LeafType::Tips,
+            );
+            let link_type = LinkType::new(LinkDecor::None, LinkDecor::None).invisible();
+            let (a, b) = if position == Position::Right {
+                (cl1, tips.clone())
+            } else {
+                (tips.clone(), cl1)
+            };
+            let uid = d.cuca.unique_sequence("lnk");
+            d.cuca
+                .add_link(Link::new(loc, uid, a, b, link_type, LinkArg::no_display(1)));
+            tips
+        }
+    };
+    let Some(mut colors) = back_color().colors(arg) else {
+        return CommandExecutionResult::bad_color();
+    };
+    let mut stereotype = None;
+    if let Some(s) = arg.get("STEREO", 0) {
+        let st = Stereotype::build(s);
+        match d.cuca.base.skin_param.colors_for_note(&colors, &st) {
+            Some(c) => colors = c,
+            None => return CommandExecutionResult::bad_color(),
+        }
+        stereotype = Some(st);
+    }
+    tips.put_tip(&member, display, colors, stereotype);
+    CommandExecutionResult::ok()
+}
+
+fn tip_multi(bracket: bool) -> Cmd {
+    multi_cmd(
+        tip_regex(bracket),
+        if bracket { END_BRACKET } else { END_NOTE },
+        execute_tip,
+    )
+}
+
 // note on link
 
 fn on_link_regex(single: bool) -> IRegex {
@@ -333,7 +435,7 @@ pub fn floating_commands() -> Vec<Cmd> {
 
 /// Note on an entity, single line (`after CommandLinkClass`).
 pub fn on_entity_single_commands() -> Vec<Cmd> {
-    vec![on_entity_single()]
+    vec![tip_multi(true), tip_multi(false), on_entity_single()]
 }
 
 /// Multi-line forms, in Java order.
@@ -402,6 +504,22 @@ mod tests {
         let link = d.cuca.last_link().expect("link");
         assert!(link.get().note.is_some());
         assert!(notes(&d).is_empty());
+    }
+
+    #[test]
+    fn tips_on_members_share_one_entity() {
+        let d = parse(
+            "@startuml\nclass E {\n int f\n g()\n}\nnote right of E::f #yellow\n one\nend note\nnote right of E::g {\n two\n}\nnote left of E::f\n three\nend note\n@enduml",
+        );
+        let tips: Vec<_> = d
+            .cuca
+            .leafs()
+            .into_iter()
+            .filter(|e| e.leaf_type() == Some(LeafType::Tips))
+            .collect();
+        assert_eq!(tips.len(), 2);
+        assert_eq!(tips[0].tips().len(), 2);
+        assert!(d.cuca.links().iter().all(|l| l.is_invis()));
     }
 
     #[test]

@@ -329,7 +329,14 @@ fn add_node(
     cluster: &Cluster,
     c: &mut Collected,
 ) {
-    let image = create_entity_image(ent, cuca, skin);
+    let image: Rc<dyn crate::svek::image::IEntityImage> = if ent.leaf_type() == Some(LeafType::Tips)
+    {
+        Rc::new(crate::svek::image_tips::EntityImageTips::new(
+            ent, cuca, skin, &c.bib,
+        ))
+    } else {
+        create_entity_image(ent, cuca, skin)
+    };
     let node = SvekNode::new(
         ent.clone(),
         image,
@@ -688,14 +695,15 @@ impl Drawing {
             cluster.set_position((ur.0, max - ur.1), (ll.0, max - ll.1));
             cluster.draw(ug, &self.layout.skin, cluster.get().hidden);
         }
+        // Tips look at the position of the entity they are about.
+        for (_, node, c, d) in &self.layout.nodes {
+            let mut n = node.get_mut();
+            n.min_x = c.0 - d.width / 2.0;
+            n.min_y = max - (c.1 + d.height / 2.0);
+        }
         for (_, node, c, d) in &self.layout.nodes {
             // `getCorner`: the lower left in layout coordinates, mirrored.
             let corner = (c.0 - d.width / 2.0, max - (c.1 + d.height / 2.0));
-            {
-                let mut n = node.get_mut();
-                n.min_x = corner.0;
-                n.min_y = corner.1;
-            }
             let ug_node = if node.is_hidden() {
                 ug.apply_hidden(true)
             } else {

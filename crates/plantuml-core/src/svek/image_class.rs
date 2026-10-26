@@ -15,7 +15,9 @@ use crate::klimt::drawing::ugraphic::{
 use crate::klimt::font::config::FontConfiguration;
 use crate::klimt::font::{Dimension, StringBounder, UFont};
 use crate::klimt::geom::{HorizontalAlignment, VerticalAlignment};
-use crate::klimt::shape::{with_margin, HorizontalBlock, Stencil, TextBlock, VerticalBlock};
+use crate::klimt::shape::{
+    with_margin, HorizontalBlock, InnerRect, Stencil, TextBlock, VerticalBlock,
+};
 use crate::skin::visibility::VisibilityModifier;
 use crate::skin::SkinParam;
 use crate::stereo::Guillemet;
@@ -415,6 +417,37 @@ impl MembersArea {
 }
 
 impl TextBlock for MembersArea {
+    fn inner_position(&self, member: &str, sb: &dyn StringBounder) -> Option<InnerRect> {
+        let small_icon = if self.has_small_icon() {
+            (self.radius + 3.0).trunc()
+        } else {
+            0.0
+        };
+        let mut y = 0.0;
+        for m in &self.members {
+            let d = self.block(m).calculate_dimension(sb);
+            let row = if small_icon > 0.0 {
+                self.icon_block(m)
+                    .calculate_dimension(sb)
+                    .height
+                    .max(d.height)
+            } else {
+                d.height
+            };
+            if m.raw() == member {
+                let ty = y + (row - d.height) / 2.0;
+                return Some(if small_icon > 0.0 {
+                    let icon = self.radius + 3.0;
+                    (small_icon - icon, ty, d.width + icon, d.height)
+                } else {
+                    (0.0, ty, d.width, d.height)
+                });
+            }
+            y += row;
+        }
+        None
+    }
+
     fn calculate_dimension(&self, sb: &dyn StringBounder) -> Dimension {
         self.only_members(sb)
     }
@@ -558,6 +591,11 @@ impl TextBlock for EntityImageClass {
             width = self.same_class_width;
         }
         Dimension::new(width, dim_body.height + dim_header.height)
+    }
+
+    fn inner_position(&self, member: &str, sb: &dyn StringBounder) -> Option<InnerRect> {
+        let (x, y, w, h) = self.body.as_ref()?.inner_position(member, sb)?;
+        Some((x, y + self.header.dimension(sb).height, w, h))
     }
 
     fn draw(&self, ug: &UGraphic) {

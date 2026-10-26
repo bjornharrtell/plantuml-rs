@@ -56,6 +56,14 @@ impl TextBlock for LineBefore {
             ug.draw(line(self.title.clone()));
         }
     }
+
+    fn inner_position(
+        &self,
+        member: &str,
+        sb: &dyn StringBounder,
+    ) -> Option<crate::klimt::shape::InnerRect> {
+        self.block.inner_position(member, sb)
+    }
 }
 
 /// Body of a note or a class compartment made of several parts (`BodyEnhanced2`).

@@ -15,7 +15,14 @@ pub trait TextBlock {
     fn backcolor(&self) -> Option<HColor> {
         None
     }
+    /// Box `(x, y, width, height)` of a member inside this block (`getInnerPosition`).
+    fn inner_position(&self, _member: &str, _sb: &dyn StringBounder) -> Option<InnerRect> {
+        None
+    }
 }
+
+/// `(x, y, width, height)`.
+pub type InnerRect = (f64, f64, f64, f64);
 
 /// Horizontal extent available at a given `y` (`Stencil`).
 pub trait Stencil {
@@ -248,6 +255,10 @@ impl TextBlock for MargedBlock {
                 .draw(&ug.apply_translate(UTranslate::new(self.margins.left, self.margins.top)));
         }
     }
+    fn inner_position(&self, member: &str, sb: &dyn StringBounder) -> Option<InnerRect> {
+        let (x, y, w, h) = self.inner.inner_position(member, sb)?;
+        Some((x + self.margins.left, y + self.margins.top, w, h))
+    }
 }
 
 /// `TextBlockUtils.withMargin`.
@@ -296,6 +307,17 @@ impl TextBlock for VerticalBlock {
             block.draw(&ug.apply_translate(UTranslate::new(dx, y)));
             y += dim.height;
         }
+    }
+
+    fn inner_position(&self, member: &str, sb: &dyn StringBounder) -> Option<InnerRect> {
+        let mut y = 0.0;
+        for block in &self.blocks {
+            if let Some((rx, ry, w, h)) = block.inner_position(member, sb) {
+                return Some((rx, ry + y, w, h));
+            }
+            y += block.calculate_dimension(sb).height;
+        }
+        None
     }
 }
 
