@@ -5,10 +5,6 @@ use super::element::{
     ElementMenuBar, ElementPyramid, ElementPyramidScrolled, ElementRadioCheckbox, ElementTabBar,
     ElementText, ElementTextField, ElementTree, Elmt, Positionner, ScrollStrategy, TableStrategy,
     WrappedElement,
-    default_font, Elmt, ElementBorder, ElementButton, ElementDroplist, ElementImage,
-    ElementLine, ElementMenuBar, ElementPyramid, ElementPyramidScrolled, ElementRadioCheckbox,
-    ElementTabBar, ElementText, ElementTextField, ElementTree, Positionner, ScrollStrategy,
-    TableStrategy, WrappedElement,
 };
 use crate::string_utils::{eventually_remove_starting_and_ending_double_quote_with, trin};
 use std::collections::HashMap;
@@ -263,10 +259,6 @@ impl Parser {
         if !t.starts_with('{') && !t.starts_with('}') && !trin(t).is_empty() {
             let item = self.ds.next()?;
             return Ok((Rc::new(ElementText::new(&[item.text], font)), item.newcol));
-            return Ok((
-                Rc::new(ElementText::new(&[item.text], font)),
-                item.newcol,
-            ));
         }
         if self.pyramid_ready()? {
             return self.pyramid();

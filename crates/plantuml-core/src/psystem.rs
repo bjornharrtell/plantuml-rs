@@ -16,7 +16,6 @@ pub fn factories() -> Vec<Box<dyn DiagramFactory>> {
         Box::new(crate::jsondiagram::HclDiagramFactory),
         Box::new(crate::mindmap::MindMapDiagramFactory),
         Box::new(crate::wbs::WbsDiagramFactory),
-        Box::new(crate::salt::SaltDiagramFactory),
     ]
 }
 

@@ -32,8 +32,8 @@ pub mod svek;
 pub mod text;
 pub mod tim;
 pub mod url;
-pub mod yaml;
 pub mod wbs;
+pub mod yaml;
 
 /// Version reported by `%version()`.
 pub const VERSION: &str = "1.2026.0";
