@@ -273,9 +273,9 @@ dependencies = [
 
 [[package]]
 name = "graphviz-pure"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ca3ccf85372c5c2174cb88bb93c1dfad9429d31f62497f8d53f3799d15e5598"
+checksum = "f1f066cc2ba75b0f57eae72463cc0ba837f4b3650fc6d5b4aaedc5e6e9f30f27"
 dependencies = [
  "graphviz-pure-core",
  "graphviz-pure-geom",
@@ -289,9 +289,9 @@ dependencies = [
 
 [[package]]
 name = "graphviz-pure-core"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "daccfbe17d9bf67bffc6f8feb0885a20551baf413530a7b831472f7aa52174d9"
+checksum = "be1af173a419abb9ccbecafc2fc00365e95a93edf203803061268ad3e7306dcd"
 dependencies = [
  "libm",
  "serde",
@@ -300,18 +300,18 @@ dependencies = [
 
 [[package]]
 name = "graphviz-pure-geom"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d09d78e050300f7f409fb3c2b67220e4ec6f85ac47d7d382c876fe471ece6150"
+checksum = "ebba1f42ce91c9f4d337135232c7725b9f2ecc738db6bfbc5cb058e35bdad76a"
 dependencies = [
  "graphviz-pure-core",
 ]
 
 [[package]]
 name = "graphviz-pure-layout"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "259a43e20213401ae43d1f62365441f4283659e0a11e842ca02d4d3c8d7ebfff"
+checksum = "17afe7358b893c24315c5a310b1008578b4fd55457011517cb72246ae3039777"
 dependencies = [
  "graphviz-pure-core",
  "graphviz-pure-geom",
@@ -319,9 +319,9 @@ dependencies = [
 
 [[package]]
 name = "graphviz-pure-parser"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "98fbef3eecdee4a5d77a0b1d5495cfbef170c35702e1557d5b2da41af15ae969"
+checksum = "5c06cb16d37828ae0636a280ab58f05e48646c973a0a4833b0822b4823cbfde1"
 dependencies = [
  "graphviz-pure-core",
  "thiserror",
@@ -329,9 +329,9 @@ dependencies = [
 
 [[package]]
 name = "graphviz-pure-render"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c831dd140a202252fc5a1e8d2b9537fe85a640d694ccf55b3e5f55341c72d6f9"
+checksum = "db39ddf36672a9ab07f6fcf82da18409afd0da8e5fd96893c439c89eb8e4d0a1"
 dependencies = [
  "graphviz-pure-core",
  "graphviz-pure-geom",
