@@ -34,7 +34,7 @@
   <button id="download">Download SVG</button>
   <span class="grow"></span>
   <span class="grow"></span>
-  <span title="Diagram types the port renders so far">supported: sequence, class (partial), packet, chart, mindmap, wbs, salt, json, yaml</span>
+  <span title="Diagram types the port renders so far">supported: sequence, class (partial), state, activity (partial), packet, chart, mindmap, wbs, gantt, timing, salt, json, yaml, hcl</span>
   <a href="https://github.com/bjornharrtell/plantuml-rs">source</a>
 </header>
 <main>
@@ -101,6 +101,26 @@ Animal <|-- Dog
 Pet <|.. Dog : implements
 Dog --> Animal : owner
 @enduml`,
+  'State': `@startuml
+[*] --> Idle
+Idle --> Running : start
+Running --> Paused : pause
+Paused --> Running : resume
+Running --> Done : finish
+Done --> [*]
+state Running {
+  [*] --> Working
+  Working --> Waiting : wait
+  Waiting --> Working : ready
+}
+@enduml`,
+  'Activity (partial)': `@startuml
+start
+:Receive order;
+:Check stock;
+:Ship order;
+stop
+@enduml`,
   'Mindmap': `@startmindmap
 * Project
 ** Plan
@@ -121,6 +141,35 @@ left side
 *** Unit
 *** Integration
 @endwbs`,
+  'Gantt': `@startgantt
+Project starts 2020-07-01
+[Specification] lasts 10 days
+[Prototype] lasts 5 days
+[Prototype] starts at [Specification]'s end
+[Testing] lasts 5 days
+[Testing] starts at [Prototype]'s end
+[Specification] -> [Prototype]
+[Prototype] -> [Testing]
+[Prototype] is colored in LightBlue/Blue
+[Testing] is 40% completed
+@endgantt`,
+  'Timing': `@startuml
+concise "Client" as C
+concise "Server" as S
+@0
+C is Idle
+S is Idle
+@10
+C is Request
+C -> S : request
+@20
+S is Busy
+@40
+S is Idle
+S -> C : response
+@50
+C is Idle
+@enduml`,
   'Salt': `@startsalt
 {
   Login    | "admin   "
@@ -143,6 +192,15 @@ tags:
 port:
   done: true
 @endyaml`,
+  'HCL': `@starthcl
+module "server" {
+  size  = "t3.micro"
+  count = 2
+  tags = {
+    env = "prod"
+  }
+}
+@endhcl`,
   'Chart': `@startchart
 h-axis [1, 2, 3]
 stackMode grouped
