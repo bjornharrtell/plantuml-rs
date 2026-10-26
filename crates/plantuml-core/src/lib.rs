@@ -280,6 +280,36 @@ mod tests {
     }
 
     #[test]
+    fn sprite_definitions_are_drawn_where_a_label_refers_to_them() {
+        let svg = render(
+            "@startuml\nsprite $box [4x4/16] {\n0F00\nFF00\n0F00\n0000\n}\nclass A\nnote right of A: <$box> here\n@enduml",
+        )
+        .unwrap();
+        assert!(svg.contains(">here</text>"));
+        assert!(
+            !svg.contains("$box"),
+            "the reference is replaced by the sprite"
+        );
+        // Three rows of the sprite have opaque pixels, drawn as one run each.
+        assert!(
+            svg.matches("height=\"1\"").count() >= 3,
+            "sprite pixels drawn"
+        );
+        let svg = render(
+            "@startuml\n!include <C4/C4_Container>\nPerson(p, \"P\", $sprite=\"person\")\n@enduml",
+        )
+        .unwrap();
+        assert!(
+            !svg.contains("$person"),
+            "the C4 sprite reference is replaced"
+        );
+        assert!(
+            svg.matches("<rect").count() > 10,
+            "the person sprite is drawn"
+        );
+    }
+
+    #[test]
     fn empty_packages_and_boundaries_are_drawn() {
         let svg = render("@startuml\npackage foo {\n}\n@enduml").unwrap();
         assert!(svg.contains("class=\"cluster\""));

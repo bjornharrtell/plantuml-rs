@@ -16,6 +16,7 @@ use crate::style::skinparam::FromSkinparamToStyle;
 use crate::style::{Margins, PName, SName, Style, StyleBuilder, StyleQuery};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 thread_local! {
     static DEFAULT_SKIN: StyleBuilder = StyleBuilder::default_skin();
@@ -50,6 +51,22 @@ pub struct SkinParam {
     pub rankdir: Rankdir,
     /// Style name of the diagram type that owns these parameters (`getDiagramType().getStyleName()`).
     pub diagram_style: Option<crate::style::SName>,
+    /// Sprites defined by the diagram (`sprite $name { ... }`), shared with label rendering.
+    sprites: Rc<RefCell<crate::klimt::sprite::SpriteRegistry>>,
+}
+
+impl SkinParam {
+    /// Defines a sprite for `<$name>` references in labels.
+    pub fn add_sprite(&self, sprite: Rc<crate::klimt::sprite::Sprite>) {
+        self.sprites
+            .borrow_mut()
+            .insert(sprite.name().to_string(), sprite);
+    }
+
+    /// The sprite named `name`, if the diagram defined it.
+    pub fn sprite(&self, name: &str) -> Option<Rc<crate::klimt::sprite::Sprite>> {
+        self.sprites.borrow().get(name).cloned()
+    }
 }
 
 impl std::fmt::Debug for StyleBuilder {
@@ -418,6 +435,7 @@ impl SkinParam {
             padding: self.padding(),
             guillemet: self.guillemet(),
             tab_size: self.tab_size(),
+            sprites: Some(Rc::new(self.sprites.borrow().clone())),
         }
     }
 }

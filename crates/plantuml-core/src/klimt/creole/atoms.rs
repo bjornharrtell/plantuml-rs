@@ -102,6 +102,8 @@ pub enum Atom {
     Horizontal(Vec<Atom>),
     /// Invisible placeholder of the same size (`blank(header)`).
     Blank(Box<Atom>),
+    /// A sprite defined by the diagram, referred to as `<$name>` (or `<&name>`) in a label.
+    Sprite(Rc<crate::klimt::sprite::Sprite>),
 }
 
 impl PartialEq for Atom {
@@ -112,6 +114,7 @@ impl PartialEq for Atom {
             (Atom::Bullet(f, o), Atom::Bullet(g, p)) => f == g && o == p,
             (Atom::Horizontal(a), Atom::Horizontal(b)) => a == b,
             (Atom::Blank(a), Atom::Blank(b)) => a == b,
+            (Atom::Sprite(a), Atom::Sprite(b)) => Rc::ptr_eq(a, b),
             _ => false,
         }
     }
@@ -354,6 +357,7 @@ impl Atom {
                 Dimension::new(d.width + b.width, d.height.max(b.height))
             }),
             Atom::Blank(a) => a.dimension(sb),
+            Atom::Sprite(s) => s.dimension(),
         }
     }
 
@@ -371,6 +375,7 @@ impl Atom {
             }
             Atom::Horizontal(all) => all.first().map_or(0.0, Atom::starting_altitude),
             Atom::Blank(a) => a.starting_altitude(),
+            Atom::Sprite(_) => 0.0,
         }
     }
 
@@ -388,6 +393,7 @@ impl Atom {
                     .draw(line);
             }
             Atom::Space(_) | Atom::Blank(_) => {}
+            Atom::Sprite(s) => s.draw(ug),
             Atom::Bullet(fc, order) => {
                 let color = fc.color().clone();
                 let u = ug.apply_color(color.clone());

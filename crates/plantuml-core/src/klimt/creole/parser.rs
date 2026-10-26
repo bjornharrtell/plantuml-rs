@@ -504,6 +504,9 @@ impl<'a> StripeBuilder<'a> {
         if rest.chars().count() <= 2 {
             return None;
         }
+        if let Some(n) = self.try_sprite(rest, pending) {
+            return Some(n);
+        }
         let key: String = rest.chars().take(2).collect();
         let cmds = self.cmds.clone();
         for cmd in cmds {
@@ -514,6 +517,23 @@ impl<'a> StripeBuilder<'a> {
                 self.add_pending(pending);
                 return Some(self.execute(m));
             }
+        }
+        None
+    }
+
+    /// A sprite reference `<$name>` (or `<&name>`), resolved from the sprites of the diagram.
+    fn try_sprite(&mut self, rest: &str, pending: &mut String) -> Option<usize> {
+        for prefix in ["<$", "<&"] {
+            let Some(tail) = rest.strip_prefix(prefix) else {
+                continue;
+            };
+            let Some(end) = tail.find('>') else { continue };
+            let Some(sprite) = self.skin.sprite(&tail[..end]) else {
+                continue;
+            };
+            self.add_pending(pending);
+            self.atoms.push(Atom::Sprite(sprite));
+            return Some(prefix.len() + end + 1);
         }
         None
     }

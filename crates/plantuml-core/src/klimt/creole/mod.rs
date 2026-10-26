@@ -30,6 +30,15 @@ pub struct SkinSimple {
     /// `<<x>>` becomes `«x»` when true.
     pub guillemet: bool,
     pub tab_size: i32,
+    /// Sprites defined by the diagram, drawn where a label says `<$name>`.
+    pub sprites: Option<std::rc::Rc<crate::klimt::sprite::SpriteRegistry>>,
+}
+
+impl SkinSimple {
+    /// The sprite named `name`, when the diagram defined it.
+    pub fn sprite(&self, name: &str) -> Option<std::rc::Rc<crate::klimt::sprite::Sprite>> {
+        self.sprites.as_ref()?.get(name).cloned()
+    }
 }
 
 impl Default for SkinSimple {
@@ -39,6 +48,7 @@ impl Default for SkinSimple {
             padding: Margins::default(),
             guillemet: true,
             tab_size: 8,
+            sprites: None,
         }
     }
 }

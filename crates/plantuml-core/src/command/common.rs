@@ -614,17 +614,41 @@ fn sprite_commands<D: HasBase + 'static>() -> Vec<Cmd<D>> {
     single_parts.push(IRegex::space_one_or_more());
     single_parts.push(IRegex::named("DATA", "([-_A-Za-z0-9]+)"));
     single_parts.push(IRegex::end());
+    let block_re = IRegex::concat(block_parts.clone());
+    let block_for_exec = block_re.clone();
     vec![
         Box::new(MultiLineCommand::new(
             IRegex::concat(block_parts),
             MultilinesStrategy::RemoveStartingQuote,
             Trim::Both,
             r"^end[%s]?sprite|^\}[%s]*$",
-            |_: &mut D, lines: &BlocLines, _| {
+            move |d: &mut D, lines: &BlocLines, _| {
                 if lines.size() <= 2 {
                     return CommandExecutionResult::error("No sprite defined.");
                 }
-                CommandExecutionResult::ok()
+                let first = lines.first().expect("first").trimmed();
+                let Some(arg) = block_for_exec.matcher(first.string()) else {
+                    return CommandExecutionResult::error("Bad syntax for sprite");
+                };
+                let name = arg.get("NAME", 0).unwrap_or("");
+                let body: Vec<String> = lines.sub_extract(1, 1).as_strings();
+                let (width, height, depth) = match arg.get("DIM", 0) {
+                    Some(_) => (
+                        arg.get("DIM", 0).and_then(|v| v.parse().ok()).unwrap_or(0),
+                        arg.get("DIM", 1).and_then(|v| v.parse().ok()).unwrap_or(0),
+                        arg.get("DIM", 2).and_then(|v| v.parse().ok()).unwrap_or(0),
+                    ),
+                    None => (0, 0, 0),
+                };
+                match crate::klimt::sprite::Sprite::new(name, &body, width, height, depth) {
+                    Some(sprite) => {
+                        d.base_mut().skin_param.add_sprite(std::rc::Rc::new(sprite));
+                        CommandExecutionResult::ok()
+                    }
+                    // A sprite form the port does not decode yet (file, base64, svg, colour):
+                    // ignore the definition instead of failing the diagram.
+                    None => CommandExecutionResult::ok(),
+                }
             },
         )),
         Box::new(SingleLineCommand::new(

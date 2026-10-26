@@ -9,3 +9,4 @@ pub mod fashion;
 pub mod font;
 pub mod geom;
 pub mod shape;
+pub mod sprite;
