@@ -208,9 +208,7 @@ impl Element for ElementLine {
         let at = |y: f64| ug.apply_translate(UTranslate::new(0.0, y));
         match self.separator {
             '=' => {
-                at(y2)
-                    .apply_stroke(UStroke::simple())
-                    .draw(ULine::hline(w));
+                at(y2).apply_stroke(UStroke::simple()).draw(ULine::hline(w));
                 at(y2 + 2.0)
                     .apply_stroke(UStroke::simple())
                     .draw(ULine::hline(w));
@@ -218,9 +216,7 @@ impl Element for ElementLine {
             '.' => at(y2)
                 .apply_stroke(UStroke::new(1.0, 2.0, 1.0))
                 .draw(ULine::hline(w)),
-            '-' => at(y2)
-                .apply_stroke(UStroke::simple())
-                .draw(ULine::hline(w)),
+            '-' => at(y2).apply_stroke(UStroke::simple()).draw(ULine::hline(w)),
             _ => at(y2)
                 .apply_stroke(UStroke::with_thickness(1.5))
                 .draw(ULine::hline(w)),
@@ -297,7 +293,8 @@ impl Element for ElementButton {
         let stroke = 2.5;
         let (mx, my) = (2.0, 2.0);
         let dim = self.core.text_dimension_at(sb, x + stroke + mx);
-        dim.delta(2.0 * mx, 2.0 * my).delta(2.0 * stroke, 2.0 * stroke)
+        dim.delta(2.0 * mx, 2.0 * my)
+            .delta(2.0 * stroke, 2.0 * stroke)
     }
     fn draw(&self, ug: &UGraphic, z_index: i32, _: Dimension) {
         if z_index != 0 {
@@ -446,14 +443,19 @@ impl Element for ElementRadioCheckbox {
         }
         let ug = ug.apply_color(black());
         self.block.draw(&ug.apply_translate(UTranslate::dx(20.0)));
-        let height = self.preferred_dimension(ug.string_bounder(), 0.0, 0.0).height;
+        let height = self
+            .preferred_dimension(ug.string_bounder(), 0.0, 0.0)
+            .height;
         let ug = ug.apply_stroke(UStroke::with_thickness(1.5));
         if self.radio {
             ug.apply_translate(UTranslate::new(2.0, (height - 10.0) / 2.0))
                 .draw(UEllipse::build(10.0, 10.0));
             if self.checked {
                 ug.apply_back_color(ug.color().clone())
-                    .apply_translate(UTranslate::new(2.0 + (10.0 - 4.0) / 2.0, (height - 4.0) / 2.0))
+                    .apply_translate(UTranslate::new(
+                        2.0 + (10.0 - 4.0) / 2.0,
+                        (height - 4.0) / 2.0,
+                    ))
                     .draw(UEllipse::build(4.0, 4.0));
             }
         } else {
@@ -531,7 +533,8 @@ impl ElementMenuPopup {
             return;
         }
         let ug = ug.apply_color(black());
-        ug.apply_back_color(color_dd()).draw(rect(dim.width, dim.height));
+        ug.apply_back_color(color_dd())
+            .draw(rect(dim.width, dim.height));
         let mut y1 = 0.0;
         for e in &self.entries {
             let h = e.preferred_dimension(ug.string_bounder()).height;
@@ -607,7 +610,8 @@ impl Element for ElementMenuBar {
         let ug = ug.apply_color(black());
         if z_index == 0 {
             let mut x1 = 0.0;
-            ug.apply_back_color(color_dd()).draw(rect(dim.width, dim.height));
+            ug.apply_back_color(color_dd())
+                .draw(rect(dim.width, dim.height));
             for e in &self.entries {
                 e.draw(&ug.apply_translate(UTranslate::dx(x1)));
                 let w = e.preferred_dimension(ug.string_bounder()).width;
@@ -683,7 +687,11 @@ impl Element for ElementTabBar {
             let preferred = self.preferred_dimension(ug.string_bounder(), 0.0, 0.0);
             let mut y1 = 0.0;
             for t in &self.tabs {
-                t.draw(&ug.apply_translate(UTranslate::dy(y1 + TAB_M1)), z_index, dim);
+                t.draw(
+                    &ug.apply_translate(UTranslate::dy(y1 + TAB_M1)),
+                    z_index,
+                    dim,
+                );
                 let h = t.preferred_dimension(ug.string_bounder(), 0.0, y1).height;
                 ug.apply_translate(UTranslate::dy(y1))
                     .draw(ULine::hline(preferred.width));
@@ -698,7 +706,11 @@ impl Element for ElementTabBar {
         } else {
             let mut x1 = 0.0;
             for t in &self.tabs {
-                t.draw(&ug.apply_translate(UTranslate::dx(x1 + TAB_M1)), z_index, dim);
+                t.draw(
+                    &ug.apply_translate(UTranslate::dx(x1 + TAB_M1)),
+                    z_index,
+                    dim,
+                );
                 let d = t.preferred_dimension(ug.string_bounder(), x1, 0.0);
                 let w = d.width;
                 ug.apply_translate(UTranslate::dx(x1))
@@ -794,6 +806,7 @@ impl Element for ElementBorder {
 
 /// Which lines a table draws (`TableStrategy`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(clippy::enum_variant_names)]
 pub enum TableStrategy {
     DrawNone,
     DrawOutside,
@@ -855,7 +868,8 @@ pub struct Positionner {
 
 impl Positionner {
     pub fn add(&mut self, element: Elmt, newcol: bool) {
-        self.positions.push((element, Cell::new(self.row, self.col)));
+        self.positions
+            .push((element, Cell::new(self.row, self.col)));
         self.update_max();
         if newcol {
             self.col += 1;
@@ -944,10 +958,7 @@ impl<'a> Grid<'a> {
 
     fn add_cell(&mut self, cell: &Cell) {
         use TableStrategy::*;
-        if matches!(
-            self.strategy,
-            DrawNone | DrawOutside | DrawOutsideWithTitle
-        ) {
+        if matches!(self.strategy, DrawNone | DrawOutside | DrawOutsideWithTitle) {
             return;
         }
         if matches!(self.strategy, DrawHorizontal | DrawAll) {
@@ -1048,7 +1059,12 @@ impl ElementPyramid {
         });
         for (elt, cell) in &all {
             let dim = elt.preferred_dimension(sb, 0.0, 0.0);
-            ensure(&mut cols_start, cell.min_col, cell.max_col + 1, dim.width + 2.0);
+            ensure(
+                &mut cols_start,
+                cell.min_col,
+                cell.max_col + 1,
+                dim.width + 2.0,
+            );
         }
         all.sort_by(|a, b| {
             a.1.nb_rows()
@@ -1178,7 +1194,8 @@ fn triangle(pts: [(f64, f64); 3]) -> UPath {
 
 fn draw_v(ug: &UGraphic, width: f64, height: f64) {
     ug.draw(URectangle::build(width, height));
-    ug.apply_translate(UTranslate::dy(V2)).draw(ULine::hline(width));
+    ug.apply_translate(UTranslate::dy(V2))
+        .draw(ULine::hline(width));
     ug.apply_translate(UTranslate::dy(height - V2))
         .draw(ULine::hline(width));
     let bg = black();
@@ -1192,7 +1209,8 @@ fn draw_v(ug: &UGraphic, width: f64, height: f64) {
 
 fn draw_h(ug: &UGraphic, width: f64, height: f64) {
     ug.draw(URectangle::build(width, height));
-    ug.apply_translate(UTranslate::dx(V2)).draw(ULine::vline(height));
+    ug.apply_translate(UTranslate::dx(V2))
+        .draw(ULine::vline(height));
     ug.apply_translate(UTranslate::dx(width - V2))
         .draw(ULine::vline(height));
     let bg = black();
@@ -1217,18 +1235,28 @@ impl Element for ElementPyramidScrolled {
     fn draw(&self, ug: &UGraphic, z_index: i32, dim: Dimension) {
         self.inner.draw(ug, z_index, dim);
         let ug = ug.apply_color(black());
-        let d = self.inner.preferred_dimension(ug.string_bounder(), 0.0, 0.0);
+        let d = self
+            .inner
+            .preferred_dimension(ug.string_bounder(), 0.0, 0.0);
         if matches!(
             self.strategy,
             ScrollStrategy::Both | ScrollStrategy::VerticalOnly
         ) {
-            draw_v(&ug.apply_translate(UTranslate::dx(d.width + 4.0)), V1, d.height);
+            draw_v(
+                &ug.apply_translate(UTranslate::dx(d.width + 4.0)),
+                V1,
+                d.height,
+            );
         }
         if matches!(
             self.strategy,
             ScrollStrategy::Both | ScrollStrategy::HorizontalOnly
         ) {
-            draw_h(&ug.apply_translate(UTranslate::dy(d.height + 4.0)), d.width, V1);
+            draw_h(
+                &ug.apply_translate(UTranslate::dy(d.height + 4.0)),
+                d.width,
+                V1,
+            );
         }
     }
 
@@ -1386,13 +1414,11 @@ impl Element for ElementTree {
             cols.push(xvar);
         }
         for entry in &self.entries {
-            entry
-                .first
-                .draw(
-                    &ug.apply_translate(UTranslate::new(entry.x_delta(), yvar)),
-                    0,
-                    Dimension::new(0.0, 0.0),
-                );
+            entry.first.draw(
+                &ug.apply_translate(UTranslate::new(entry.x_delta(), yvar)),
+                0,
+                Dimension::new(0.0, 0.0),
+            );
             let mut x = w1 + TREE_MARGIN;
             for (e, w) in entry.others.iter().zip(other_width.0.iter()) {
                 e.draw(
@@ -1419,7 +1445,8 @@ impl Element for ElementTree {
 fn draw_skeleton(ug: &UGraphic, entries: &[(f64, f64)]) {
     for (i, &(x, y)) in entries.iter().enumerate() {
         if i + 1 < entries.len() && entries[i + 1].0 > x {
-            ug.apply_translate(UTranslate::new(x, y)).draw(rect(2.0, 2.0));
+            ug.apply_translate(UTranslate::new(x, y))
+                .draw(rect(2.0, 2.0));
         }
         let mut parent = None;
         for e in &entries[..i] {

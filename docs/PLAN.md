@@ -219,6 +219,7 @@ time; it is a regression signal, not the acceptance bar (see [Fidelity target](#
 - Done: diagram registry (`psystem.rs`), packet diagrams (56/56 Vega fixtures identical), `skin` command and bundled skins.
 - Done: wasm package and playground (`site/`, `scripts/build-site.sh`, `.github/workflows/pages.yml`; enable Pages with source "GitHub Actions" in the repository settings).
 - Done: chart diagrams (`chart/`: axes, bar/line/area/scatter series, legend, annotations). Vega CHART: 35/35 identical.
+- Done: salt diagrams (`salt/`: tokenizer, element factories, tables, trees, tabs, menus, droplists, scroll, border, images; sprites skipped). Vega SALT: 6/10 identical, 4 differ only by line order (Java HashSet) or by creole `[[url{tooltip}]]` links.
 - In progress: class diagrams. Ported: `abel` model, `plasma`, `cucadiagram`, link decorations, visibility icons, class/link commands, `set separator`/`namespaceSeparator`, `hide`/`show` (by name, stereotype, gender, visibility), `left to right`/`top to bottom direction`, `package`/`namespace` blocks with `}`, `DotPath`, `svek` (types, node, role labels, extremities, bibliotekon, cluster), `SvekEdge`, `DotStringFactory` on graphviz-pure, `EntityImageClass`. Next: cluster layout and drawing for `package`/`namespace` bodies (`Cluster::print_internal` and the cluster box), then notes on members and association classes.
 - Next: description/component diagrams, then C4 models (see the C4 section).
 
