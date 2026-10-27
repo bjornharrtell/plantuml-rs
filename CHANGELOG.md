@@ -5,6 +5,11 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 ## [Unreleased]
 
+### Changed
+
+- `graphviz-pure` 0.2.2 (was 0.2.1). The release changes only the `neato` and `sfdp` engines; the
+  rendered corpus is unchanged.
+
 ### Fixed
 
 - A class or object link that names a member (`Foo::field1 --> Bar::field3`) now attaches to that

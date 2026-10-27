@@ -28,8 +28,8 @@ differences and open items are listed in the plan.
 
 ## Performance
 
-On the 472-file Vega corpus the library renders 3.1 ms per diagram against 2.8 ms for Java PlantUML in
-one JVM — about 10% behind — with roughly 76 ms of one-time initialization per process. Method,
+On the 472-file Vega corpus the library renders 2.7 ms per diagram against 2.9 ms for Java PlantUML in
+one JVM — about 10% ahead — with roughly 76 ms of one-time initialization per process. Method,
 caveats and the profile behind those numbers are in
 [docs/PERFORMANCE.md](https://github.com/bjornharrtell/plantuml-rs/blob/main/docs/PERFORMANCE.md).
 
