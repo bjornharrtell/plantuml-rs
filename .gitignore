@@ -7,3 +7,6 @@ __pycache__/
 editors/vscode/wasm/
 editors/vscode/node_modules/
 editors/vscode/*.vsix
+npm/dist/
+npm/*.tgz
+npm/LICENSE

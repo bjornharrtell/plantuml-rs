@@ -1,0 +1,52 @@
+{
+  "name": "plantuml-rs",
+  "version": "0.3.1",
+  "description": "PlantUML renderer in WebAssembly: deterministic SVG from text, no Java, no Graphviz, no network",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bjornharrtell/plantuml-rs"
+  },
+  "homepage": "https://github.com/bjornharrtell/plantuml-rs#javascript",
+  "bugs": {
+    "url": "https://github.com/bjornharrtell/plantuml-rs/issues"
+  },
+  "keywords": [
+    "plantuml",
+    "uml",
+    "diagram",
+    "svg",
+    "wasm",
+    "renderer"
+  ],
+  "type": "commonjs",
+  "main": "./dist/node/plantuml_wasm.js",
+  "types": "./dist/node/plantuml_wasm.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/node/plantuml_wasm.d.ts",
+      "node": {
+        "require": "./dist/node/plantuml_wasm.js",
+        "import": "./node.mjs"
+      },
+      "browser": "./dist/web/plantuml_wasm.js",
+      "default": "./dist/web/plantuml_wasm.js"
+    },
+    "./web": {
+      "types": "./dist/web/plantuml_wasm.d.ts",
+      "default": "./dist/web/plantuml_wasm.js"
+    },
+    "./node": {
+      "types": "./dist/node/plantuml_wasm.d.ts",
+      "default": "./dist/node/plantuml_wasm.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "node.mjs",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false
+}

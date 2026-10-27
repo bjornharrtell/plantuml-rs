@@ -121,8 +121,8 @@ and the parts marked out of scope.
 6. **C4 models**: bundled C4-PlantUML sources, `!include <C4/...>` resolution and the canonical samples (see the C4
    section).
 7. **Self-layout types**: sequence, activity-beta, mindmap, wbs, json/yaml, gantt, salt, timing, chart, packet, EBNF.
-8. **wasm packaging**: the crate, the demo page and `scripts/build-site.sh`; the npm package and the size/speed
-   comparison against the TeaVM build are out of scope.
+8. **wasm packaging**: the crate, the demo page, `scripts/build-site.sh`, and the npm package built by
+   `scripts/build-npm.sh`; the size/speed comparison against the TeaVM build is out of scope.
 
 Exit criterion per diagram type: `ok%` at 100% (or a documented exception list), `text_jaccard` >= 0.95 and
 `layout_mean` >= 0.90 on that type's Vega fixtures, plus a side-by-side review that records the accepted differences.
@@ -467,8 +467,8 @@ and the activity arrow defect above has no reproduction. The foundations gaps ar
 
 Explicitly dropped from the target; not counted as remaining work.
 
-- **npm package and publishing**: the wasm crate, the demo page and `scripts/build-site.sh` stay, but no npm package is
-  produced or published, and no size/speed comparison against the TeaVM build is made part of the deliverable.
+- **npm publishing from CI**: the package is built by `scripts/build-npm.sh` and published by hand; automation and
+  the size/speed comparison against the TeaVM build are not part of the deliverable.
 - **Unported diagram types**: `@startbpm`, `@startnwdiag`, `@startchronology`, `@startregex`, `@startwire`,
   `@startboard`, `@startgit`, `@startfiles`, `@startditaa`, `@startdot`, `@startmath`, `@startlatex`, `@startjcckit`,
   `@startflow`/`@startdef` and the help/sprites pages. They keep returning `Unsupported` with a clear message; legacy
