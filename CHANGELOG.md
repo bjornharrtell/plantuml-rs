@@ -3,7 +3,7 @@
 All notable changes to this project. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); the API is unstable until 1.0.
 
-## [Unreleased]
+## [0.3.0] - 2026-10-27
 
 ### Changed
 
@@ -22,6 +22,13 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
   branch arrows meet the condition vertices and the return arrows meet the merge diamond. The `yes` and
   `no` labels are placed at the vertices and drawn after the shapes, instead of the `no` label being
   covered by the condition.
+
+### Compatibility
+
+- Additive only: `klimt`-level images can now report member rows (`IEntityImage::ports`,
+  `svek::types::PortGeometry`), and the layout accepts explicit node/rank separation
+  (`sdot::Spacing`, `sdot::build_image_spaced`). Existing callers and the top-level render API are
+  unchanged.
 
 ## [0.2.0] - 2026-10-27
 
