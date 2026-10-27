@@ -208,7 +208,7 @@ and measured but not held to the targets.
 | PACKET | 57 | 100% | 1.00 | 1.00 | 84% | 57/57 | 0 |
 | CLASS | 53 | 100% | 1.00 | 0.94 | 42% | 42/42 | 11 |
 | STATE | 48 | 100% | 1.00 | 0.94 | 33% | 42/42 | 6 |
-| ACTIVITY | 36 | 100% | 0.92 | 0.62 | 3% | 10/10 | 26 |
+| ACTIVITY | 36 | 100% | 0.92 | 0.68 | 3% | 17/17 | 19 |
 | CHART | 35 | 100% | 1.00 | 1.00 | 100% | 35/35 | 0 |
 | GANTT | 16 | 100% | 1.00 | 0.98 | 0% | 15/15 | 1 |
 | SALT | 10 | 100% | 1.00 | 0.99 | 20% | 9/9 | 1 |
@@ -222,7 +222,7 @@ and measured but not held to the targets.
 | JSON | 1 | 100% | 1.00 | 0.86 | 0% | - | 1 |
 | YAML | 1 | 100% | 1.00 | 0.48 | 0% | - | 1 |
 
-All 441 fixtures render. **371 of 375 scored fixtures pass (99%)**, 66 are accepted differences, `layout_mean` 0.92,
+All 441 fixtures render. **378 of 382 scored fixtures pass (99%)**, 59 are accepted differences, `layout_mean` 0.93,
 text jaccard 0.99, 185 exact structures. Every scored type other than DESCRIPTION and EBNF is green against the target; what
 remains is the four layout fixtures under [Residual differences](#residual-differences-accepted) and the foundations
 gaps under [Remaining work](#remaining-work).
@@ -255,14 +255,13 @@ That single decision separates the two measurements of the same corpus:
 
 | | visible space (shipped) | zero space (`SVG_DETERMINISTIC`) |
 |---|---|---|
-| in-scope pass | 371/375 | 397/401 |
-| layout_mean | 0.92 | 0.94 |
+| in-scope pass | 378/382 | 407/411 |
+| layout_mean | 0.93 | 0.95 |
 | identical | 185 | 327 |
-| accepted | 66 | 40 |
+| accepted | 59 | 30 |
 | failures | 4 (C4, EBNF) | 4 (C4, EBNF) |
 
-The zero-space column is exactly the pre-0.2.0 state, and both columns fail the same four C4/EBNF fixtures, so no
-layout regression hides behind the metric. Following the references here would mean shipping zero-width spaces:
+Both columns fail the same four C4/EBNF fixtures, so no layout regression hides behind the metric. Following the references here would mean shipping zero-width spaces:
 Java's SVG then has touching words that the browser spreads out again, because the `textLength` is unchanged. The
 port keeps the visible advance and declares the family instead. A deterministic-metrics mode chosen by the harness
 would score the same fixtures without excusing them, and would restore JSON and YAML scoring; that is the
@@ -307,7 +306,7 @@ reports them as `accepted` instead of counting them as failures.
 
 | Set | Fixtures | Why accepted |
 |---|---|---|
-| `nonreg/activity-deprecated-color/*`, `nonreg/activity-color-prefix/*` | 25 | Activity control blocks with a colour or stereotype prefix (`#F1F1F1:while`, `elseif … <<#palegreen>>`, `while … <<#palegreen>>`). `FtileWhile` and the branch tiles are an approximation of Java's connection-based tiles; matching them needs constants from a running Java build, which is not available here. The diagrams render and the text matches (jaccard 0.92 on the type); only the arrangement is off. Two of the 25 already meet the target |
+| `nonreg/activity-deprecated-color/*`, `nonreg/activity-color-prefix/*` | 25 | Activity control blocks with a colour or stereotype prefix (`#F1F1F1:while`, `elseif … <<#palegreen>>`, `while … <<#palegreen>>`). `FtileWhile` and the branch tiles are an approximation of Java's connection-based tiles; matching them needs constants from a running Java build, which is not available here. The diagrams render and the text matches (jaccard 0.92 on the type); only the arrangement is off. Eleven of the 25 already meet the target |
 | `tikz/*` | 5 | Embedded `{{ … }}` diagrams with `scale`: out of scope (see [Out of scope](#out-of-scope)), so these fixtures are rendered and measured but not held to the target |
 | `nonreg/simple/A0004.puml` | 1 | Legacy (pre-beta) activity syntax, out of scope |
 | `nonreg/activity/style-block-unclosed-at-eof.puml`, `nonreg/warnings/partition_no_bracket.puml` | 2 | Activity tile geometry: the same ftile approximation as the colour/stereotype set |
