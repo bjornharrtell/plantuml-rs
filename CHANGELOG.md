@@ -5,6 +5,13 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 ## [Unreleased]
 
+### Changed
+
+- Text lines are measured with the font's line box (ascent + descent + line gap) instead of the point
+  size, as Java's `FileFormat.getJavaDimension` does. Boxes, rows and canvases reach their original
+  height: against a live Java render the corpus goes from layout 0.68 to 0.71 and from 171 to 206
+  passing fixtures. Five fixtures whose references were laid out with the shorter line are declared.
+
 ### Added
 
 - VS Code extension: syntax highlighting and language configuration for `.puml`/`.plantuml`/`.iuml`/`.pu`,

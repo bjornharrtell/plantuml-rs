@@ -16,12 +16,13 @@ are cut (publishing to crates.io runs on pushed tags).
 
 ## Status
 
-378 of 382 scored fixtures meet the fidelity target (text overlap >= 0.95, relative element
-placement >= 0.90), 185 are structurally identical, and every one of the 442 scored fixtures renders.
-60 fixtures are documented accepted differences (activity tile geometry, embedded diagrams,
-handwritten mode, residual layout deltas and the 24 fixtures whose reference was rendered with
-zero-width spaces); none of them is a missing feature or a crash. Supported today: sequence,
-class (with object and description diagrams), state, activity, packet, chart, gantt, timing,
+375 of 379 scored fixtures meet the fidelity target (text overlap >= 0.95, relative element
+placement >= 0.90), and every one of the 442 scored fixtures renders. 63 fixtures are documented
+accepted differences (activity tile geometry, embedded diagrams, handwritten mode, residual layout
+deltas, the 24 fixtures whose reference was rendered with zero-width spaces and the 5 laid out with
+the shorter line box); none of them is a missing feature or a crash. Against a live Java render the
+port scores text 0.91 and layout 0.71 over the 391 fixtures Java can render. Supported today:
+sequence, class (with object and description diagrams), state, activity, packet, chart, gantt, timing,
 mindmap, WBS, salt, JSON/YAML/HCL, Chen EER, EBNF and the crash diagram. C4-PlantUML renders
 through the bundled stdlib. Four C4/EBNF fixtures still miss the layout target; accepted
 differences and open items are listed in the plan.

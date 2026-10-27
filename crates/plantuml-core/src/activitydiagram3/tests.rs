@@ -12,7 +12,17 @@ fn two_actions_are_joined_by_an_arrow() {
     assert_eq!(out.matches("<polygon").count(), 1);
     assert!(out.contains(">X</text>") && out.contains(">Y</text>"));
     // the 35 pixels of space are squeezed to 20 by the vertical compression
-    assert!(out.contains(r#"y="68""#), "{out}");
+    let boxes: Vec<(f64, f64)> = out
+        .match_indices("<rect")
+        .map(|(i, _)| {
+            let tag = &out[i..];
+            let tag = &tag[..tag.find('>').unwrap()];
+            (number(tag, "y").unwrap(), number(tag, "height").unwrap())
+        })
+        .collect();
+    assert_eq!(boxes.len(), 2, "{out}");
+    let gap = boxes[1].0 - (boxes[0].0 + boxes[0].1);
+    assert!((gap - 20.0).abs() < 0.01, "gap {gap}: {out}");
 }
 
 #[test]

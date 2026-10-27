@@ -178,8 +178,8 @@ pub trait StringBounder {
 }
 
 /// Line height of the face: ascent + descent + line gap, scaled to the font size
-/// (`FileFormat.getJavaDimension`). The bounders report the point size instead, which is what the Vega
-/// layouts were tuned against, so this is opt-in for the layouts that need Java's line box.
+/// (`FileFormat.getJavaDimension`). This is what Java measures a line with, so every bounder uses it;
+/// the EBNF boxes ask for it directly as well.
 pub fn line_height(font: &UFont) -> f64 {
     let face = &metrics::tables().faces[font.face.style_index()];
     let units = f64::from(face.units_per_em);
@@ -397,7 +397,9 @@ impl StringBounder for TableFontBounder {
     fn calculate_dimension(&self, font: &UFont, text: &str) -> Dimension {
         let size = font.size2d();
         let width: f64 = text.chars().map(|c| Self::char_width(c as u32)).sum();
-        Dimension::new(width * size / 16.0, size)
+        // Java measures a line with the face's line box (`FileFormat.getJavaDimension`), not the point
+        // size; the difference is what keeps boxes the height of the shipped render.
+        Dimension::new(width * size / 16.0, line_height(font))
     }
 }
 
@@ -423,7 +425,11 @@ mod table_tests {
         let f = UFont::sans_serif(14);
         let w = TableFontBounder.calculate_dimension(&f, "alice");
         assert!((w.width - 28.875).abs() < 1e-9, "{w:?}");
-        assert_eq!(w.height, 14.0);
+        assert_eq!(w.height, line_height(&f));
+        assert!(
+            w.height > 14.0,
+            "the line box is taller than the point size"
+        );
         let b = TableFontBounder.calculate_dimension(&f, "bob");
         assert!((b.width - 23.3625).abs() < 1e-9, "{b:?}");
         assert_eq!(TableFontBounder::char_width(0x1_0000), 16.0);

@@ -53,3 +53,11 @@ svg/interactive/SVG0004_Svek.puml                   # zero-space reference mode
 # between ranks). Against a live Java render the spacing is closer, against these references it is not.
 nonreg/simple/ComponentExtraArrows_0001.puml                        # Smetana-spaced reference
 nonreg/stereotype/stereotype-selector-with-embedded-space.puml      # Smetana-spaced reference
+# Point-size line box: these references were laid out when the port reported the point size as the line
+# height, before it measured the face's line box as Java does. Same text and arrangement, a few percent
+# of drift; the live-Java oracle scores them, see docs/PLAN.md.
+crash/crash-not-crashing.puml                        # line-box metric drift
+migration/HideShow002_Test.puml                      # line-box metric drift
+nonreg/group2731/pipe_escape.puml                    # line-box metric drift
+nonreg/group2788/forum7710_notes_arrows.puml         # line-box metric drift
+nonreg/group2938/object_diagram.puml                 # line-box metric drift

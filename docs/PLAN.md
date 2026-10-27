@@ -210,28 +210,32 @@ and measured but not held to the targets.
 
 | type | n | ok% | text jaccard | layout | exact structure | pass | accepted |
 |---|---|---|---|---|---|---|---|
-| SEQUENCE | 149 | 100% | 0.99 | 0.94 | 39% | 135/135 | 14 |
-| PACKET | 57 | 100% | 1.00 | 1.00 | 84% | 57/57 | 0 |
-| CLASS | 53 | 100% | 1.00 | 0.94 | 42% | 42/42 | 11 |
-| STATE | 48 | 100% | 1.00 | 0.94 | 33% | 42/42 | 6 |
-| ACTIVITY | 36 | 100% | 0.92 | 0.68 | 3% | 17/17 | 19 |
-| CHART | 35 | 100% | 1.00 | 1.00 | 100% | 35/35 | 0 |
-| GANTT | 16 | 100% | 1.00 | 0.98 | 0% | 15/15 | 1 |
-| SALT | 10 | 100% | 1.00 | 0.99 | 20% | 9/9 | 1 |
-| WBS | 7 | 100% | 1.00 | 0.95 | 14% | 6/6 | 1 |
-| DESCRIPTION | 9 | 100% | 1.00 | 0.63 | 0% | 4/6 | 3 |
+| SEQUENCE | 149 | 100% | 0.99 | 0.94 | 0% | 134/134 | 15 |
+| PACKET | 57 | 100% | 1.00 | 1.00 | 0% | 57/57 | 0 |
+| CLASS | 53 | 100% | 1.00 | 0.94 | 0% | 42/42 | 11 |
+| STATE | 48 | 100% | 1.00 | 0.94 | 0% | 42/42 | 6 |
+| ACTIVITY | 36 | 100% | 0.92 | 0.65 | 0% | 17/17 | 19 |
+| CHART | 35 | 100% | 1.00 | 1.00 | 0% | 35/35 | 0 |
+| GANTT | 16 | 100% | 1.00 | 0.96 | 0% | 15/15 | 1 |
+| SALT | 10 | 100% | 1.00 | 0.95 | 0% | 8/8 | 2 |
+| WBS | 7 | 100% | 1.00 | 0.95 | 0% | 6/6 | 1 |
+| DESCRIPTION | 9 | 100% | 1.00 | 0.64 | 0% | 4/6 | 3 |
 | EBNF | 8 | 100% | 1.00 | 0.89 | 0% | 6/8 | 0 |
-| MINDMAP | 4 | 100% | 1.00 | 1.00 | 25% | 4/4 | 0 |
-| CHEN_EER | 4 | 100% | 1.00 | 0.87 | 0% | 2/2 | 2 |
-| TIMING | 3 | 100% | 1.00 | 1.00 | 33% | 3/3 | 0 |
-| BPM (crash) | 1 | 100% | 1.00 | 1.00 | 0% | 1/1 | 0 |
+| MINDMAP | 4 | 100% | 1.00 | 1.00 | 0% | 4/4 | 0 |
+| CHEN_EER | 4 | 100% | 1.00 | 0.88 | 0% | 2/2 | 2 |
+| TIMING | 3 | 100% | 1.00 | 1.00 | 0% | 3/3 | 0 |
+| BPM (crash) | 1 | 100% | 1.00 | 0.88 | 0% | - | 1 |
 | JSON | 1 | 100% | 1.00 | 0.86 | 0% | - | 1 |
 | YAML | 1 | 100% | 1.00 | 0.48 | 0% | - | 1 |
 
-All 442 fixtures render. **378 of 382 scored fixtures pass (99%)**, 60 are accepted differences, `layout_mean` 0.93,
-text jaccard 0.99, 185 exact structures. Every scored type other than DESCRIPTION and EBNF is green against the target; what
-remains is the four layout fixtures under [Residual differences](#residual-differences-accepted) and the foundations
-gaps under [Remaining work](#remaining-work).
+All 442 fixtures render. **375 of 379 scored fixtures pass (99%)**, 63 are accepted differences, `layout_mean` 0.92,
+text jaccard 0.99. Every scored type other than DESCRIPTION and EBNF is green against the target; what remains is the
+four layout fixtures under [Residual differences](#residual-differences-accepted) and the foundations gaps under
+[Remaining work](#remaining-work).
+
+`identical%` is no longer quoted: the stored references were laid out with the shorter point-size line this port used
+before it measured the line box, so structural identity against them says nothing about the output. The
+[live-Java oracle](#live-java-as-a-second-oracle) is the diagnostic for that instead.
 
 JSON and YAML have only one fixture each and both are in the zero-space family below, so they are measured but no
 longer scored; a deterministic-metrics mode (see [Space advance](#space-advance)) would score them again.
@@ -261,10 +265,9 @@ That single decision separates the two measurements of the same corpus:
 
 | | visible space (shipped) | zero space (`SVG_DETERMINISTIC`) |
 |---|---|---|
-| in-scope pass | 378/382 | 405/410 |
-| layout_mean | 0.93 | 0.94 |
-| identical | 185 | 326 |
-| accepted | 60 | 32 |
+| in-scope pass | 375/379 | 398/403 |
+| layout_mean | 0.92 | 0.94 |
+| accepted | 63 | 39 |
 | failures | 4 (C4, EBNF) | 5 (C4, EBNF, plus the empty-boundary fixture, which is referenced with real spaces) |
 
 Both columns fail the C4/EBNF fixtures, so no layout regression hides behind the metric; the zero-space
@@ -293,10 +296,11 @@ Fixtures where Java itself fails are skipped and counted on stderr — 51 of 442
 bug reproductions its own test harness runs in a special mode.
 
 This is a diagnostic for the shipped behaviour, not a gate. Against PlantUML 1.2026.7 the port scores text
-0.91 and layout 0.68 over the 391 fixtures Java can render (stored corpus: 0.99 and 0.93). Much of that
-distance is structural rather than missing content: class and state diagrams are drawn with the Smetana
-flow to match the stored references, while the jar's default goes through its Graphviz round trip (icons
-as paths, different rank spacing), and activity text differs first in the wording of deprecation warnings.
+0.91 and layout 0.71 over the 391 fixtures Java can render (stored corpus: 0.99 and 0.92); measuring the line
+box moved it from 0.68 and 171 passed fixtures to 0.71 and 206. Much of the remaining distance is structural
+rather than missing content: class and state diagrams are drawn with the Smetana flow to match the stored
+references, while the jar's default goes through its Graphviz round trip (icons as paths, different rank
+spacing), and activity text differs first in the wording of deprecation warnings.
 
 ## Remaining work
 
@@ -341,6 +345,7 @@ reports them as `accepted` instead of counting them as failures.
 | `nonreg/warnings/skinparam_handwritten.puml` | 1 | Handwritten mode needs a handwritten font, which is not embedded; the fidelity target accepts glyph and metric differences |
 | Residual layout deltas (class, state, Chen, description) | 10 | Element spacing a few percent off where Java mixes AWT text metrics with its internal iteration order; see [Residual differences](#residual-differences-accepted) |
 | Zero-space reference mode | 24 | See [Space advance](#space-advance): the reference counted U+0020 as zero advance |
+| Point-size line box | 5 | The references were laid out with the point-size line this port used before it measured the face's line box; same text and arrangement, a few percent of drift |
 | Description rank spacing | 2 | `ComponentExtraArrows_0001`, `stereotype-selector-with-embedded-space`: the references were laid out by the Smetana flow (Graphviz's 18/36 px defaults), the port follows the Graphviz flow Java ships (35/60 px). Against a live Java render the port is closer (0.59/0.89 against 0.20/0.11) |
 | `!pragma layout smetana` fixtures still missing the target | 2 of 38 | Non-Graphviz layout engine; arrangement cannot match by construction. The other 36 already pass |
 
@@ -431,12 +436,11 @@ Taking the embedded bold tables lifts the grammar fixture from 0.38 to 0.66 but 
 (titles, dividers, JSON, timing), because those layouts are tuned around the narrow bold. It is therefore not
 kept; EBNF stays at 0.41-0.72 on multi-production grammars for a font-metric reason, not a layout bug.
 
-The stacking gap is traced to the text height: Java's `FileFormat.getJavaDimension` is a line of
-ascent+descent+line gap (26.3 px at size 14), while `TableFontBounder` reports the point size (14), so a rule
-is ~2 px short and several rules drift apart. Making that global change costs a dozen scored fixtures and
-every exact structure on the Vega corpus (it was measured at 393 -> 385 and 327 -> 0 on the zero-space
-references), so it has to be done together with re-baselining the layouts that were tuned around the shorter
-line, not on its own.
+The stacking gap was the text height: Java's `FileFormat.getJavaDimension` is a line of ascent+descent+line
+gap (26.3 px at size 14), while `TableFontBounder` reported the point size (14). The line box is now the
+metric for every bounder. It costs three stored-corpus passes and all structural identity against the stored
+references (which were laid out with the shorter line; five fixtures are declared for that reason), but against
+a live Java render it is a clear gain: layout 0.68 -> 0.71 and 171 -> 206 passing fixtures.
 
 ### In scope, not done
 
