@@ -327,6 +327,32 @@ mod tests {
     }
 
     #[test]
+    fn entry_circle_is_open_and_arcs_are_stroked() {
+        let svg = render("@startebnf\nrule = { \"a\" } ;\n@endebnf").unwrap();
+        let first_ellipse = svg
+            .split("<ellipse")
+            .nth(1)
+            .and_then(|e| e.split_once('>').map(|(tag, _)| tag))
+            .expect("entry and exit circles");
+        assert!(
+            first_ellipse.contains("fill=\"none\""),
+            "the entry marker is an open circle: {first_ellipse}"
+        );
+        // Every curved connector is a stroked arc; only the arrow heads are filled shapes.
+        for path in svg.split("<path").skip(1) {
+            let Some((tag, _)) = path.split_once('>') else {
+                continue;
+            };
+            if tag.contains(" C") {
+                assert!(
+                    tag.contains("fill=\"none\"") && tag.contains("stroke-width"),
+                    "a connector is stroked, not filled: {tag}"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn empty_packages_and_boundaries_are_drawn() {
         let svg = render("@startuml\npackage foo {\n}\n@enduml").unwrap();
         assert!(svg.contains("class=\"cluster\""));

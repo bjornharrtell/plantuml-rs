@@ -43,13 +43,14 @@ impl ETile for ETileWithCircles {
         let full_dim = self.calculate_dimension(sb);
         let ug = ug
             .apply_color(self.line_color.clone())
-            .apply_back_color(self.line_color.clone())
             .apply_stroke(UStroke::with_thickness(1.5));
         self.orig
             .draw_u(&ug.apply_translate(UTranslate::dx(DELTA_X)));
 
         let circle = UEllipse::build(SIZE, SIZE);
+        // Java draws the entry marker as an open circle and the exit marker as a filled one.
         ug.apply_stroke(UStroke::with_thickness(2.0))
+            .apply_back_color(HColor::TRANSPARENT)
             .apply_translate(UTranslate::new(0.0, line_pos - SIZE / 2.0))
             .draw(circle.clone());
         ug.apply_stroke(UStroke::with_thickness(1.0))
