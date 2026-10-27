@@ -227,3 +227,104 @@ fn legacy_start_stop_and_arrows_render() {
         assert!(out.contains(text), "missing {text}: {out}");
     }
 }
+
+fn number(tag: &str, name: &str) -> Option<f64> {
+    let key = format!(" {name}=\"");
+    tag.split_once(&key)?.1.split_once('"')?.0.parse().ok()
+}
+
+/// Every polygon of the drawing as its points.
+fn polygons(svg: &str) -> Vec<Vec<(f64, f64)>> {
+    svg.match_indices("<polygon")
+        .map(|(i, _)| {
+            let tag = &svg[i..];
+            let tag = &tag[..tag.find('>').unwrap_or(tag.len())];
+            let points = tag.split_once("points=\"").map(|(_, v)| v).unwrap_or("");
+            let points = points.split_once('"').map(|(v, _)| v).unwrap_or("");
+            let numbers: Vec<f64> = points
+                .split(|c: char| c == ',' || c.is_whitespace())
+                .filter_map(|v| v.parse().ok())
+                .collect();
+            numbers
+                .chunks(2)
+                .filter(|p| p.len() == 2)
+                .map(|p| (p[0], p[1]))
+                .collect()
+        })
+        .collect()
+}
+
+fn text_x(svg: &str, content: &str) -> Option<(f64, f64)> {
+    let i = svg.find(&format!(">{content}</text>"))?;
+    let start = svg[..i].rfind("<text")?;
+    let tag = &svg[start..i];
+    Some((number(tag, "x")?, number(tag, "textLength")?))
+}
+
+#[test]
+fn if_labels_sit_beside_the_condition_and_stay_on_top() {
+    let out = svg("if (Graphviz installed?) then (yes)\n  :a;\nelse (no)\n  :b;\nendif");
+    let hexagon = polygons(&out)
+        .into_iter()
+        .find(|p| p.len() == 6)
+        .expect("condition hexagon");
+    let min_x = hexagon.iter().map(|p| p.0).fold(f64::MAX, f64::min);
+    let max_x = hexagon.iter().map(|p| p.0).fold(f64::MIN, f64::max);
+    let (yes_x, yes_w) = text_x(&out, "yes").expect("yes label");
+    let (no_x, _) = text_x(&out, "no").expect("no label");
+    // Java right-aligns `yes` on the west vertex and left-aligns `no` on the east vertex.
+    assert!(
+        (yes_x + yes_w - min_x).abs() < 1.0,
+        "yes label at {yes_x}+{yes_w}, vertex at {min_x}"
+    );
+    assert!(
+        (no_x - max_x).abs() < 1.0,
+        "no label at {no_x}, vertex at {max_x}"
+    );
+    // The condition shape must be drawn before the labels, or it covers the `no` text.
+    let hex_at = out.find("<polygon").expect("polygon");
+    let no_at = out.find(">no</text>").expect("no label");
+    assert!(no_at > hex_at, "the condition covers the no label");
+}
+
+#[test]
+fn merge_diamond_meets_the_return_arrows() {
+    let out = svg("if (c?) then (yes)\n  :a;\nelse (no)\n  :b;\nendif");
+    let diamond = polygons(&out)
+        .into_iter()
+        .find(|p| p.len() == 4)
+        .expect("merge diamond");
+    let min_x = diamond.iter().map(|p| p.0).fold(f64::MAX, f64::min);
+    let max_x = diamond.iter().map(|p| p.0).fold(f64::MIN, f64::max);
+    let min_y = diamond.iter().map(|p| p.1).fold(f64::MAX, f64::min);
+    let max_y = diamond.iter().map(|p| p.1).fold(f64::MIN, f64::max);
+    let middle_y = (min_y + max_y) / 2.0;
+
+    let horizontal: Vec<(f64, f64, f64, f64)> = out
+        .match_indices("<line")
+        .filter_map(|(i, _)| {
+            let tag = &out[i..];
+            let tag = &tag[..tag.find('>')?];
+            let (y1, y2) = (number(tag, "y1")?, number(tag, "y2")?);
+            if (y1 - y2).abs() > 0.01 || (y1 - middle_y).abs() > 0.01 {
+                return None;
+            }
+            Some((
+                number(tag, "x1")?,
+                number(tag, "y1")?,
+                number(tag, "x2")?,
+                number(tag, "y2")?,
+            ))
+        })
+        .collect();
+    let left = horizontal
+        .iter()
+        .any(|l| (l.2 - min_x).abs() < 0.5 && l.2 > l.0);
+    let right = horizontal
+        .iter()
+        .any(|l| (l.2 - max_x).abs() < 0.5 && l.2 < l.0);
+    assert!(
+        left && right,
+        "return arrows do not reach the diamond ({min_x}..{max_x} at y={middle_y}): {horizontal:?}"
+    );
+}

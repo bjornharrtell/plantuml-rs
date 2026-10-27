@@ -318,11 +318,13 @@ reports them as `accepted` instead of counting them as failures.
 
 ### Known defects
 
-- Activity arrows: a report of arrows that do not reach their target box and one case of wrong pathing.
-  A scan of the 36 Vega activity fixtures for segment ends that touch neither another segment nor a box
-  finds none, and the arrowing of a start/if/repeat/fork diagram connects everywhere, so the failing
-  structure is not covered by the corpus: a minimal reproduction is needed before the ftile geometry can
-  be fixed.
+None known. The activity arrow report (arrows not meeting the merge diamond, the `no` label under the
+condition) was the `if`/`endif` tile: the condition and merge diamonds were centred on the tile instead of
+the middle of the branch centres, which `FtileIfWithDiamonds` uses (`dimTotal.getLeft()`), so the right
+branch arrow was zero-length and the return arrows ran along the diamond's top vertex. Both diamonds now
+sit on the branch middle, the return arrows end on the west/east vertices, the branch labels are placed at
+the vertices and drawn after the shapes, and the condition labels are no longer covered. A new report
+needs its source: the Vega corpus only checks segment ends, which is why it missed this.
 
 ### Known limitation behind the accepted activity set
 

@@ -112,10 +112,22 @@ impl FtileIf {
             .fold(0.0, f64::max)
     }
 
+    /// Where the condition and the merge diamond sit: the middle of the branch centres, which is
+    /// where the Graphviz output puts them when the branches have different widths (`dimTotal.getLeft`).
+    fn center(&self, sb: &dyn StringBounder) -> f64 {
+        let first = self.branch_offset(0, sb).0 + self.branch_width(0, sb) / 2.0;
+        let last = self.branch_offset(self.branches.len() - 1, sb).0
+            + self.branch_width(self.branches.len() - 1, sb) / 2.0;
+        (first + last) / 2.0
+    }
+
+    fn diamond_x(&self, sb: &dyn StringBounder) -> f64 {
+        self.center(sb) - self.condition.width(sb) / 2.0
+    }
+
     fn merge_offset(&self, sb: &dyn StringBounder) -> (f64, f64) {
-        let width = self.width(sb);
         (
-            (width - MERGE) / 2.0,
+            self.center(sb) - MERGE / 2.0,
             self.branch_y(sb) + self.branch_height(sb) + self.layout.merge_gap,
         )
     }
@@ -133,7 +145,7 @@ impl Ftile for FtileIf {
     fn calculate_dimension(&self, sb: &dyn StringBounder) -> FtileGeometry {
         let width = self.width(sb);
         let height = self.height(sb);
-        FtileGeometry::with_out(width, height, width / 2.0, 0.0, height)
+        FtileGeometry::with_out(width, height, self.center(sb), 0.0, height)
     }
 
     fn translate_for(&self, child: &dyn Ftile, sb: &dyn StringBounder) -> Option<UTranslate> {
@@ -184,17 +196,70 @@ impl Ftile for FtileIf {
 
     fn draw(&self, g: &FtileGraphic) {
         let sb = g.string_bounder();
-        let width = self.width(sb);
         let dw = self.condition.width(sb);
-        let dx = (width - dw) / 2.0;
+        let dx = self.diamond_x(sb);
         let middle = self.condition.height / 2.0;
         let (mx, my) = self.merge_offset(sb);
+        let merge_y = my + MERGE / 2.0;
         let color = crate::activitydiagram3::ftile::factory::in_link_rendering_color(
             &self.skin,
             self.branches[0].tile.as_ref(),
         );
         let arrows = Arrows::from_skin(&self.skin);
         let n = self.branches.len();
+
+        // Shapes first, connections last (as Java draws them): a branch label sits at the vertex of
+        // the condition but must stay readable, and the merge diamond must cover neither.
+        self.condition.draw(g, dx, 0.0, dw);
+
+        for i in 0..n {
+            let Some(label) = &self.branches[i].label else {
+                continue;
+            };
+            let (bx, by) = self.branch_offset(i, sb);
+            let center = bx + self.branch_width(i, sb) / 2.0;
+            let dim = label.calculate_dimension(sb);
+            let y = if self.layout.labels_above {
+                (middle - dim.height - 2.0).max(0.0)
+            } else {
+                (self.condition.height + by - dim.height) / 2.0
+            };
+            // Java right-aligns the first label on the left vertex and left-aligns the last one on
+            // the right vertex; a middle branch is centred over its connection.
+            let x = if i == 0 {
+                dx - dim.width
+            } else if i == n - 1 {
+                dx + dw
+            } else {
+                center - dim.width / 2.0
+            };
+            label.draw(&g.ug().apply_translate(UTranslate::new(x, y)));
+        }
+
+        for i in 0..n {
+            let (bx, by) = self.branch_offset(i, sb);
+            g.apply_translate(UTranslate::new(bx, by))
+                .draw_ftile(self.branches[i].tile.as_ref());
+        }
+
+        let mut merge = UPolygon::new(vec![
+            (MERGE / 2.0, 0.0),
+            (MERGE, MERGE / 2.0),
+            (MERGE / 2.0, MERGE),
+            (0.0, MERGE / 2.0),
+        ]);
+        let style = self
+            .skin
+            .style_builder()
+            .merged_style(&queries::ACTIVITYDIAG_ACTIVITY_DIAMOND)
+            .expect("diamond style");
+        merge.delta_shadow = 0.0;
+        g.ug()
+            .apply_translate(UTranslate::new(mx, my))
+            .apply_color(style.value(PName::LineColor).as_color())
+            .apply_back_color(style.value(PName::BackGroundColor).as_color())
+            .apply_stroke(style.stroke())
+            .draw(merge);
 
         for i in 0..n {
             let (bx, by) = self.branch_offset(i, sb);
@@ -218,18 +283,6 @@ impl Ftile for FtileIf {
             }
             down.add_point(center, by);
             g.draw_snake(down);
-            if let Some(label) = &self.branches[i].label {
-                let dim = label.calculate_dimension(sb);
-                let y = if self.layout.labels_above {
-                    (middle - dim.height - 2.0).max(0.0)
-                } else {
-                    (self.condition.height + by - dim.height) / 2.0
-                };
-                label.draw(
-                    &g.ug()
-                        .apply_translate(UTranslate::new(center - dim.width / 2.0, y)),
-                );
-            }
 
             let incoming = self.branches[i].tile.in_link_rendering();
             if let Some(label) = super::factory::arrow_text_block(&self.skin, incoming.display()) {
@@ -245,7 +298,7 @@ impl Ftile for FtileIf {
                 let dim = label.calculate_dimension(sb);
                 label.draw(&g.ug().apply_translate(UTranslate::new(
                     center - dim.width / 2.0,
-                    my - dim.height - 2.0,
+                    merge_y - dim.height - 2.0,
                 )));
             }
 
@@ -258,39 +311,16 @@ impl Ftile for FtileIf {
             };
             let mut up = Snake::create(&self.skin, color.clone(), Some(arrows.as_to(to)));
             up.add_point(center, by + bh);
-            up.add_point(center, my);
             if i == 0 {
-                up.add_point(mx, my);
+                up.add_point(center, merge_y);
+                up.add_point(mx, merge_y);
             } else if i == n - 1 {
-                up.add_point(mx + MERGE, my);
+                up.add_point(center, merge_y);
+                up.add_point(mx + MERGE, merge_y);
+            } else {
+                up.add_point(center, my);
             }
             g.draw_snake(up);
-        }
-
-        self.condition.draw(g, dx, 0.0, dw);
-        let mut merge = UPolygon::new(vec![
-            (MERGE / 2.0, 0.0),
-            (MERGE, MERGE / 2.0),
-            (MERGE / 2.0, MERGE),
-            (0.0, MERGE / 2.0),
-        ]);
-        let style = self
-            .skin
-            .style_builder()
-            .merged_style(&queries::ACTIVITYDIAG_ACTIVITY_DIAMOND)
-            .expect("diamond style");
-        merge.delta_shadow = 0.0;
-        g.ug()
-            .apply_translate(UTranslate::new(mx, my))
-            .apply_color(style.value(PName::LineColor).as_color())
-            .apply_back_color(style.value(PName::BackGroundColor).as_color())
-            .apply_stroke(style.stroke())
-            .draw(merge);
-
-        for i in 0..n {
-            let (bx, by) = self.branch_offset(i, sb);
-            g.apply_translate(UTranslate::new(bx, by))
-                .draw_ftile(self.branches[i].tile.as_ref());
         }
     }
 }
