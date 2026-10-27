@@ -213,7 +213,7 @@ and measured but not held to the targets.
 | GANTT | 16 | 100% | 1.00 | 0.98 | 0% | 15/15 | 1 |
 | SALT | 10 | 100% | 1.00 | 0.99 | 20% | 9/9 | 1 |
 | WBS | 7 | 100% | 1.00 | 0.95 | 14% | 6/6 | 1 |
-| DESCRIPTION | 8 | 100% | 1.00 | 0.74 | 0% | 4/6 | 2 |
+| DESCRIPTION | 8 | 100% | 1.00 | 0.58 | 0% | 3/5 | 3 |
 | EBNF | 8 | 100% | 1.00 | 0.89 | 0% | 6/8 | 0 |
 | MINDMAP | 4 | 100% | 1.00 | 1.00 | 25% | 4/4 | 0 |
 | CHEN_EER | 4 | 100% | 1.00 | 0.87 | 0% | 2/2 | 2 |
@@ -222,7 +222,7 @@ and measured but not held to the targets.
 | JSON | 1 | 100% | 1.00 | 0.86 | 0% | - | 1 |
 | YAML | 1 | 100% | 1.00 | 0.48 | 0% | - | 1 |
 
-All 441 fixtures render. **378 of 382 scored fixtures pass (99%)**, 59 are accepted differences, `layout_mean` 0.93,
+All 441 fixtures render. **377 of 381 scored fixtures pass (99%)**, 60 are accepted differences, `layout_mean` 0.93,
 text jaccard 0.99, 185 exact structures. Every scored type other than DESCRIPTION and EBNF is green against the target; what
 remains is the four layout fixtures under [Residual differences](#residual-differences-accepted) and the foundations
 gaps under [Remaining work](#remaining-work).
@@ -255,10 +255,10 @@ That single decision separates the two measurements of the same corpus:
 
 | | visible space (shipped) | zero space (`SVG_DETERMINISTIC`) |
 |---|---|---|
-| in-scope pass | 378/382 | 407/411 |
-| layout_mean | 0.93 | 0.95 |
-| identical | 185 | 327 |
-| accepted | 59 | 30 |
+| in-scope pass | 377/381 | 405/409 |
+| layout_mean | 0.93 | 0.94 |
+| identical | 185 | 326 |
+| accepted | 60 | 32 |
 | failures | 4 (C4, EBNF) | 4 (C4, EBNF) |
 
 Both columns fail the same four C4/EBNF fixtures, so no layout regression hides behind the metric. Following the references here would mean shipping zero-width spaces:
@@ -293,8 +293,8 @@ metrics described under [Measured beyond the Vega corpus](#measured-beyond-the-v
 
 | Fixture | layout | Cause |
 |---|---|---|
-| `fixtures/c4/context` | 0.72 | boundary and caption layout, plus the line-height stack |
-| `fixtures/c4/container` | 0.32 | same, with a boundary around two containers |
+| `fixtures/c4/context` | 0.69 | boundary and caption layout, the line-height stack, and a reference laid out with the Smetana flow's tighter ranks |
+| `fixtures/c4/container` | 0.30 | same, with a boundary around two containers |
 | `fixtures/ebnf/grammar` | 0.41 | bold rule names widen the production stack |
 | `fixtures/ebnf/expression` | 0.72 | same |
 
@@ -313,6 +313,7 @@ reports them as `accepted` instead of counting them as failures.
 | `nonreg/warnings/skinparam_handwritten.puml` | 1 | Handwritten mode needs a handwritten font, which is not embedded; the fidelity target accepts glyph and metric differences |
 | Residual layout deltas (class, state, Chen, description) | 10 | Element spacing a few percent off where Java mixes AWT text metrics with its internal iteration order; see [Residual differences](#residual-differences-accepted) |
 | Zero-space reference mode | 24 | See [Space advance](#space-advance): the reference counted U+0020 as zero advance |
+| Description rank spacing | 2 | `ComponentExtraArrows_0001`, `stereotype-selector-with-embedded-space`: the references were laid out by the Smetana flow (Graphviz's 18/36 px defaults), the port follows the Graphviz flow Java ships (35/60 px). Against a live Java render the port is closer (0.59/0.89 against 0.20/0.11) |
 | `!pragma layout smetana` fixtures still missing the target | 2 of 38 | Non-Graphviz layout engine; arrangement cannot match by construction. The other 36 already pass |
 
 ### Known defects
@@ -357,6 +358,13 @@ Until then these fixtures stay in the accepted set.
 Single tiles are placed exactly, so the tile geometry is right; the gap is in how a diagram stacks several
 tiles and productions and, for C4, in the boundary/caption layout. Text matches every fixture, so none of
 this is missing content.
+
+Description diagrams keep at least 35 px between nodes and 60 px between ranks, as the Graphviz flow that
+Java ships does (`DotStringFactory`); the Smetana flow the references come from leaves Graphviz's 18/36 px
+defaults. Against a live Java render that closes most of the C4 gap (context 0.62 -> 0.73, container
+0.58 -> 0.65) and the same for plain component diagrams (0.20 -> 0.59 and 0.11 -> 0.89), while those
+fixtures score lower against the Smetana references and are declared under
+[Accepted differences](#accepted-differences).
 
 Two fixes landed for EBNF: terminal boxes are outlines rather than filled shapes, and the box and title of a
 rule use the line box (ascent + descent + line gap) that Java uses, which makes a stack of rules line up (a

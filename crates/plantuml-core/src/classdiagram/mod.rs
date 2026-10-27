@@ -246,7 +246,14 @@ impl Diagram for ClassDiagram {
     }
 
     fn text_block(&self, sb: &Rc<dyn StringBounder>, skin: &Rc<SkinParam>) -> Rc<dyn TextBlock> {
-        crate::sdot::build_image(&self.cuca, skin, sb)
+        // Description diagrams render through the Graphviz flow in Java, which keeps at least
+        // 35 px between nodes and 60 px between ranks; the Smetana flow leaves Graphviz defaults.
+        let spacing = if self.is_description() {
+            crate::sdot::Spacing::SVEK
+        } else {
+            crate::sdot::Spacing::GRAPHVIZ
+        };
+        crate::sdot::build_image_spaced(&self.cuca, skin, sb, spacing)
     }
 }
 

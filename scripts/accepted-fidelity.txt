@@ -48,3 +48,8 @@ nonreg/yaml/theme-with-empty-style-block.puml       # zero-space reference mode
 state/node-style-transition-label.puml              # zero-space reference mode
 svg/id/commons_01.puml                              # zero-space reference mode
 svg/interactive/SVG0004_Svek.puml                   # zero-space reference mode
+# Description rank spacing: the references were laid out by the Smetana flow, which leaves Graphviz's
+# 18/36 px defaults, while the port follows the Graphviz flow Java ships (35 px between nodes, 60 px
+# between ranks). Against a live Java render the spacing is closer, against these references it is not.
+nonreg/simple/ComponentExtraArrows_0001.puml                        # Smetana-spaced reference
+nonreg/stereotype/stereotype-selector-with-embedded-space.puml      # Smetana-spaced reference

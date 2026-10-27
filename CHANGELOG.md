@@ -10,6 +10,9 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 - A class or object link that names a member (`Foo::field1 --> Bar::field3`) now attaches to that
   member's row and routes around the box, as PlantUML's Graphviz output does, instead of putting both
   ends on the border of the class.
+- Description diagrams (component, deployment and C4) keep the Graphviz flow's rank separation
+  (35 px between nodes, 60 px between ranks) instead of Graphviz's tighter defaults, so lanes and
+  columns are spaced like the original. Large diagrams grow accordingly.
 - Activity `if`/`else`/`endif`: the condition and merge diamonds sit between the branch centres, so the
   branch arrows meet the condition vertices and the return arrows meet the merge diamond. The `yes` and
   `no` labels are placed at the vertices and drawn after the shapes, instead of the `no` label being

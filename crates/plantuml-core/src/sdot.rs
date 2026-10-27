@@ -451,6 +451,7 @@ fn build_dot(
     collected: &Collected,
     edges: &[(Link, EdgeTexts)],
     sb: &dyn StringBounder,
+    spacing: Spacing,
 ) -> String {
     let mut out = String::from("digraph g {\n");
     if skin.is_state_diagram() {
@@ -459,17 +460,27 @@ fn build_dot(
         out.push_str("searchsize=500;\n");
     }
     let ns = skin.as_int("nodesep", 0);
-    if ns != 0 {
+    let ns = if ns != 0 {
+        f64::from(ns)
+    } else {
+        spacing.nodesep
+    };
+    if ns != 0.0 {
         out.push_str(&format!(
             "nodesep={};\n",
-            crate::svek::types::pixel_to_inches(f64::from(ns))
+            crate::svek::types::pixel_to_inches(ns)
         ));
     }
     let rs = skin.as_int("ranksep", 0);
-    if rs != 0 {
+    let rs = if rs != 0 {
+        f64::from(rs)
+    } else {
+        spacing.ranksep
+    };
+    if rs != 0.0 {
         out.push_str(&format!(
             "ranksep={};\n",
-            crate::svek::types::pixel_to_inches(f64::from(rs))
+            crate::svek::types::pixel_to_inches(rs)
         ));
     }
     if skin.rankdir == Rankdir::LeftToRight {
@@ -595,8 +606,34 @@ fn bb_of(o: &JsonValue) -> Option<(Point, Point)> {
     }
 }
 
-fn layout(cuca: &CucaDiagram, skin: &SkinParam, sb: &Rc<dyn StringBounder>) -> Option<Layout> {
-    layout_from(cuca, skin, sb, None)
+/// Node and rank separation in pixels (`nodesep`/`ranksep` of the DOT input).
+#[derive(Clone, Copy)]
+pub struct Spacing {
+    pub nodesep: f64,
+    pub ranksep: f64,
+}
+
+impl Spacing {
+    /// Graphviz defaults: what the Smetana flow leaves when the skin sets nothing.
+    pub const GRAPHVIZ: Spacing = Spacing {
+        nodesep: 0.0,
+        ranksep: 0.0,
+    };
+    /// `DotStringFactory`: at least 35 px between nodes and 60 px between ranks (`nodesep=0.486111`,
+    /// `ranksep=0.833333` at 72 dpi).
+    pub const SVEK: Spacing = Spacing {
+        nodesep: 35.0,
+        ranksep: 60.0,
+    };
+}
+
+fn layout(
+    cuca: &CucaDiagram,
+    skin: &SkinParam,
+    sb: &Rc<dyn StringBounder>,
+    spacing: Spacing,
+) -> Option<Layout> {
+    layout_from(cuca, skin, sb, None, spacing)
 }
 
 /// Lays out the whole diagram, or the content of `root` when it is a nested
@@ -606,6 +643,7 @@ fn layout_from(
     skin: &SkinParam,
     sb: &Rc<dyn StringBounder>,
     root: Option<&Entity>,
+    spacing: Spacing,
 ) -> Option<Layout> {
     let nested = root.is_some();
     let bib = Bibliotekon::new();
@@ -652,7 +690,7 @@ fn layout_from(
     if c.nodes.is_empty() && c.groups.is_empty() {
         return None;
     }
-    let dot = build_dot(skin, &c, &edges, &**sb);
+    let dot = build_dot(skin, &c, &edges, &**sb, spacing);
     log::debug!("dot input:\n{dot}");
     let json = match graphviz_pure::render_dot(&dot, "dot", "json") {
         Ok(j) => j,
@@ -1042,7 +1080,17 @@ pub fn build_image(
     skin: &SkinParam,
     sb: &Rc<dyn StringBounder>,
 ) -> Rc<dyn TextBlock> {
-    match layout(cuca, skin, sb) {
+    build_image_spaced(cuca, skin, sb, Spacing::GRAPHVIZ)
+}
+
+/// Lays a diagram out with explicit node and rank separation.
+pub fn build_image_spaced(
+    cuca: &CucaDiagram,
+    skin: &SkinParam,
+    sb: &Rc<dyn StringBounder>,
+    spacing: Spacing,
+) -> Rc<dyn TextBlock> {
+    match layout(cuca, skin, sb, spacing) {
         Some(layout) => Rc::new(Drawing {
             layout,
             measured: RefCell::new(None),
@@ -1103,7 +1151,8 @@ fn nested_state_image(
     sb: &Rc<dyn StringBounder>,
     root: &Entity,
 ) -> Rc<dyn crate::svek::image::IEntityImage> {
-    let block: Rc<dyn TextBlock> = match layout_from(cuca, skin, sb, Some(root)) {
+    let block: Rc<dyn TextBlock> = match layout_from(cuca, skin, sb, Some(root), Spacing::GRAPHVIZ)
+    {
         Some(layout) => Rc::new(Drawing {
             layout,
             measured: RefCell::new(None),

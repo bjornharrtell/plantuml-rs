@@ -16,9 +16,9 @@ are cut (publishing to crates.io runs on pushed tags).
 
 ## Status
 
-378 of 382 scored fixtures meet the fidelity target (text overlap >= 0.95, relative element
+377 of 381 scored fixtures meet the fidelity target (text overlap >= 0.95, relative element
 placement >= 0.90), 185 are structurally identical, and every one of the 441 scored fixtures renders.
-59 fixtures are documented accepted differences (activity tile geometry, embedded diagrams,
+60 fixtures are documented accepted differences (activity tile geometry, embedded diagrams,
 handwritten mode, residual layout deltas and the 24 fixtures whose reference was rendered with
 zero-width spaces); none of them is a missing feature or a crash. Supported today: sequence,
 class (with object and description diagrams), state, activity, packet, chart, gantt, timing,
