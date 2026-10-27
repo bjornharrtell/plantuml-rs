@@ -3,6 +3,25 @@
 All notable changes to this project. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); the API is unstable until 1.0.
 
+## [0.2.0] - 2026-10-27
+
+### Fixed
+
+- Ordinary and non-breaking spaces now have a visible font advance, fixing collapsed words in C4
+  descriptions and other wrapped labels. Text widths and diagram layouts can change as a result.
+- Label sprites use the active font colour; the C4 person icon is white on its dark blue background.
+- VS Code Markdown integration returns its renderer API from activation, so `plantuml`, `puml`, and
+  `uml` fences render in the built-in Markdown preview. Bare statements are wrapped in a diagram block.
+- The VS Code preview command is available in editor title and context menus, with rendering diagnostics
+  available through `PlantUML: Show Log`.
+
+### Compatibility
+
+- The public `klimt::creole::atoms::Atom::Sprite` variant now carries the label colour as a second field.
+  Downstream code constructing or matching this variant must be updated. The top-level render API is unchanged.
+- Fidelity measurements after correcting space widths are recorded in `docs/PLAN.md`; references and
+  acceptance rules have not been relaxed.
+
 ## [0.1.6] - 2026-10-27
 
 No changes to the library or the CLI: this release republishes the 0.1.5 sources.
