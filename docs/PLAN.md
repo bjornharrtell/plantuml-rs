@@ -327,10 +327,24 @@ Regular text is within 3% of Java with the block table, so the regular metrics a
 bold face at all. The port has no bold factor, which is why EBNF titles and rule names come out a quarter
 narrow and why a grammar of several productions drifts.
 
+Per glyph the ratio is not constant, which rules out a calibrated factor:
+
+| bold string | Java reference | port | ratio |
+|---|---|---|---|
+| `letter` | 44.08 | 31.06 | 1.42 |
+| `digit` | 36.33 | 25.73 | 1.41 |
+| `word` | 39.48 | 30.36 | 1.30 |
+| `number` | 60.94 | 47.43 | 1.29 |
+
+The letters that differ least are the wide ones (`w`, `m`, `u`), so the reference was rendered with a *different
+bold face* than Liberation Sans Bold, and no single factor can reproduce it. This is the text-metric difference
+the [Fidelity target](#fidelity-target) already accepts; what it means here is that EBNF diagrams whose rule
+boxes or titles depend on bold widths cannot reach 1.00 against these references, while the per-construct
+fixtures, which do not, already do.
+
 Taking the embedded bold tables lifts the grammar fixture from 0.38 to 0.66 but costs eleven Vega fixtures
-(titles, dividers, JSON, timing), because those layouts are tuned around the narrow bold. The way to close this
-is a calibrated bold advance factor in `TableFontBounder` (around 1.27) together with re-baselining those eleven
-fixtures, not a switch to the embedded bold face.
+(titles, dividers, JSON, timing), because those layouts are tuned around the narrow bold. It is therefore not
+kept; EBNF stays at 0.38-0.72 on multi-production grammars for a font-metric reason, not a layout bug.
 
 The stacking gap is traced to the text height: Java's `FileFormat.getJavaDimension` is a line of
 ascent+descent+line gap (26.3 px at size 14), while `TableFontBounder` reports the point size (14), so a rule
