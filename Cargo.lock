@@ -467,7 +467,7 @@ checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 
 [[package]]
 name = "plantuml-cli"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "env_logger",
  "log",
@@ -476,7 +476,7 @@ dependencies = [
 
 [[package]]
 name = "plantuml-core"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "fancy-regex",
  "graphviz-pure",
@@ -488,7 +488,7 @@ dependencies = [
 
 [[package]]
 name = "plantuml-wasm"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "console_log",
  "log",

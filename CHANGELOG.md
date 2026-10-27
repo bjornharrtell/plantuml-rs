@@ -3,6 +3,20 @@
 All notable changes to this project. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); the API is unstable until 1.0.
 
+## [0.1.2] - 2026-10-27
+
+EBNF rendering fixes; no API change.
+
+- Terminal boxes in EBNF diagrams are drawn as outlines again instead of being filled with the ambient
+  colour, and the entry marker is an open circle as in Java.
+- Connector arcs in EBNF diagrams are stroked (`fill="none"`, stroke-width 1.5) instead of being drawn as
+  filled shapes.
+- EBNF boxes and rule names are sized from the line box (ascent + descent + line gap) that Java uses, so a
+  grammar with several productions no longer drifts apart.
+- The repository gained `fixtures/` with EBNF and C4 sources and PlantUML-generated references, and
+  `scripts/fidelity.py` now scores them alongside the Vega corpus; the VS Code extension lives in
+  `editors/vscode`.
+
 ## [0.1.1] - 2026-10-26
 
 Documentation, CI and publishing only: the library and the CLI are unchanged from 0.1.0.
