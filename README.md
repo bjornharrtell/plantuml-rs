@@ -26,6 +26,14 @@ mindmap, WBS, salt, JSON/YAML/HCL, Chen EER, EBNF and the crash diagram. C4-Plan
 through the bundled stdlib. Four C4/EBNF fixtures still miss the layout target; accepted
 differences and open items are listed in the plan.
 
+## Editors
+
+The VS Code extension [PlantUML (plantuml-rs)](https://marketplace.visualstudio.com/items?itemName=bjornharrtell.plantuml-rs)
+([Open VSX](https://open-vsx.org/extension/bjornharrtell/plantuml-rs)) previews `.puml` files and renders
+`puml` fences in the built-in Markdown preview locally through the wasm build: syntax highlighting,
+**PlantUML: Export SVG**, no Java, no Graphviz process and no network. Sources are in
+[`editors/vscode`](editors/vscode).
+
 ## Performance
 
 On the 472-file Vega corpus the library renders 2.7 ms per diagram against 2.9 ms for Java PlantUML in

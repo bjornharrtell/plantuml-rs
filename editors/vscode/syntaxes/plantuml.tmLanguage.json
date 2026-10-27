@@ -1,0 +1,119 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "PlantUML",
+  "scopeName": "source.plantuml",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#directives" },
+    { "include": "#start-end" },
+    { "include": "#stereotypes" },
+    { "include": "#arrows" },
+    { "include": "#links" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#creole" },
+    { "include": "#variables" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.plantuml",
+          "begin": "/'",
+          "end": "'/"
+        },
+        {
+          "name": "comment.line.plantuml",
+          "match": "^\\s*'.*$"
+        }
+      ]
+    },
+    "directives": {
+      "patterns": [
+        {
+          "name": "keyword.control.directive.plantuml",
+          "match": "^\\s*!(include_once|includesub|include|define|undef|ifdef|ifndef|elseif|else|endif|theme|pragma|option|function|procedure|endfunction|endprocedure|return|while|endwhile|foreach|endfor|global|unquoted|assert|error|log|printf|startuml|enduml)\\b"
+        }
+      ]
+    },
+    "start-end": {
+      "patterns": [
+        {
+          "name": "keyword.other.start.plantuml",
+          "match": "@(start|end)\\w+"
+        }
+      ]
+    },
+    "stereotypes": {
+      "patterns": [
+        {
+          "name": "entity.other.stereotype.plantuml",
+          "match": "<<[^>\\n]*>>|«[^»\\n]*»"
+        }
+      ]
+    },
+    "arrows": {
+      "patterns": [
+        {
+          "name": "keyword.operator.arrow.plantuml",
+          "match": "(?:<?[-.~]+(?:\\[[^\\]\\n]*\\])?(?:[lrud]{0,2})[-.~]*(?:\\([^)\\n]*\\))?(?:>|\\|>|o|\\*)|<\\|?[-.~]+)"
+        }
+      ]
+    },
+    "links": {
+      "patterns": [
+        {
+          "name": "markup.underline.link.plantuml",
+          "match": "\\[\\[[^\\]\\n]+\\]\\]"
+        },
+        {
+          "name": "markup.underline.link.sprite.plantuml",
+          "match": "<[$&][^>\\n]*>"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.plantuml",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "name": "constant.character.escape.plantuml", "match": "\\\\." }]
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.plantuml",
+          "match": "(?i)\\b(actor|agent|artifact|boundary|card|circle|cloud|collections|component|control|database|entity|file|folder|frame|interface|node|package|person|queue|rectangle|stack|storage|usecase|class|object|abstract|annotation|enum|protocol|struct|exception|metaclass|stereotype|state|participant|activate|deactivate|destroy|create|note|legend|title|caption|header|footer|skinparam|hide|show|together|newpage|start|stop|end|if|then|else|elseif|endif|while|endwhile|repeat|repeat while|fork|again|end fork|split|switch|case|endswitch|partition|group|box|alt|opt|loop|par|break|critical|ref|over|return|label|goto|detach|kill|scale|left to right direction|top to bottom direction|allow_mixing|mainframe|sprite|salt|artifact)\\b"
+        },
+        {
+          "name": "constant.language.boolean.plantuml",
+          "match": "(?i)\\b(true|false)\\b"
+        }
+      ]
+    },
+    "creole": {
+      "patterns": [
+        { "name": "markup.bold.plantuml", "match": "\\*\\*[^*\\n]+\\*\\*" },
+        { "name": "markup.italic.plantuml", "match": "//[^/\\n]+//" },
+        { "name": "markup.underline.plantuml", "match": "__[^_\\n]+__" },
+        { "name": "markup.raw.plantuml", "match": "\"\"[^\"\\n]+\"\"" },
+        { "name": "markup.strikethrough.plantuml", "match": "~~[^~\\n]+~~" }
+      ]
+    },
+    "variables": {
+      "patterns": [
+        { "name": "variable.other.preprocessor.plantuml", "match": "%\\w+" },
+        { "name": "variable.other.plantuml", "match": "\\$\\w+" }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        { "name": "constant.numeric.plantuml", "match": "\\b\\d+(?:\\.\\d+)?\\b" }
+      ]
+    }
+  }
+}

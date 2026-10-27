@@ -3,6 +3,14 @@
 All notable changes to this project. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); the API is unstable until 1.0.
 
+## [Unreleased]
+
+### Added
+
+- VS Code extension: syntax highlighting and language configuration for `.puml`/`.plantuml`/`.iuml`/`.pu`,
+  a **PlantUML: Export SVG** command, and an icon. The Marketplace and Open VSX listings are now linked from
+  the README and the playground.
+
 ## [0.3.1] - 2026-10-27
 
 ### Fixed

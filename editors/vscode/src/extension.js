@@ -12,6 +12,9 @@ function activate(context) {
     vscode.commands.registerCommand('plantuml-rs.openPreview', () => openPreview(context)),
   );
   context.subscriptions.push(
+    vscode.commands.registerCommand('plantuml-rs.exportSvg', () => exportSvg()),
+  );
+  context.subscriptions.push(
     vscode.commands.registerCommand('plantuml-rs.showLog', () => output().show(true)),
   );
   return { extendMarkdownIt };
@@ -43,6 +46,33 @@ async function openPreview(context) {
   });
   panel.onDidDispose(() => changed.dispose());
   context.subscriptions.push(panel);
+}
+
+/** Renders the active document and writes the SVG next to it (or where the user picks). */
+async function exportSvg() {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    vscode.window.showInformationMessage('Open a .puml file first.');
+    return;
+  }
+  const document = editor.document;
+  log(`exportSvg for ${document.fileName}`);
+  const { ok, svg } = renderSvg(document.getText());
+  if (!ok) {
+    vscode.window.showErrorMessage('PlantUML: the diagram did not render; see PlantUML: Show Log.');
+    return;
+  }
+  const suggested = document.uri.with({ path: document.uri.path.replace(/\.[^./]*$/, '') + '.svg' });
+  const target = await vscode.window.showSaveDialog({
+    defaultUri: suggested,
+    filters: { SVG: ['svg'] },
+    saveLabel: 'Export SVG',
+  });
+  if (!target) {
+    return;
+  }
+  await vscode.workspace.fs.writeFile(target, Buffer.from(svg, 'utf8'));
+  vscode.window.showInformationMessage(`PlantUML: wrote ${target.fsPath}`);
 }
 
 function previewHtml(source) {
