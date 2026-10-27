@@ -277,6 +277,27 @@ follow-up, not a shipped mode.
 Sprites use the active label font colour, so C4's white person icon no longer inherits the dark outline colour.
 Regression tests cover the full banking example and inline sprite colour.
 
+### Live Java as a second oracle
+
+The stored corpus was produced by PlantUML's test mode (`SVG_DETERMINISTIC` and the Smetana drawing flow),
+which is not what the jar renders by default. The harness can therefore render its own references:
+
+```sh
+python3 scripts/fidelity.py target/release/plantuml-cli \
+  --java="$(command -v java)" --jar=plantuml.jar --jobs=8
+```
+
+Each fixture goes through `java -jar … -tsvg -pipe` (in parallel, with its own directory as the working
+directory for relative includes) and is scored against that SVG; the JSON records `"reference": "java"`.
+Fixtures where Java itself fails are skipped and counted on stderr — 51 of 442 with 1.2026.7, most of them
+bug reproductions its own test harness runs in a special mode.
+
+This is a diagnostic for the shipped behaviour, not a gate. Against PlantUML 1.2026.7 the port scores text
+0.91 and layout 0.68 over the 391 fixtures Java can render (stored corpus: 0.99 and 0.93). Much of that
+distance is structural rather than missing content: class and state diagrams are drawn with the Smetana
+flow to match the stored references, while the jar's default goes through its Graphviz round trip (icons
+as paths, different rank spacing), and activity text differs first in the wording of deprecation warnings.
+
 ## Remaining work
 
 ### Residual differences (accepted)
