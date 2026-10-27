@@ -1,6 +1,6 @@
 {
   "name": "plantuml-rs",
-  "displayName": "PlantUML",
+  "displayName": "PlantUML (Rust)",
   "description": "PlantUML preview and Markdown rendering through the plantuml-rs port: .puml previews and ```puml blocks, rendered locally by a wasm build of plantuml-core",
   "version": "0.1.4",
   "publisher": "bjornharrtell",
