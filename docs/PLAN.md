@@ -269,13 +269,18 @@ reports them as `accepted` instead of counting them as failures.
 | Residual layout deltas (class, state, Chen, description) | 10 | Element spacing a few percent off where Java mixes AWT text metrics with its internal iteration order; see [Residual differences](#residual-differences-accepted) |
 | `!pragma layout smetana` fixtures still missing the target | 2 of 38 | Non-Graphviz layout engine; arrangement cannot match by construction. The other 36 already pass |
 
-### Known defects
+Space advance corrected: the deterministic table gives U+0020 and U+00A0 zero width, collapsing words in
+wrapped C4 descriptions. These now use the bundled face's space advance (~3.9 px at 14pt). Sprites also use
+the active label font colour, so C4's white person icon no longer inherits the dark outline colour.
+Regression tests cover the full banking example and inline sprite colour.
 
-- Space advance: `TableFontBounder::char_width` returns 0 for U+0020, because the generated width table stores 0
-  there. Unwrapped labels hide it (a single text element is compressed by one space per gap), but a wrapped
-  label, as C4 entity descriptions use, draws each word with no gap between them. Taking the advance from the
-  face metrics makes `" "` measure 3.9 px and fixes the C4 output, but it costs 26 fixtures (397 -> 371 in scope,
-  327 -> 185 exact), so the layouts that compensate for the missing space elsewhere have to be found first.
+The width correction changes layout measurements across diagram types: on the same 441-fixture corpus,
+371/399 in-scope pass, layout=0.92, 185 exact (previously 397/401, layout=0.94, 327 exact). The count of
+accepted cases changes because the harness only counts accepted cases that currently fail. References and
+acceptance rules were not changed. Preserving invisible spaces just to retain those scores is not correct;
+these font-driven layout deltas remain visible for follow-up review.
+
+### Known defects
 
 - Activity arrows: a report of arrows that do not reach their target box and one case of wrong pathing.
   A scan of the 36 Vega activity fixtures for segment ends that touch neither another segment nor a box

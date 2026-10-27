@@ -532,7 +532,8 @@ impl<'a> StripeBuilder<'a> {
                 continue;
             };
             self.add_pending(pending);
-            self.atoms.push(Atom::Sprite(sprite));
+            self.atoms
+                .push(Atom::Sprite(sprite, self.fc.color().clone()));
             return Some(prefix.len() + end + 1);
         }
         None

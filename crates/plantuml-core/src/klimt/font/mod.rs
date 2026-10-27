@@ -366,6 +366,15 @@ fn decode_block(data: &[u8]) -> Vec<u8> {
 
 impl TableFontBounder {
     fn char_width(cp: u32) -> f64 {
+        // The deterministic table gives ordinary and non-breaking spaces zero advance.
+        // Split/wrapped labels then place neighbouring words directly against each other.
+        // Use the bundled face's space advance; leave zero-width Unicode separators alone.
+        if cp == 0x20 || cp == 0xA0 {
+            let face = &metrics::tables().faces[0];
+            return f64::from(face.advance(0x20).expect("bundled font has a space"))
+                / f64::from(face.units_per_em)
+                * 16.0;
+        }
         if cp >= 0xFFFF {
             return 16.0;
         }
@@ -395,6 +404,19 @@ impl StringBounder for TableFontBounder {
 #[cfg(test)]
 mod table_tests {
     use super::*;
+
+    #[test]
+    fn spaces_have_positive_scaled_advance() {
+        let font = UFont::sans_serif(14);
+        let width = |s: &str| TableFontBounder.calculate_dimension(&font, s).width;
+        let space = width(" ");
+        assert!((3.0..5.0).contains(&space), "space advance: {space}");
+        assert!((width("A customer") - width("Acustomer") - space).abs() < 1e-9);
+        assert_eq!(width("\u{a0}"), space);
+        assert!((width("  ") - 2.0 * space).abs() < 1e-9);
+        let larger = TableFontBounder.calculate_dimension(&UFont::sans_serif(28), " ");
+        assert!((larger.width - 2.0 * space).abs() < 1e-9);
+    }
 
     #[test]
     fn table_widths() {
