@@ -4,3 +4,6 @@ site/pkg/
 .claude/
 __pycache__/
 *.pyc
+editors/vscode/wasm/
+editors/vscode/node_modules/
+editors/vscode/*.vsix

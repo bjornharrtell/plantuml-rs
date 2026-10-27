@@ -1,0 +1,29 @@
+{
+  "name": "plantuml-rs",
+  "displayName": "PlantUML (Rust)",
+  "description": "PlantUML preview and Markdown rendering through the plantuml-rs port: .puml previews and ```puml blocks, rendered locally by a wasm build of plantuml-core",
+  "version": "0.1.1",
+  "publisher": "plantuml-rs",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/bjornharrtell/plantuml-rs" },
+  "engines": { "vscode": "^1.90.0" },
+  "categories": ["Visualization", "Programming Languages", "Other"],
+  "keywords": ["plantuml", "uml", "diagram", "svg", "markdown"],
+  "main": "./src/extension.js",
+  "activationEvents": ["onLanguage:plantuml", "onCommand:plantuml-rs.openPreview"],
+  "contributes": {
+    "commands": [
+      { "command": "plantuml-rs.openPreview", "title": "PlantUML: Open Preview", "category": "PlantUML" }
+    ],
+    "languages": [
+      { "id": "plantuml", "aliases": ["PlantUML", "plantuml"], "extensions": [".puml", ".plantuml", ".iuml", ".pu"] }
+    ],
+    "markdown.markdownItPlugins": true
+  },
+  "scripts": {
+    "test": "node test/render.test.js"
+  },
+  "devDependencies": {
+    "markdown-it": "^14.1.0"
+  }
+}

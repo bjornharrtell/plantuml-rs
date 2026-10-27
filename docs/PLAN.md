@@ -271,6 +271,12 @@ reports them as `accepted` instead of counting them as failures.
 
 ### Known defects
 
+- Space advance: `TableFontBounder::char_width` returns 0 for U+0020, because the generated width table stores 0
+  there. Unwrapped labels hide it (a single text element is compressed by one space per gap), but a wrapped
+  label, as C4 entity descriptions use, draws each word with no gap between them. Taking the advance from the
+  face metrics makes `" "` measure 3.9 px and fixes the C4 output, but it costs 26 fixtures (397 -> 371 in scope,
+  327 -> 185 exact), so the layouts that compensate for the missing space elsewhere have to be found first.
+
 - Activity arrows: a report of arrows that do not reach their target box and one case of wrong pathing.
   A scan of the 36 Vega activity fixtures for segment ends that touch neither another segment nor a box
   finds none, and the arrowing of a start/if/repeat/fork diagram connects everywhere, so the failing
