@@ -147,8 +147,12 @@ for k, v in sorted(by.items(), key=lambda kv: -len(kv[1])):
 scored = [o for o in out if not o["accepted"]]
 smetana = sum(1 for o in out if o["smetana"])
 declared = len(out) - len(scored) - smetana
+# Declared fixtures that already meet the target are scored like any other, so the denominator moves with
+# the metrics. Report them separately to keep the totals comparable.
+declared_passing = sum(1 for o in out if is_accepted(ACCEPTED, o["file"])) - declared
 print(f"TOTAL {len(out)} fixtures, {len(out) - len(scored)} accepted "
       f"({smetana} smetana layout, {declared} declared in scripts/accepted-fidelity.txt), "
+      f"{declared_passing} declared fixtures already pass, "
       f"{sum(1 for o in scored if passes(o))}/{len(scored)} in-scope pass, "
       f"layout={sum(o['layout'] or 0 for o in out) / len(out):.2f}, "
       f"identical={sum(1 for o in out if o['diffs'] == 0)}")
