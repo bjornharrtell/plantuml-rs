@@ -42,6 +42,32 @@ pub fn hex_rgb(color: i32) -> String {
     format!("#{:06x}", color & 0xFFFFFF)
 }
 
+/// A row of a node that an edge can be attached to (`PortGeometry`): the member of a class
+/// addressed by `Foo::member`, written as a `PORT` row in the node's HTML table.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PortGeometry {
+    /// `Ports.encodePortNameToId`: `p` and the MD5 of the member name.
+    pub id: String,
+    /// Distance from the top of the node to the top of the row.
+    pub position: f64,
+    /// Height of the row.
+    pub height: f64,
+    /// Which of several members with the same name wins (Java's 100 for a word match, 50 for
+    /// a substring).
+    pub score: i32,
+}
+
+impl PortGeometry {
+    pub fn new(id: String, position: f64, height: f64, score: i32) -> PortGeometry {
+        PortGeometry {
+            id,
+            position,
+            height,
+            score,
+        }
+    }
+}
+
 /// Where an edge touches a node (`EntityPort`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct EntityPort {

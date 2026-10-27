@@ -2,8 +2,8 @@
 
 use super::image::IEntityImage;
 use super::image_class::{ClassStencil, MembersArea};
-use super::types::ShapeType;
-use crate::abel::{Entity, EntityPortion};
+use super::types::{PortGeometry, ShapeType};
+use crate::abel::{Entity, EntityPortion, Member};
 use crate::cucadiagram::CucaDiagram;
 use crate::klimt::color::colors::ColorType;
 use crate::klimt::color::HColor;
@@ -13,7 +13,7 @@ use crate::klimt::creole::CreoleMode;
 use crate::klimt::drawing::ugraphic::{UGraphic, URectangle, UShape, UTranslate};
 use crate::klimt::font::{Dimension, StringBounder};
 use crate::klimt::geom::HorizontalAlignment;
-use crate::klimt::shape::{with_margin, EmptyBlock, TextBlock};
+use crate::klimt::shape::{with_margin, EmptyBlock, InnerRect, TextBlock};
 use crate::skin::SkinParam;
 use crate::stereo::Guillemet;
 use crate::style::{queries, Margins, PName, SName, Style};
@@ -65,6 +65,7 @@ pub struct EntityImageObject {
     entity: Entity,
     header: ObjectHeader,
     body: Option<Rc<dyn TextBlock>>,
+    fields: Vec<Member>,
     round_corner: f64,
     style: Style,
     style_header: Style,
@@ -138,7 +139,7 @@ impl EntityImageObject {
             }))
         } else {
             let area: Rc<dyn TextBlock> = Rc::new(MembersArea {
-                members: fields,
+                members: fields.clone(),
                 config: style.font_configuration(Some(&entity.colors())),
                 wrap: style.wrap_width(),
                 skin: skin.clone(),
@@ -158,6 +159,7 @@ impl EntityImageObject {
             entity,
             header: ObjectHeader { name, stereo },
             body,
+            fields,
             round_corner,
             style,
             style_header,
@@ -178,6 +180,11 @@ impl TextBlock for EntityImageObject {
             width = min_class_width;
         }
         Dimension::new(width, title.height + body.height)
+    }
+
+    fn inner_position(&self, member: &str, sb: &dyn StringBounder) -> Option<InnerRect> {
+        let (x, y, w, h) = self.body.as_ref()?.inner_position(member, sb)?;
+        Some((x, y + self.header.dimension(sb).height, w, h))
     }
 
     fn draw(&self, ug: &UGraphic) {
@@ -247,7 +254,17 @@ impl EntityImageObject {
 
 impl IEntityImage for EntityImageObject {
     fn shape_type(&self) -> ShapeType {
-        ShapeType::Rectangle
+        if super::ports::has_ports(&self.entity) {
+            ShapeType::RectangleHtmlForPorts
+        } else {
+            ShapeType::Rectangle
+        }
+    }
+
+    fn ports(&self, sb: &dyn StringBounder) -> Vec<PortGeometry> {
+        super::ports::member_ports(&self.entity, &self.fields, sb, |m, sb| {
+            self.inner_position(m, sb)
+        })
     }
 
     fn shield(&self, _sb: &dyn StringBounder) -> Margins {

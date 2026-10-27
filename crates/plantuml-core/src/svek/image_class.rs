@@ -1,7 +1,7 @@
 //! The box of a class (`EntityImageClass`, `EntityImageClassHeader`, `MethodsOrFieldsArea`).
 
 use super::image::IEntityImage;
-use super::types::ShapeType;
+use super::types::{PortGeometry, ShapeType};
 use crate::abel::{Entity, EntityPortion, LeafType, Member};
 use crate::cucadiagram::CucaDiagram;
 use crate::klimt::color::colors::ColorType;
@@ -501,6 +501,8 @@ pub struct EntityImageClass {
     entity: Entity,
     header: ClassHeader,
     body: Option<Rc<dyn TextBlock>>,
+    fields: Vec<Member>,
+    methods: Vec<Member>,
     round_corner: f64,
     style: Style,
     style_header: Style,
@@ -515,7 +517,19 @@ impl EntityImageClass {
         let round_corner = style.value(PName::RoundCorner).as_double();
         let show_methods = cuca.show_portion(EntityPortion::Method, &entity);
         let show_fields = cuca.show_portion(EntityPortion::Field, &entity);
-        let body = Self::body(&entity, skin, show_methods, show_fields, &style);
+        let (fields, methods) = {
+            let d = entity.get();
+            (d.bodier.fields_to_display(), d.bodier.methods_to_display())
+        };
+        let body = Self::body(
+            fields.clone(),
+            methods.clone(),
+            skin,
+            show_methods,
+            show_fields,
+            &style,
+            Some(&entity.colors()),
+        );
         let header = ClassHeader::new(&entity, cuca, skin);
         EntityImageClass {
             hidden: cuca.is_entity_hidden(&entity),
@@ -523,6 +537,8 @@ impl EntityImageClass {
             entity,
             header,
             body,
+            fields,
+            methods,
             round_corner,
             style,
             style_header,
@@ -530,17 +546,15 @@ impl EntityImageClass {
     }
 
     fn body(
-        entity: &Entity,
+        fields: Vec<Member>,
+        methods: Vec<Member>,
         skin: &SkinParam,
         show_methods: bool,
         show_fields: bool,
         style: &Style,
+        colors: Option<&crate::klimt::color::colors::Colors>,
     ) -> Option<Rc<dyn TextBlock>> {
-        let (fields, methods) = {
-            let d = entity.get();
-            (d.bodier.fields_to_display(), d.bodier.methods_to_display())
-        };
-        let config = style.font_configuration(Some(&entity.colors()));
+        let config = style.font_configuration(colors);
         let make = |members: Vec<Member>| -> Rc<dyn TextBlock> {
             let area: Rc<dyn TextBlock> = Rc::new(MembersArea {
                 members,
@@ -679,9 +693,28 @@ impl EntityImageClass {
     }
 }
 
+impl EntityImageClass {
+    /// `EntityImageClass.getPorts`: the rows of the members addressed as `Class::member`.
+    fn member_ports(&self, sb: &dyn StringBounder) -> Vec<PortGeometry> {
+        let mut members = self.fields.clone();
+        members.extend(self.methods.iter().cloned());
+        super::ports::member_ports(&self.entity, &members, sb, |m, sb| {
+            self.inner_position(m, sb)
+        })
+    }
+}
+
 impl IEntityImage for EntityImageClass {
     fn shape_type(&self) -> ShapeType {
-        ShapeType::Rectangle
+        if super::ports::has_ports(&self.entity) {
+            ShapeType::RectangleHtmlForPorts
+        } else {
+            ShapeType::Rectangle
+        }
+    }
+
+    fn ports(&self, sb: &dyn StringBounder) -> Vec<PortGeometry> {
+        self.member_ports(sb)
     }
 
     fn shield(&self, _sb: &dyn StringBounder) -> Margins {

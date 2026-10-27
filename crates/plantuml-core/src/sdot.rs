@@ -365,7 +365,18 @@ fn group_core_name(g: &Entity) -> String {
     format!("z{}", g.uid())
 }
 
-fn node_dot(n: &SvekNode) -> String {
+fn node_dot(n: &SvekNode, sb: &dyn StringBounder) -> String {
+    let ports = n.image().ports(sb);
+    // The table is written whenever a link names a member, even when no row matches (the name is
+    // not a member), as Java does: the edge then keeps its port and Graphviz warns.
+    if crate::svek::ports::has_ports(&n.entity()) {
+        // A member-anchored link (`Foo::field --> ...`) needs the rows as ports; a plain box
+        // would attach the edge to the border and lose the member.
+        return format!(
+            "{}\n",
+            crate::svek::node::label_html_for_ports(&n.uid(), 0, n.width(), n.height(), &ports)
+        );
+    }
     format!(
         "{} [shape=box,label=\"\",width={},height={}];\n",
         n.uid(),
@@ -374,11 +385,22 @@ fn node_dot(n: &SvekNode) -> String {
     )
 }
 
+/// Attaches an edge end to a member row (`EntityPort`): `uid:p<md5>` when the link names one.
+fn dot_port(uid: String, port: Option<&str>, is_group: bool) -> String {
+    match port {
+        Some(p) if !p.is_empty() && !is_group => {
+            format!("{uid}:{}", crate::svek::bibliotekon::encode_port_name(p))
+        }
+        _ => uid,
+    }
+}
+
 fn group_dot(
     out: &mut String,
     g: &GroupNode,
     nodes: &[(Entity, SvekNode)],
     core_groups: &[Entity],
+    sb: &dyn StringBounder,
 ) {
     out.push_str(&format!("subgraph {} {{\n", g.cluster.cluster_id()));
     let (w, h) = (
@@ -401,11 +423,11 @@ fn group_dot(
     out.push_str(&format!("margin={margin};\n"));
     for leaf in &g.leaves {
         if let Some((_, n)) = nodes.iter().find(|(e, _)| e == leaf) {
-            out.push_str(&node_dot(n));
+            out.push_str(&node_dot(n, sb));
         }
     }
     for child in &g.children {
-        group_dot(out, child, nodes, core_groups);
+        group_dot(out, child, nodes, core_groups, sb);
     }
     if core_groups.contains(&g.group) {
         out.push_str(&format!(
@@ -464,11 +486,11 @@ fn build_dot(
     }
     for leaf in &collected.root_leaves {
         if let Some((_, n)) = nodes.iter().find(|(e, _)| e == leaf) {
-            out.push_str(&node_dot(n));
+            out.push_str(&node_dot(n, sb));
         }
     }
     for g in &collected.groups {
-        group_dot(&mut out, g, nodes, &core_groups);
+        group_dot(&mut out, g, nodes, &core_groups, sb);
     }
     for (link, texts) in edges {
         let (Some(a), Some(b)) = (
@@ -492,6 +514,12 @@ fn build_dot(
                 }
             }
         }
+        let (port1, port2) = {
+            let d = link.get();
+            (d.port1.clone(), d.port2.clone())
+        };
+        let a = dot_port(a, port1.as_deref(), link.entity1().is_group());
+        let b = dot_port(b, port2.as_deref(), link.entity2().is_group());
         out.push_str(&format!("{a} -> {b} [{attrs}];\n"));
     }
     out.push('}');
@@ -653,7 +681,12 @@ fn layout_from(
         let pos = parse_point(o.get("pos")?.as_str()?)?;
         // The layout rounds the size of a node to whole points: use the drawn polygon.
         let (mut min_x, mut max_x, mut min_y, mut max_y) = (f64::MAX, f64::MIN, f64::MAX, f64::MIN);
-        if let Some(draw) = o.get("_draw_") {
+        // A `shape=box` node lists its box in `_draw_`; a `shape=plaintext` HTML table node only
+        // lists the same polygon in `_ldraw_` (the label), so read both.
+        for key in ["_draw_", "_ldraw_"] {
+            let Some(draw) = o.get(key) else {
+                continue;
+            };
             for k in 0..draw.len() {
                 if let Some(pts) = draw.get(k).and_then(|op| op.get("points")) {
                     for j in 0..pts.len() {

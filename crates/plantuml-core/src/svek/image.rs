@@ -1,6 +1,6 @@
 //! What a node of the graph draws (`IEntityImage`).
 
-use super::types::ShapeType;
+use super::types::{PortGeometry, ShapeType};
 use crate::klimt::font::StringBounder;
 use crate::klimt::shape::TextBlock;
 use crate::style::Margins;
@@ -23,6 +23,12 @@ pub trait IEntityImage: TextBlock {
 
     fn is_hidden(&self) -> bool {
         false
+    }
+
+    /// Rows an edge can attach to (`WithPorts`): the members of a class addressed as
+    /// `Class::member`. Images without such rows return none.
+    fn ports(&self, _sb: &dyn StringBounder) -> Vec<PortGeometry> {
+        Vec::new()
     }
 
     fn as_any(&self) -> &dyn Any;

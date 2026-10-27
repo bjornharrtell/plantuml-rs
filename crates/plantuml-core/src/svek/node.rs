@@ -1,7 +1,7 @@
 //! A node given to Graphviz (`SvekNode`).
 
 use super::image::IEntityImage;
-use super::types::{hex_rgb, pixel_to_inches, ColorSequence, ShapeType};
+use super::types::{hex_rgb, pixel_to_inches, ColorSequence, PortGeometry, ShapeType};
 use crate::abel::{Entity, EntityPosition, Together};
 use crate::klimt::dotpath::{Point, RectangleArea};
 use crate::klimt::font::{Dimension, StringBounder};
@@ -170,11 +170,21 @@ impl SvekNode {
 
     /// The node as written in the DOT file (`appendShape`).
     pub fn append_shape(&self, sb: &mut String) {
-        let ty = self.shape_type();
+        // The shape type is asked here rather than taken from the node: whether a class needs the
+        // port table depends on the links, which are added after the node is created.
+        let ty = self.image().shape_type();
+        self.get_mut().shape_type = ty;
         match ty {
-            ShapeType::RectangleHtmlForPorts | ShapeType::RectanglePort => {
-                // Ports are not supported yet: a plain rectangle stands for them.
+            ShapeType::RectangleHtmlForPorts => {
+                let ports = {
+                    let n = self.get();
+                    n.image.ports(&*n.sb)
+                };
+                self.append_label_html_special_for_link(sb, &ports);
+                sb.push('\n');
+                return;
             }
+            ShapeType::RectanglePort => {}
             ShapeType::RectangleWithCircleInside => {
                 self.append_html(sb);
                 sb.push('\n');
@@ -217,6 +227,18 @@ impl SvekNode {
         sb.push_str("];\n");
     }
 
+    /// The node as an invisible table of rows, so that Graphviz attaches edges to the rows of the
+    /// members addressed as `Class::member` (`SvekNode.appendLabelHtmlSpecialForLink`).
+    fn append_label_html_special_for_link(&self, sb: &mut String, ports: &[PortGeometry]) {
+        sb.push_str(&label_html_for_ports(
+            &self.uid(),
+            self.get().color,
+            self.width(),
+            self.height(),
+            ports,
+        ));
+    }
+
     fn append_html(&self, sb: &mut String) {
         sb.push_str(&self.uid());
         sb.push_str(" [shape=plaintext,label=<");
@@ -250,6 +272,53 @@ impl SvekNode {
         sb.push_str("</TABLE>");
         sb.push_str(">];\n");
     }
+}
+
+/// The node as an invisible table of rows, one `PORT` row per attachable row and filler rows
+/// between them, so that Graphviz attaches an edge to a member (`SvekNode.appendLabelHtmlSpecialForLink`).
+/// Shared by both DOT writers (`svek` and `sdot`).
+pub fn label_html_for_ports(
+    uid: &str,
+    color: i32,
+    width: f64,
+    height: f64,
+    ports: &[PortGeometry],
+) -> String {
+    let mut out = String::new();
+    out.push_str(uid);
+    out.push_str(" [shape=plaintext,label=<");
+    out.push_str(&format!(
+        "<TABLE BGCOLOR=\"{}\" BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\" CELLPADDING=\"0\">",
+        hex_rgb(color)
+    ));
+    let row = |out: &mut String, port: Option<&str>, height: i64| {
+        if height <= 0 {
+            return;
+        }
+        out.push_str("<TR><TD  FIXEDSIZE=\"TRUE\" WIDTH=\"");
+        out.push_str(&java_double(width));
+        out.push_str("\" HEIGHT=\"");
+        out.push_str(&height.to_string());
+        out.push('"');
+        if let Some(p) = port {
+            out.push_str(" PORT=\"");
+            out.push_str(p);
+            out.push('"');
+        }
+        out.push_str("></TD></TR>");
+    };
+    let mut sum = 0i64;
+    for p in ports {
+        let missing = p.position as i64 - sum;
+        sum += missing;
+        row(&mut out, None, missing);
+        let port_height = p.height as i64;
+        sum += port_height;
+        row(&mut out, Some(&p.id), port_height);
+    }
+    row(&mut out, None, height as i64 - sum);
+    out.push_str("</TABLE>>];");
+    out
 }
 
 /// A double as Java prints it (`Double.toString`) for the values met here.

@@ -3,6 +3,14 @@
 All notable changes to this project. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); the API is unstable until 1.0.
 
+## [Unreleased]
+
+### Fixed
+
+- A class or object link that names a member (`Foo::field1 --> Bar::field3`) now attaches to that
+  member's row and routes around the box, as PlantUML's Graphviz output does, instead of putting both
+  ends on the border of the class.
+
 ## [0.2.0] - 2026-10-27
 
 ### Fixed
