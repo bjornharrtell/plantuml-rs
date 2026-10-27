@@ -2,7 +2,7 @@
   "name": "plantuml-rs",
   "displayName": "PlantUML (plantuml-rs)",
   "description": "PlantUML preview and Markdown rendering through the plantuml-rs port: .puml previews and ```puml blocks, rendered locally by a wasm build of plantuml-core",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "publisher": "bjornharrtell",
   "license": "MIT",
   "repository": {
@@ -28,13 +28,19 @@
   "activationEvents": [
     "onLanguage:plantuml",
     "onCommand:plantuml-rs.openPreview",
-    "onLanguage:markdown"
+    "onLanguage:markdown",
+    "onCommand:plantuml-rs.showLog"
   ],
   "contributes": {
     "commands": [
       {
         "command": "plantuml-rs.openPreview",
         "title": "PlantUML: Open Preview",
+        "category": "PlantUML"
+      },
+      {
+        "command": "plantuml-rs.showLog",
+        "title": "PlantUML: Show Log",
         "category": "PlantUML"
       }
     ],

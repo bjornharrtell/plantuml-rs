@@ -41,6 +41,12 @@ check('reports an error instead of throwing', () => {
   assert.match(svg, /<svg/);
 });
 
+check('wraps bare block content in @startuml', () => {
+  const { ok, svg } = renderSvg('Alice -> Bob: bare statements\n');
+  assert.ok(ok, 'a block without @start renders');
+  assert.match(svg, />Alice<\/text>/);
+});
+
 check('renders ```puml fences in markdown', () => {
   const md = extendMarkdownIt(require('markdown-it')({ html: true }));
   const html = md.render('before\n\n```puml\nA -> B\n```\n\nafter');

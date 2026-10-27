@@ -1,18 +1,25 @@
 'use strict';
 
 const vscode = require('vscode');
-const { renderSvg } = require('./render');
+const { renderSvg, wasmStatus } = require('./render');
 const { extendMarkdownIt } = require('./markdown');
+const { log, output } = require('./log');
 
 function activate(context) {
+  log(`activated (vscode ${vscode.version}); wasm ${JSON.stringify(wasmStatus())}`);
+  context.subscriptions.push(output());
   context.subscriptions.push(
     vscode.commands.registerCommand('plantuml-rs.openPreview', () => openPreview(context)),
   );
+  context.subscriptions.push(
+    vscode.commands.registerCommand('plantuml-rs.showLog', () => output().show(true)),
+  );
 }
 
-/** Opens (or reuses) a preview panel for the active PlantUML document. */
+/** Opens a preview panel for the active PlantUML document and keeps it in sync. */
 async function openPreview(context) {
   const editor = vscode.window.activeTextEditor;
+  log(`openPreview for ${editor ? editor.document.fileName : 'no editor'}`);
   if (!editor) {
     vscode.window.showInformationMessage('Open a .puml file first.');
     return;
@@ -28,20 +35,12 @@ async function openPreview(context) {
     panel.webview.html = previewHtml(document.getText());
   };
   update();
-  const subscription = vscode.workspace.onDidChangeTextDocument((e) => {
+  const changed = vscode.workspace.onDidChangeTextDocument((e) => {
     if (e.document.uri.toString() === document.uri.toString()) {
       update();
     }
   });
-  const saved = vscode.workspace.onDidSaveTextDocument((d) => {
-    if (d.uri.toString() === document.uri.toString()) {
-      update();
-    }
-  });
-  panel.onDidDispose(() => {
-    subscription.dispose();
-    saved.dispose();
-  });
+  panel.onDidDispose(() => changed.dispose());
   context.subscriptions.push(panel);
 }
 
