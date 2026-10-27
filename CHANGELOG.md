@@ -3,6 +3,10 @@
 All notable changes to this project. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); the API is unstable until 1.0.
 
+## [0.1.5] - 2026-10-27
+
+No changes to the library or the CLI: this release republishes the 0.1.4 sources.
+
 ## [0.1.4] - 2026-10-27
 
 No changes to the library or the CLI: this release republishes the 0.1.3 sources.
