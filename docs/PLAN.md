@@ -286,21 +286,30 @@ The stored corpus was produced by PlantUML's test mode (`SVG_DETERMINISTIC` and 
 which is not what the jar renders by default. The harness can therefore render its own references:
 
 ```sh
+# the jar has to match the pinned checkout; a JRE-only default JDK needs JAVA_HOME pointing at a JDK
+(cd ../plantuml && JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew -q jar)
 python3 scripts/fidelity.py target/release/plantuml-cli \
-  --java="$(command -v java)" --jar=plantuml.jar --jobs=8
+  --java="$(command -v java)" --jar=../plantuml/build/libs/plantuml-1.2026.10beta1.jar --jobs=8
 ```
 
 Each fixture goes through `java -jar … -tsvg -pipe` (in parallel, with its own directory as the working
 directory for relative includes) and is scored against that SVG; the JSON records `"reference": "java"`.
-Fixtures where Java itself fails are skipped and counted on stderr — 51 of 442 with 1.2026.7, most of them
-bug reproductions its own test harness runs in a special mode.
+A jar older than the checkout is not a good oracle — 1.2026.7 fails on 51 fixtures and renders others with
+older phrasing — so build the pinned commit.
 
-This is a diagnostic for the shipped behaviour, not a gate. Against PlantUML 1.2026.7 the port scores text
-0.91 and layout 0.71 over the 391 fixtures Java can render (stored corpus: 0.99 and 0.92); measuring the line
-box moved it from 0.68 and 171 passed fixtures to 0.71 and 206. Much of the remaining distance is structural
-rather than missing content: class and state diagrams are drawn with the Smetana flow to match the stored
-references, while the jar's default goes through its Graphviz round trip (icons as paths, different rank
-spacing), and activity text differs first in the wording of deprecation warnings.
+This is a diagnostic for the shipped behaviour, not a gate. With the matching 1.2026.10beta1 jar, all 442
+fixtures render on both sides: the port scores text 0.95 and layout 0.80, with 295 of 362 scored fixtures
+inside the target (stored corpus: 0.99 and 0.92, 375/379). Sequence, packet, chart, salt, mindmap, gantt,
+description and the small types are close; the distance is concentrated in class (text 0.70, layout 0.35)
+and state (1.00, 0.58), where the jar draws through its Graphviz flow while the port follows the Smetana
+flow the stored references use. Three concrete reasons are visible:
+
+- the jar draws class icons and other glyphs as paths, the port as text (and the stored test-mode references
+  do the same, so stored scores do not see the difference);
+- qualified associations (`HashMap [a1] --> [e] V1`) are not drawn at all: the port parses `QUALIFIER1/2`
+  into `kal1`/`kal2` but only the Graphviz flow renders them (`Kal`), so the stored references lack them too;
+- the unused `svek::builder` path is not an alternative: it renders an empty canvas, so matching the shipped
+  class/state drawing needs real work, not a switch.
 
 ## Remaining work
 
