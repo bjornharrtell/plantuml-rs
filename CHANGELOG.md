@@ -14,6 +14,13 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 ### Added
 
+- `plantuml-cli`: several inputs in one run, `-o/--out DIR`, `--check` (validate, non-zero exit) and
+  `--json` (one object per input with the diagram type, canvas size, SVG, or a structured error with its
+  line). These are the building blocks for scripts and agents; `-tsvg` is accepted for compatibility.
+- npm package `plantuml-rs`: the wasm build as a CommonJS/Node build and an ESM/browser build, with types
+  (`scripts/build-npm.sh`).
+- GitHub releases now attach `plantuml-cli` binaries for Linux x64, macOS x64/arm64 and Windows x64, with
+  SHA256 checksums and the changelog section as notes.
 - VS Code extension: syntax highlighting and language configuration for `.puml`/`.plantuml`/`.iuml`/`.pu`,
   a **PlantUML: Export SVG** command, and an icon. The Marketplace and Open VSX listings are now linked from
   the README and the playground.

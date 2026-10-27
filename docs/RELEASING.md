@@ -5,7 +5,8 @@ Publishing to crates.io happens from CI: pushing a tag that matches the workspac
 
 ## Steps
 
-1. Bump `version` in the workspace `Cargo.toml` (all crates inherit it) and update `CHANGELOG.md`.
+1. Bump `version` in the workspace `Cargo.toml` (all crates inherit it), in `editors/vscode/package.json`
+   and in `npm/package.json`, and update `CHANGELOG.md`.
 2. Commit on `main` and let the regular CI go green.
 3. Tag and push:
 
@@ -18,13 +19,22 @@ The workflow then checks that the tag equals `v<workspace version>` and that the
 `plantuml-cli` once the registry index resolves core. A crate whose version is already published is
 skipped, so re-running a failed release is safe.
 
+It also builds `plantuml-cli` on Linux x64, macOS x64/arm64 and Windows x64, and creates the GitHub
+release with those archives, a `SHA256SUMS` file and the changelog section for the version.
+
 ## What gets published
 
 | crate | published | note |
 |---|---|---|
 | `plantuml-core` | yes | the library |
 | `plantuml-cli` | yes | the `plantuml-cli` binary |
-| `plantuml-wasm` | no | `publish = false`; it ships as the npm binding, see `docs/PLAN.md` |
+| `plantuml-wasm` | no | `publish = false`; it ships as the npm package `plantuml-rs` |
+
+## npm package
+
+`scripts/build-npm.sh -p` builds both wasm targets into `npm/dist` (Node/CommonJS and browser/ESM) and
+packs the tarball. Publishing is manual: `npm login`, then `npm publish npm/plantuml-rs-<version>.tgz`.
+The package version follows the workspace version.
 
 ## One-time setup
 

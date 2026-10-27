@@ -7,9 +7,17 @@ target and the current per-type status.
 ```sh
 cargo install plantuml-cli          # or: cargo run --release -p plantuml-cli -- diagram.puml
 plantuml-cli diagram.puml > diagram.svg
+plantuml-cli -o build a.puml b.puml # one SVG per input
+plantuml-cli --check *.puml         # validate in CI, non-zero exit on failure
+plantuml-cli --json diagram.puml    # type, canvas size and SVG as JSON
 ```
 
-The library is `plantuml-core` (`cargo add plantuml-core`). The API is unstable until 1.0; see
+Pre-built binaries for Linux, macOS (x64/arm64) and Windows are attached to every
+[GitHub release](https://github.com/bjornharrtell/plantuml-rs/releases), with checksums.
+
+The library is `plantuml-core` (`cargo add plantuml-core`); the wasm build is on npm as
+[`plantuml-rs`](https://www.npmjs.com/package/plantuml-rs) (see [JavaScript](#javascript)). The API is
+unstable until 1.0; see
 [CHANGELOG.md](https://github.com/bjornharrtell/plantuml-rs/blob/main/CHANGELOG.md) for what a release contains
 and [docs/RELEASING.md](https://github.com/bjornharrtell/plantuml-rs/blob/main/docs/RELEASING.md) for how releases
 are cut (publishing to crates.io runs on pushed tags).
@@ -26,6 +34,17 @@ sequence, class (with object and description diagrams), state, activity, packet,
 mindmap, WBS, salt, JSON/YAML/HCL, Chen EER, EBNF and the crash diagram. C4-PlantUML renders
 through the bundled stdlib. Four C4/EBNF fixtures still miss the layout target; accepted
 differences and open items are listed in the plan.
+
+## JavaScript
+
+```js
+const { render } = require('plantuml-rs');       // Node; ESM import works too
+const svg = render('@startuml\nAlice -> Bob: hello\n@enduml');
+```
+
+In the browser the ESM build needs one `await init()` before `render`; see the
+[package README](https://github.com/bjornharrtell/plantuml-rs/blob/main/npm/README.md). It is the same
+`plantuml-core`, compiled to wasm: no Java, no Graphviz, no network.
 
 ## Editors
 
