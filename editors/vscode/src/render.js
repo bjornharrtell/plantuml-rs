@@ -32,7 +32,7 @@ function load() {
 
 /** Wraps bare statements (`A -> B`) the way a markdown block usually arrives. */
 function withBlock(source) {
-  return /^[%s]*@start/m.test(source) ? source : `@startuml\n${source}\n@enduml`;
+  return /^\s*@start\w+/m.test(source) ? source : `@startuml\n${source}\n@enduml`;
 }
 
 /** SVG for a PlantUML source, or an SVG error box when the port rejects it. */

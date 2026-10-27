@@ -14,6 +14,7 @@ function activate(context) {
   context.subscriptions.push(
     vscode.commands.registerCommand('plantuml-rs.showLog', () => output().show(true)),
   );
+  return { extendMarkdownIt };
 }
 
 /** Opens a preview panel for the active PlantUML document and keeps it in sync. */

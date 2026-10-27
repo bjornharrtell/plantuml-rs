@@ -2,7 +2,7 @@
   "name": "plantuml-rs",
   "displayName": "PlantUML (plantuml-rs)",
   "description": "PlantUML preview and Markdown rendering through the plantuml-rs port: .puml previews and ```puml blocks, rendered locally by a wasm build of plantuml-core",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "publisher": "bjornharrtell",
   "license": "MIT",
   "repository": {
@@ -44,6 +44,14 @@
         "category": "PlantUML"
       }
     ],
+    "menus": {
+      "editor/title": [
+        { "command": "plantuml-rs.openPreview", "when": "resourceLangId == plantuml", "group": "navigation" }
+      ],
+      "editor/context": [
+        { "command": "plantuml-rs.openPreview", "when": "resourceLangId == plantuml", "group": "navigation" }
+      ]
+    },
     "languages": [
       {
         "id": "plantuml",
@@ -62,7 +70,7 @@
     "markdown.markdownItPlugins": true
   },
   "scripts": {
-    "test": "node test/render.test.js"
+    "test": "node test/render.test.js && node test/activation.test.js"
   },
   "devDependencies": {
     "markdown-it": "^14.1.0"

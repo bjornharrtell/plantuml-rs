@@ -3,8 +3,8 @@
 Renders PlantUML locally, with no Java, no Graphviz process and no network: the extension bundles a wasm build
 of [`plantuml-core`](../../crates/plantuml-core).
 
-- **`.puml` preview**: `PlantUML: Open Preview` (`plantuml-rs.openPreview`) opens a side panel for the active
-  document and updates as you type.
+- **`.puml` preview**: use **PlantUML: Open Preview** from the Command Palette, editor title menu, or
+  editor context menu. It opens a side panel for the active document and updates as you type.
 - **Markdown**: ```puml / ```plantuml / ```uml fenced blocks render inside VS Code's built-in Markdown preview
   (contributed through `markdown.markdownItPlugins`).
 - A diagram the port cannot render is shown as a red message box with the error, instead of failing silently.
