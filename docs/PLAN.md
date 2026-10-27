@@ -140,7 +140,10 @@ procedures (`Person`, `System`, `Container`, `Component`, `*_Boundary`, `Rel`). 
   folded into it; the `Lay_*` helpers add `-[hidden]` ones for layout only.
 - Styling is `skinparam rectangle<<stereotype>> { ... }` written by `UpdateElementStyle`/`AddElementTag`, plus
   `LAYOUT_WITH_LEGEND()` (legend), `hide stereotype`, `skinparam shadowing false`.
-- Boundaries are titled rectangles (`== label ==` heading), not clusters, in the current C4 style.
+- Boundaries are titled rectangles (`== label ==` heading), not clusters, in the current C4 style. A boundary
+  with no content (`System_Boundary(x, "y") { }`) is an `EMPTY_PACKAGE` leaf, as Java's `printGroups` mutes it
+  before writing DOT, so it takes a rank like any other entity; a link to it therefore lands where the original
+  puts it.
 
 What that needs, and where the port stands:
 
@@ -216,7 +219,7 @@ and measured but not held to the targets.
 | GANTT | 16 | 100% | 1.00 | 0.98 | 0% | 15/15 | 1 |
 | SALT | 10 | 100% | 1.00 | 0.99 | 20% | 9/9 | 1 |
 | WBS | 7 | 100% | 1.00 | 0.95 | 14% | 6/6 | 1 |
-| DESCRIPTION | 8 | 100% | 1.00 | 0.58 | 0% | 3/5 | 3 |
+| DESCRIPTION | 9 | 100% | 1.00 | 0.63 | 0% | 4/6 | 3 |
 | EBNF | 8 | 100% | 1.00 | 0.89 | 0% | 6/8 | 0 |
 | MINDMAP | 4 | 100% | 1.00 | 1.00 | 25% | 4/4 | 0 |
 | CHEN_EER | 4 | 100% | 1.00 | 0.87 | 0% | 2/2 | 2 |
@@ -225,7 +228,7 @@ and measured but not held to the targets.
 | JSON | 1 | 100% | 1.00 | 0.86 | 0% | - | 1 |
 | YAML | 1 | 100% | 1.00 | 0.48 | 0% | - | 1 |
 
-All 441 fixtures render. **377 of 381 scored fixtures pass (99%)**, 60 are accepted differences, `layout_mean` 0.93,
+All 442 fixtures render. **378 of 382 scored fixtures pass (99%)**, 60 are accepted differences, `layout_mean` 0.93,
 text jaccard 0.99, 185 exact structures. Every scored type other than DESCRIPTION and EBNF is green against the target; what
 remains is the four layout fixtures under [Residual differences](#residual-differences-accepted) and the foundations
 gaps under [Remaining work](#remaining-work).
@@ -258,13 +261,14 @@ That single decision separates the two measurements of the same corpus:
 
 | | visible space (shipped) | zero space (`SVG_DETERMINISTIC`) |
 |---|---|---|
-| in-scope pass | 377/381 | 405/409 |
+| in-scope pass | 378/382 | 405/410 |
 | layout_mean | 0.93 | 0.94 |
 | identical | 185 | 326 |
 | accepted | 60 | 32 |
-| failures | 4 (C4, EBNF) | 4 (C4, EBNF) |
+| failures | 4 (C4, EBNF) | 5 (C4, EBNF, plus the empty-boundary fixture, which is referenced with real spaces) |
 
-Both columns fail the same four C4/EBNF fixtures, so no layout regression hides behind the metric. Following the references here would mean shipping zero-width spaces:
+Both columns fail the C4/EBNF fixtures, so no layout regression hides behind the metric; the zero-space
+column has one extra failure because the repository fixtures were referenced from a live Java render. Following the references here would mean shipping zero-width spaces:
 Java's SVG then has touching words that the browser spreads out again, because the `textLength` is unchanged. The
 port keeps the visible advance and declares the family instead. A deterministic-metrics mode chosen by the harness
 would score the same fixtures without excusing them, and would restore JSON and YAML scoring; that is the
@@ -357,6 +361,7 @@ Until then these fixtures stay in the accepted set.
 | EBNF a nested expression grammar, with a comment | 0.72 | 1.00 |
 | C4 context | 0.72 | 1.00 |
 | C4 container, with a boundary | 0.32 | 1.00 |
+| C4 empty boundary with one relation | 1.00 | 1.00 |
 
 Single tiles are placed exactly, so the tile geometry is right; the gap is in how a diagram stacks several
 tiles and productions and, for C4, in the boundary/caption layout. Text matches every fixture, so none of

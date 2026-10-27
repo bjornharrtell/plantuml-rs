@@ -366,7 +366,11 @@ mod tests {
              System_Boundary(domain2, \"Domain 2\") {\n}\nRel(api, domain2, \"calls\")\n@enduml",
         )
         .unwrap();
-        assert!(svg.contains(">Domain 2</text>"));
+        // An empty boundary is a node in Java, not a cluster, so it takes a rank like any other
+        // entity and its title is laid out as separate runs.
+        assert!(svg.contains("data-qualified-name=\"domain2\""));
+        assert!(!svg.contains("class=\"cluster\""));
+        assert!(svg.contains(">Domain</text>") && svg.contains(">2</text>"));
         assert!(svg.contains(">calls</text>"));
     }
 

@@ -3,6 +3,15 @@
 All notable changes to this project. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); the API is unstable until 1.0.
 
+## [Unreleased]
+
+### Fixed
+
+- Description diagrams (component, deployment, C4): an empty package or boundary is laid out as a node,
+  as Java does, instead of a cluster stacked below the content. It takes its place in the ranks, so C4
+  `System_Boundary(x, "y") { }` and the relationships to it land where the original puts them; the C4
+  container sample moves from 0.19 to 0.67 against a live Java render.
+
 ## [0.3.0] - 2026-10-27
 
 ### Changed

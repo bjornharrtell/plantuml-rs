@@ -1,0 +1,7 @@
+@startuml
+!include <C4/C4_Component>
+Container(api, "API", "Rust", "Serves requests")
+System_Boundary(domain, "Domain") {
+}
+Rel(api, domain, "calls")
+@enduml

@@ -65,6 +65,7 @@ pub(crate) fn create_entity_image(
         ),
         Some(
             crate::abel::LeafType::Description
+            | crate::abel::LeafType::EmptyPackage
             | crate::abel::LeafType::Usecase
             | crate::abel::LeafType::UsecaseBusiness
             | crate::abel::LeafType::Circle,

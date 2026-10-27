@@ -273,6 +273,23 @@ struct Collected {
     nodes: Vec<(Entity, SvekNode)>,
 }
 
+/// `printGroups`: a package with nothing inside has no cluster to lay out, so Java turns it into an
+/// `EMPTY_PACKAGE` leaf that takes a rank like any other node. Only the description form (an empty
+/// symbol such as C4's `System_Boundary(x, "y") { }`) goes through here; a plain empty `package`
+/// keeps the cluster fallback below.
+fn mute_empty_packages(entity: &Entity, cuca: &CucaDiagram) {
+    for g in entity.groups() {
+        if g.group_type() == Some(crate::abel::GroupType::Package)
+            && cuca.is_empty(&g)
+            && g.usymbol().is_some()
+        {
+            g.force_leaf_type(crate::abel::LeafType::EmptyPackage);
+        } else {
+            mute_empty_packages(&g, cuca);
+        }
+    }
+}
+
 fn collect_groups(
     cuca: &CucaDiagram,
     skin: &SkinParam,
@@ -456,6 +473,8 @@ fn build_dot(
     let mut out = String::from("digraph g {\n");
     if skin.is_state_diagram() {
         out.push_str("margin=16;\n");
+    }
+    if skin.is_state_diagram() || spacing.reminross {
         out.push_str("remincross=true;\n");
         out.push_str("searchsize=500;\n");
     }
@@ -611,6 +630,8 @@ fn bb_of(o: &JsonValue) -> Option<(Point, Point)> {
 pub struct Spacing {
     pub nodesep: f64,
     pub ranksep: f64,
+    /// `remincross=true; searchsize=500;`: the Graphviz flow's crossing minimisation.
+    pub reminross: bool,
 }
 
 impl Spacing {
@@ -618,12 +639,14 @@ impl Spacing {
     pub const GRAPHVIZ: Spacing = Spacing {
         nodesep: 0.0,
         ranksep: 0.0,
+        reminross: false,
     };
     /// `DotStringFactory`: at least 35 px between nodes and 60 px between ranks (`nodesep=0.486111`,
     /// `ranksep=0.833333` at 72 dpi).
     pub const SVEK: Spacing = Spacing {
         nodesep: 35.0,
         ranksep: 60.0,
+        reminross: true,
     };
 }
 
@@ -648,6 +671,9 @@ fn layout_from(
     let nested = root.is_some();
     let bib = Bibliotekon::new();
     let root_entity = root.cloned().unwrap_or_else(|| cuca.root_group());
+    if !nested {
+        mute_empty_packages(&root_entity, cuca);
+    }
     let colors = [
         bib.next_color(),
         bib.next_color(),
