@@ -312,10 +312,25 @@ this is missing content.
 
 Two fixes landed for EBNF: terminal boxes are outlines rather than filled shapes, and the box and title of a
 rule use the line box (ascent + descent + line gap) that Java uses, which makes a stack of rules line up (a
-two-rule diagram now scores 1.00). What remains for EBNF is bold text width: Java measures a bold title ~40%
-wider than the regular block table the port uses, and taking the per-style advance tables from
-`EmbeddedFontBounder` lifts the grammar fixture from 0.38 to 0.66 while costing 11 Vega fixtures (titles,
-dividers, JSON, timing), so the bold tables and their effect on those layouts have to be settled together.
+two-rule diagram now scores 1.00).
+
+What remains for EBNF is bold text width, and the measurements say precisely what it is:
+
+| string | Java reference | port, regular table | port, embedded Liberation |
+|---|---|---|---|
+| `(* an expression grammar *)`, regular | 155.31 | 159.34 (+2.6%) | 175.06 (+12.7%) |
+| `Alternation, repetition and optional`, bold | 282.04 | 200.81 (-29%) | 232.55 (-17.6%) |
+| `expr`, bold | 35.45 | - | - |
+
+Regular text is within 3% of Java with the block table, so the regular metrics are right. Java's bold is about
+1.27x its own regular, while Liberation Sans Bold is only 1.06x regular, so the JVM's bold is not the embedded
+bold face at all. The port has no bold factor, which is why EBNF titles and rule names come out a quarter
+narrow and why a grammar of several productions drifts.
+
+Taking the embedded bold tables lifts the grammar fixture from 0.38 to 0.66 but costs eleven Vega fixtures
+(titles, dividers, JSON, timing), because those layouts are tuned around the narrow bold. The way to close this
+is a calibrated bold advance factor in `TableFontBounder` (around 1.27) together with re-baselining those eleven
+fixtures, not a switch to the embedded bold face.
 
 The stacking gap is traced to the text height: Java's `FileFormat.getJavaDimension` is a line of
 ascent+descent+line gap (26.3 px at size 14), while `TableFontBounder` reports the point size (14), so a rule
