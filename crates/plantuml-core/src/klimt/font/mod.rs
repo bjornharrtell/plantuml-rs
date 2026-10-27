@@ -177,6 +177,16 @@ pub trait StringBounder {
     fn to_rc(&self) -> std::rc::Rc<dyn StringBounder>;
 }
 
+/// Line height of the face: ascent + descent + line gap, scaled to the font size
+/// (`FileFormat.getJavaDimension`). The bounders report the point size instead, which is what the Vega
+/// layouts were tuned against, so this is opt-in for the layouts that need Java's line box.
+pub fn line_height(font: &UFont) -> f64 {
+    let face = &metrics::tables().faces[font.face.style_index()];
+    let units = f64::from(face.units_per_em);
+    (f64::from(face.ascent) + f64::from(face.descent) + f64::from(face.line_gap)) / units
+        * font.size2d()
+}
+
 /// Measures with Liberation Sans metrics, reproducing Java on Windows
 /// (`StringBounderEmbeddedFont`). Other families are measured as `SansSerif`.
 #[derive(Debug, Clone, Copy, Default)]

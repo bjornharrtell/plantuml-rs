@@ -23,7 +23,10 @@ impl TitleBox {
 
 impl TextBlock for TitleBox {
     fn calculate_dimension(&self, sb: &dyn StringBounder) -> Dimension {
-        sb.calculate_dimension(&self.fc.font(), &self.value)
+        let dim = sb.calculate_dimension(&self.fc.font(), &self.value);
+        // Java measures the title with the line box (ascent + descent + line gap); the point size leaves
+        // every rule of a multi-rule grammar a couple of pixels short.
+        Dimension::new(dim.width, crate::klimt::font::line_height(&self.fc.font()))
     }
 
     fn draw(&self, ug: &UGraphic) {

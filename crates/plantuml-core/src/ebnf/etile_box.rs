@@ -47,7 +47,10 @@ impl ETileBox {
     }
 
     fn text_dim(&self, sb: &dyn StringBounder) -> Dimension {
-        sb.calculate_dimension(&self.fc.font(), &self.value)
+        let dim = sb.calculate_dimension(&self.fc.font(), &self.value);
+        // Java sizes these boxes from the line box (ascent + descent + line gap), not the point size;
+        // using the point size makes every rule a couple of pixels short and a stack of rules drifts.
+        Dimension::new(dim.width, crate::klimt::font::line_height(&self.fc.font()))
     }
 
     fn box_dim(&self, sb: &dyn StringBounder) -> Dimension {

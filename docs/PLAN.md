@@ -310,6 +310,13 @@ Single tiles are placed exactly, so the tile geometry is right; the gap is in ho
 tiles and productions and, for C4, in the boundary/caption layout. Text matches every fixture, so none of
 this is missing content.
 
+Two fixes landed for EBNF: terminal boxes are outlines rather than filled shapes, and the box and title of a
+rule use the line box (ascent + descent + line gap) that Java uses, which makes a stack of rules line up (a
+two-rule diagram now scores 1.00). What remains for EBNF is bold text width: Java measures a bold title ~40%
+wider than the regular block table the port uses, and taking the per-style advance tables from
+`EmbeddedFontBounder` lifts the grammar fixture from 0.38 to 0.66 while costing 11 Vega fixtures (titles,
+dividers, JSON, timing), so the bold tables and their effect on those layouts have to be settled together.
+
 The stacking gap is traced to the text height: Java's `FileFormat.getJavaDimension` is a line of
 ascent+descent+line gap (26.3 px at size 14), while `TableFontBounder` reports the point size (14), so a rule
 is ~2 px short and several rules drift apart. Making that global change drops the Vega score (393 -> 385
