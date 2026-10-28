@@ -3,19 +3,20 @@
 Library-level figures for this port and for the Java implementation it is ported from. Both render the
 same corpus in one process, so the numbers measure rendering, not process or JVM startup.
 
-Measured on the 472 `.puml` files of the PlantUML Vega corpus, best of three warm runs. Host: Linux,
-8 vCPU, 15 GB RAM. Toolchain: rustc 1.99.1, OpenJDK 25.0.4.1, PlantUML 1.2026.7, graphviz-pure 0.2.2.
+Measured on the 472 `.puml` files of the PlantUML Vega corpus, best of five warm runs. Host: Linux,
+16 vCPU, 29 GB RAM. Toolchain: rustc 1.99.1, OpenJDK 25.0.4.1, PlantUML 1.2026.10beta1,
+graphviz-pure 0.2.3.
 
 | implementation | total | per diagram | diagrams/s |
 |---|---|---|---|
-| Rust library (`plantuml-core`) | 1.25 s | 2.65 ms | 377 |
-| Java PlantUML, one JVM | 1.39 s | 2.94 ms | 340 |
+| Rust library (`plantuml-core`) | 1.22 s | 2.59 ms | 387 |
+| Java PlantUML, one JVM | 1.16 s | 2.46 ms | 407 |
 
-Rust is about 10% faster per diagram on this corpus. Two caveats: Java writes its SVGs to `/dev/shm`
-while the Rust harness keeps them in memory, and class diagrams are not like-for-like — this port lays
-them out with `graphviz-pure`, while the Java run used Graphviz through its own DOT round trip. The Java
-side also cannot be split per diagram type the same way, because a per-type run pays JVM start and JIT
-compilation on a few dozen diagrams.
+The two are within about 5% of each other; Java is slightly faster on this run. Two caveats: Java writes
+its SVGs to `/dev/shm` while the Rust harness keeps them in memory, and class diagrams are not
+like-for-like — this port lays them out with `graphviz-pure`, while the Java run used Graphviz through its
+own DOT round trip. The Java side also cannot be split per diagram type the same way, because a per-type
+run pays JVM start and JIT compilation on a few dozen diagrams.
 
 ## Per diagram type
 
@@ -23,11 +24,11 @@ Rust, one process per type, so each row also pays the one-time initialization de
 
 | type | diagrams | total | per diagram |
 |---|---|---|---|
-| activity | 36 | 281 ms | 7.8 ms |
-| state | 48 | 307 ms | 6.4 ms |
-| class | 53 | 282 ms | 5.3 ms |
-| sequence | 149 | 412 ms | 2.8 ms |
-| chart | 35 | 54 ms | 1.5 ms |
+| activity | 36 | 212 ms | 5.9 ms |
+| state | 48 | 242 ms | 5.0 ms |
+| class | 53 | 216 ms | 4.1 ms |
+| sequence | 149 | 315 ms | 2.1 ms |
+| chart | 35 | 35 ms | 1.0 ms |
 
 Activity and the Graphviz-backed types (state, class) are the slowest per diagram; sequence diagrams are
 the largest block of the corpus and therefore dominate the total.
@@ -53,7 +54,7 @@ an upstream change to `fancy-regex` or a broad allocation pass with a yield belo
 
 ## One-time initialization
 
-The library spends about 75 ms on its first render in a process (font tables, style parsing and regex
+The library spends about 40 ms on its first render in a process (font tables, style parsing and regex
 compilation) and about 1 ms per tiny diagram afterwards. That cost is paid once per process or per wasm
 instance, so it matters for one-shot use and not for a server that renders continuously.
 

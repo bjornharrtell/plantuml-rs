@@ -3,6 +3,14 @@
 All notable changes to this project. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); the API is unstable until 1.0.
 
+## [Unreleased]
+
+### Changed
+
+- `graphviz-pure` 0.2.3 (was 0.2.2). The release fixes `sfdp` positioning and clips compound edges
+  without arrowheads as C Graphviz does (#490); `sfdp` is unused here and the corpus does not exercise
+  the compound fix, so the rendered corpus is unchanged.
+
 ## [0.4.0] - 2026-10-28
 
 ### Changed

@@ -13,7 +13,7 @@ categories = ["visualization", "rendering", "wasm"]
 
 [dependencies]
 fancy-regex = "0.20.0"
-graphviz-pure = "=0.2.2"
+graphviz-pure = "=0.2.3"
 md-5 = "0.10.6"
 log.workspace = true
 regex = { version = "1", default-features = false, features = ["std", "unicode-perl", "unicode-case", "unicode-gencat", "perf"] }

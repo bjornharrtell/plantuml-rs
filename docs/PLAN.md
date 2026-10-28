@@ -10,7 +10,7 @@ as a faithful port of [plantuml/plantuml](https://github.com/plantuml/plantuml).
 | Approach | Faithful port of the Java code by default, so behavior matches the Vega fixtures. Re-implement idiomatically only where the Java is a workaround for Java or its dependencies (Graphviz process and SVG round trip, TeaVM/Smetana/Elk paths, legacy strategies, AWT/image plumbing) or an infrastructure-heavy area (stdlib/theme loading, Creole, activity). Judge by behavior and the fixtures, not by the Java structure |
 | Fidelity | Same diagram, not same file: content, arrangement and styling match Java; text metrics, glyph shapes and exact coordinates do not. See [Fidelity target](#fidelity-target) |
 | Output | SVG only. No PNG, PDF, EPS, AWT, GUI, servers |
-| Layout | [`graphviz-pure`](https://github.com/graphviz-pure/graphviz-pure) (pure-Rust Graphviz 16.1.0 port, wasm-capable, EPL-2.0), pinned at `=0.2.2`. Java's Smetana is not ported |
+| Layout | [`graphviz-pure`](https://github.com/graphviz-pure/graphviz-pure) (pure-Rust Graphviz 16.1.0 port, wasm-capable, EPL-2.0), pinned at `=0.2.3`. Java's Smetana is not ported |
 | Text metrics | Embedded font metrics only (deterministic, no browser canvas) |
 | License | MIT (PlantUML is multi-licensed and offers MIT) |
 | C4 models | Supported through the bundled C4-PlantUML macro library (`!include <C4/C4_Container>`), which expands to DESCRIPTION (component) statements; there is no diagram type of its own |
@@ -89,8 +89,9 @@ wrapper (`scripts/dot-capture.sh`) and rendered with `graphviz-pure` 0.2 and wit
 
 Conclusion: adopted, so `svek` must not depend on the order of SVG elements.
 
-The dependency is now pinned at 0.2.2. That release only touches the `neato` and `sfdp` engines, which the
-port does not use; re-scoring the whole corpus gives the same result for every fixture (0 of 441 differ).
+The dependency is now pinned at 0.2.3. That release changes the `sfdp` engine, which the port does not
+use, and clips compound edges without arrowheads as C does (#490), which the corpus does not exercise;
+re-scoring the whole corpus gives the same result for every fixture (0 of 442 differ).
 
 ## Architecture
 
