@@ -1,18 +1,21 @@
 # Rendering performance
 
-Library-level figures for this port and for the Java implementation it is ported from. Both render the
-same corpus in one process, so the numbers measure rendering, not process or JVM startup.
+Library-level figures for this port and for the Java implementation it is ported from. Each run renders the
+whole corpus in one process, so neither side pays process or JVM startup per diagram.
 
 Measured on the 472 `.puml` files of the PlantUML Vega corpus, best of five warm runs. Host: Linux,
-16 vCPU, 29 GB RAM. Toolchain: rustc 1.99.1, OpenJDK 25.0.4.1, PlantUML 1.2026.10beta1,
-graphviz-pure 0.2.3.
+16 vCPU, 29 GB RAM. Toolchain: rustc 1.99.1, OpenJDK 25.0.4.1, graphviz-pure 0.2.3.
 
 | implementation | total | per diagram | diagrams/s |
 |---|---|---|---|
 | Rust library (`plantuml-core`) | 1.22 s | 2.59 ms | 387 |
-| Java PlantUML, one JVM | 1.16 s | 2.46 ms | 407 |
+| Java PlantUML 1.2026.10beta1, one JVM | 1.16 s | 2.46 ms | 407 |
+| Java PlantUML 1.2026.7, one JVM | 1.42 s | 3.01 ms | 332 |
 
-The two are within about 5% of each other; Java is slightly faster on this run. Two caveats: Java writes
+The ranking depends on the Java version: 1.2026.10beta1 renders this corpus about 20% faster than
+1.2026.7, mostly on sequence diagrams, so Rust sits about 5% behind the beta and about 13% ahead of the
+stable jar. Both figures include one process start each — about 130 ms for the JVM and a few milliseconds
+for the Rust process — and the JVM also warms up its JIT during the run. Two further caveats: Java writes
 its SVGs to `/dev/shm` while the Rust harness keeps them in memory, and class diagrams are not
 like-for-like — this port lays them out with `graphviz-pure`, while the Java run used Graphviz through its
 own DOT round trip. The Java side also cannot be split per diagram type the same way, because a per-type
