@@ -176,7 +176,12 @@ impl ActivityDiagram3 {
             }
         }
         if current.borrow().as_any().is::<InstructionRepeat>() {
-            return CommandExecutionResult::error("backward is not supported in a repeat loop yet");
+            let swimlane = self.swimlanes.current_swimlane();
+            let mut current = current.borrow_mut();
+            if let Some(repeat) = current.as_any_mut().downcast_mut::<InstructionRepeat>() {
+                repeat.set_backward(label, box_style, incoming1, incoming2, stereotype, swimlane);
+                return CommandExecutionResult::ok();
+            }
         }
         CommandExecutionResult::error("Cannot find repeat")
     }
@@ -401,7 +406,14 @@ impl ActivityDiagram3 {
     }
 
     /// Closes a `repeat` loop (`repeat while (...)`).
-    pub fn end_repeat(&mut self, test: Display) -> CommandExecutionResult {
+    pub fn end_repeat(
+        &mut self,
+        test: Display,
+        yes: Option<Display>,
+        out: Option<Display>,
+        back_link: LinkRendering,
+        test_color: Option<crate::klimt::color::HColor>,
+    ) -> CommandExecutionResult {
         let current = self.current();
         if !current.borrow().as_any().is::<InstructionRepeat>() {
             return CommandExecutionResult::error("Cannot find repeat");
@@ -411,7 +423,7 @@ impl ActivityDiagram3 {
             let Some(repeat) = current.as_any_mut().downcast_mut::<InstructionRepeat>() else {
                 return CommandExecutionResult::error("Cannot find repeat");
             };
-            repeat.set_test(test);
+            repeat.set_test(test, yes, out, back_link, test_color);
             repeat.set_out_rendering(self.next_link_renderer());
         }
         self.reset_next_link();

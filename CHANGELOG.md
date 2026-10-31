@@ -9,10 +9,13 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 - Activity `break` and, for `while` loops, `backward :text;`. Both were syntax errors. A `break` leaves the loop
   through its exit channel; `backward` draws its box on the right with the two arrows Java draws. `backward` in
-  a `repeat` loop is reported as unsupported.
+  a `repeat` loop works too.
 
 ### Fixed
 
+- Activity `repeat`: laid out with Java's `FtileRepeat` (start diamond or `repeat :label;` box, condition below with
+  its `is (yes) not (no)` labels, loop-back on the right, `backward` box, and a diamond for `break`). The repeat
+  fixtures reach layout 1.0 (`repeat_stereo` was 0.0).
 - Activity `switch`: laid out with Java's tiles (cases in a row, labels on the arrows, merge diamond, a single
   straight arrow for one case). The three-case fixture goes from layout 0.22 to 1.0.
 - Activity `if`: laid out with Java's tiles instead of one generalised tile. Two real branches keep the merge

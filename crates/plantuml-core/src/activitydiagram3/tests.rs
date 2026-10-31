@@ -241,7 +241,6 @@ fn while_loop_draws_its_backward_box_on_the_right() {
         number(&out[out[..i].rfind("<text").unwrap()..i], "x").unwrap()
     };
     assert!(x("undo") > x("step"), "{out}");
-    assert!(render("@startuml\nrepeat\n:a;\nbackward :b;\nrepeat while (c?)\n@enduml").is_err());
     assert!(render("@startuml\n:a;\nbackward :b;\n@enduml").is_err());
 }
 
@@ -341,6 +340,27 @@ fn switch_places_the_cases_in_a_row_under_the_test_and_merges_them() {
         one.contains(">A</text>") && one.contains(">a</text>"),
         "{one}"
     );
+}
+
+#[test]
+fn repeat_loop_draws_its_backward_box_and_its_labels() {
+    let out = svg("repeat\n:step;\nbackward :undo;\nrepeat while (again?) is (yes) not (done)");
+    let x = |t: &str| {
+        let i = out
+            .find(&format!(">{t}</text>"))
+            .unwrap_or_else(|| panic!("{t}: {out}"));
+        number(&out[out[..i].rfind("<text").unwrap()..i], "x").unwrap()
+    };
+    assert!(x("undo") > x("step"), "{out}");
+    assert!(
+        x("yes") > x("again?") && out.contains(">done</text>"),
+        "{out}"
+    );
+    // a break in a repeat loop leads to the diamond after it
+    let out = svg("repeat\nif (bad?) then (yes)\nbreak\nendif\nrepeat while (again?)\n:after;");
+    for text in ["bad?", "again?", "after"] {
+        assert!(out.contains(&format!(">{text}</text>")), "{text}: {out}");
+    }
 }
 
 #[test]

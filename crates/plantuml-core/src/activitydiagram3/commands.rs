@@ -804,8 +804,11 @@ fn repeat_start() -> Cmd {
     )
 }
 
-/// `repeat while (test)`: close the loop.
+/// `repeat while (test) [is (yes)] [not (out)] [-> label]`: close the loop (`CommandRepeatWhile3`).
 fn repeat_while() -> Cmd {
+    let paren =
+        |name: &'static str, inner: &'static str| IRegex::named(name, &format!(r"\({inner}\)"));
+    let keyword = |word: &'static str| IRegex::leaf(word);
     single(
         vec![
             IRegex::start(),
@@ -813,14 +816,72 @@ fn repeat_while() -> Cmd {
             IRegex::space_zero_or_more(),
             IRegex::leaf("while"),
             IRegex::space_zero_or_more(),
-            IRegex::named("TEST", r"\(([^)]*)\)"),
-            IRegex::leaf(".*"),
+            IRegex::or(vec![
+                IRegex::group(vec![
+                    paren("TEST3", "(.*?)"),
+                    IRegex::space_zero_or_more(),
+                    IRegex::leaf("(is|equals?)"),
+                    IRegex::space_zero_or_more(),
+                    paren("WHEN3", "(.+?)"),
+                    IRegex::space_zero_or_more(),
+                    keyword("(not)"),
+                    IRegex::space_zero_or_more(),
+                    paren("OUT3", "(.+?)"),
+                ]),
+                IRegex::group(vec![
+                    paren("TEST4", "(.*?)"),
+                    IRegex::space_zero_or_more(),
+                    keyword("(not)"),
+                    IRegex::space_zero_or_more(),
+                    paren("OUT4", "(.+?)"),
+                ]),
+                IRegex::group(vec![
+                    paren("TEST2", "(.*?)"),
+                    IRegex::space_zero_or_more(),
+                    IRegex::leaf("(is|equals?)"),
+                    IRegex::space_zero_or_more(),
+                    paren("WHEN2", "(.+?)"),
+                ]),
+                IRegex::optional(paren("TEST1", "(.*)")),
+            ]),
+            IRegex::space_zero_or_more(),
+            IRegex::optional(IRegex::group(vec![
+                IRegex::or(vec![
+                    IRegex::leaf("->"),
+                    IRegex::named("XCOLOR", STYLE_COLORS_MULTIPLES),
+                ]),
+                IRegex::space_zero_or_more(),
+                IRegex::or(vec![IRegex::named("LABEL", "(.*)"), IRegex::leaf("")]),
+            ])),
             IRegex::leaf(";?"),
             IRegex::space_zero_or_more(),
             Stereogroup::optional_stereogroup(),
             IRegex::end(),
         ],
-        |d, arg| d.end_repeat(Display::with_newlines(arg.get("TEST", 0))),
+        |d, arg| {
+            let lazy = |keys: [&str; 4]| keys.iter().find_map(|k| arg.get_lazzy(k, 0));
+            let test = lazy(["TEST3", "TEST4", "TEST2", "TEST1"]);
+            let yes = lazy(["WHEN3", "WHEN2", "WHEN2", "WHEN3"]);
+            let out = lazy(["OUT3", "OUT4", "OUT3", "OUT4"]);
+            let space = d.skin().as_int("colorarrowseparationspace", 0);
+            let rainbow = match arg.get("XCOLOR", 0) {
+                Some(c) => Rainbow::build(d.skin(), c, space),
+                None => Rainbow::none(),
+            };
+            let link = LinkRendering::create(rainbow);
+            let link = match arg.get("LABEL", 0).filter(|l| !l.is_empty()) {
+                Some(l) => link.with_display(Display::with_newlines(Some(l))),
+                None => link,
+            };
+            let colors = Stereogroup::build(arg).inner_colors();
+            d.end_repeat(
+                Display::with_newlines(test),
+                yes.map(|y| Display::with_newlines(Some(y))),
+                out.map(|o| Display::with_newlines(Some(o))),
+                link,
+                colors.color(ColorType::Back).cloned(),
+            )
+        },
     )
 }
 

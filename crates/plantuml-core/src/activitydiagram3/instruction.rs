@@ -880,6 +880,12 @@ impl Instruction for InstructionIf {
 pub struct InstructionRepeat {
     list: InstructionList,
     test: Display,
+    yes: Option<Display>,
+    out: Option<Display>,
+    test_color: Option<HColor>,
+    /// The arrow back to the start, from `repeat while (..) -> label`.
+    back_link: LinkRendering,
+    backward: Option<Backward>,
     start_label: Option<Display>,
     back_color: Option<HColor>,
     colors: Colors,
@@ -899,6 +905,11 @@ impl InstructionRepeat {
         Self {
             list: InstructionList::new(swimlane.clone()),
             test: Display::null(),
+            yes: None,
+            out: None,
+            test_color: None,
+            back_link: LinkRendering::none(),
+            backward: None,
             start_label,
             back_color,
             colors,
@@ -908,8 +919,39 @@ impl InstructionRepeat {
         }
     }
 
-    pub fn set_test(&mut self, test: Display) {
+    pub fn set_test(
+        &mut self,
+        test: Display,
+        yes: Option<Display>,
+        out: Option<Display>,
+        back_link: LinkRendering,
+        test_color: Option<HColor>,
+    ) {
         self.test = test;
+        self.yes = yes;
+        self.out = out;
+        self.back_link = back_link;
+        self.test_color = test_color;
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn set_backward(
+        &mut self,
+        label: Display,
+        box_style: BoxStyle,
+        incoming1: LinkRendering,
+        incoming2: LinkRendering,
+        stereotype: Option<Stereotype>,
+        swimlane: Option<Rc<Swimlane>>,
+    ) {
+        self.backward = Some(Backward {
+            label,
+            box_style,
+            stereotype,
+            incoming1,
+            incoming2,
+            swimlane,
+        });
     }
 
     pub fn set_out_rendering(&mut self, link: LinkRendering) {
@@ -930,14 +972,47 @@ impl Instruction for InstructionRepeat {
                 None,
             )
         });
-        super::ftile::repeat::FtileRepeat::new(
-            body,
-            start,
-            self.test.clone(),
-            self.back_color.clone(),
-            factory.skin(),
+        let (backward, back1, back2) = match &self.backward {
+            Some(b) => (
+                Some(factory.activity(
+                    &b.label,
+                    b.swimlane.clone(),
+                    b.box_style,
+                    &Colors::empty(),
+                    b.stereotype.clone(),
+                    None,
+                )),
+                b.incoming1.display().clone(),
+                b.incoming2.display().clone(),
+            ),
+            None => (None, self.back_link.display().clone(), Display::null()),
+        };
+        let welding = body.welding_points();
+        let sb = factory.string_bounder();
+        let skin = factory.skin();
+        let result = super::ftile::repeat::FtileRepeat::create(
+            super::ftile::repeat::RepeatParts {
+                body,
+                entry: start,
+                test: self.test.clone(),
+                yes: self.yes.clone(),
+                out: self.out.clone(),
+                backward,
+                back1,
+                back2,
+                entry_color: self.back_color.clone(),
+                test_color: self.test_color.clone(),
+            },
+            skin.clone(),
+            sb.as_ref(),
             self.in_link_rendering.clone(),
             self.out_link_rendering.clone(),
+        );
+        super::ftile::repeat::RepeatBreaks::wrap(
+            result,
+            welding,
+            self.test_color.clone().or_else(|| self.back_color.clone()),
+            skin,
         )
     }
 
