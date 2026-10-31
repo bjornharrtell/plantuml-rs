@@ -428,6 +428,16 @@ fn a_note_inside_a_branch_belongs_to_the_activity_before_it() {
 }
 
 #[test]
+fn the_arrow_leaving_a_branch_takes_the_colour_set_after_its_last_activity() {
+    let out = svg(
+        "if (a?) then (yes)\n-[#red]->\n:A;\n-[#blue]->\nelse (no)\n-[#green]->\n:B;\n-[#orange]->\nendif\n-[#purple]->\n:C;",
+    );
+    for colour in ["#F00", "#00F", "#008000", "#FFA500", "#800080"] {
+        assert!(out.contains(&format!("stroke:{colour}")), "{colour}: {out}");
+    }
+}
+
+#[test]
 fn endwhile_outside_loop_is_an_error() {
     assert!(render("@startuml\nendwhile\n@enduml").is_err());
 }

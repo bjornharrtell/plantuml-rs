@@ -1,7 +1,9 @@
 //! An `if` whose second branch is empty or only a `stop`: the real branch goes straight down under
 //! the condition (`FtileIfDown`).
 
-use super::factory::{arrow_text_block, in_link_rendering_color, FtileRef};
+use super::factory::{
+    arrow_text_block, in_link_rendering_color, out_link_rendering_color, FtileRef,
+};
 use super::if_links::{CondBranch, Marged, Merge};
 use super::if_long::{DiamondInside2, MinWidthCentered};
 use super::leaf::FtileEmpty;
@@ -93,7 +95,7 @@ impl FtileIfDown {
         } else {
             FtileEmpty::new(&skin, 0.0, HEXAGON_HALF_SIZE / 2.0, None)
         };
-        let else_color = in_link_rendering_color(&skin, second.tile.as_ref());
+        let else_color = out_link_rendering_color(&skin, second.tile.as_ref());
         let min_width = |t: FtileRef| -> FtileRef {
             Marged::horizontal(
                 Rc::new(MinWidthCentered {
@@ -366,7 +368,7 @@ impl Ftile for FtileIfDown {
 
         // ConnectionOut: the branch to the merge diamond
         if then_geo.has_point_out() {
-            let out_color = in_link_rendering_color(&self.skin, self.then_block.as_ref());
+            let out_color = out_link_rendering_color(&self.skin, self.then_block.as_ref());
             let mut s = Snake::create(&self.skin, out_color, Some(arrows.as_to(Direction::Down)));
             s.add_point(then_t.dx + then_geo.left(), then_t.dy + then_geo.out_y);
             s.add_point(d2t.dx + d2.left(), d2t.dy + d2.in_y);

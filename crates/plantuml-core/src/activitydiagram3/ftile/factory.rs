@@ -172,6 +172,19 @@ pub fn in_link_rendering_color(skin: &SkinParam, tile: &dyn Ftile) -> Rainbow {
     Rainbow::from_style(&style)
 }
 
+/// Colour of the arrow leaving a tile: its own out link, else the arrow style (`Branch.getOut`).
+pub fn out_link_rendering_color(skin: &SkinParam, tile: &dyn Ftile) -> Rainbow {
+    let rainbow = tile.out_link_rendering().rainbow().clone();
+    if rainbow.size() > 0 {
+        return rainbow;
+    }
+    let style = skin
+        .style_builder()
+        .merged_style(&queries::ACTIVITYDIAG_ARROW)
+        .expect("arrow style");
+    Rainbow::from_style(&style)
+}
+
 /// Label of an arrow in the arrow font (`getTextBlock`).
 pub fn arrow_text_block(skin: &SkinParam, display: &Display) -> Option<Rc<dyn TextBlock>> {
     if display.is_null() {

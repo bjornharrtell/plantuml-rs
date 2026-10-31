@@ -1,7 +1,9 @@
 //! The general two-branch `if`: a condition, two branches side by side and a merge diamond
 //! (`ConditionalBuilder.createWithLinks`, `FtileIfNude`, `FtileIfWithDiamonds`, `FtileIfWithLinks`).
 
-use super::factory::{arrow_text_block, in_link_rendering_color, FtileRef};
+use super::factory::{
+    arrow_text_block, in_link_rendering_color, out_link_rendering_color, FtileRef,
+};
 use super::if_long::{DiamondInside2, MinWidthCentered};
 use super::leaf::FtileEmpty;
 use super::snake::{Arrows, Snake};
@@ -568,10 +570,7 @@ impl Ftile for FtileIfLinks {
             if !tg.has_point_out() {
                 continue;
             }
-            let color = crate::activitydiagram3::ftile::factory::in_link_rendering_color(
-                &self.skin,
-                tile.as_ref(),
-            );
+            let color = out_link_rendering_color(&self.skin, tile.as_ref());
             let (x1, y1) = (t.dx + tg.left(), t.dy + tg.out_y);
             if outs[0] && outs[1] {
                 let (x2, y2) = (d2t.dx + x2, d2t.dy + mid2);
