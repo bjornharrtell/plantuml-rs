@@ -13,7 +13,7 @@ _plain = [a for a in _args if not a.startswith(("--root=", "--java=", "--jar=", 
 PUML = os.path.abspath(_plain[0])  # renderer command reading a diagram on stdin
 
 # With `--java` and `--jar` the references come from a live PlantUML render of the same source instead of
-# the stored `.svg` files: that is the oracle for what PlantUML ships today, where the stored corpus was
+# the stored `.svg` files: that is the source of truth for what PlantUML ships today, where the stored corpus was
 # produced by its test mode (SVG_DETERMINISTIC, Smetana layout). See docs/PLAN.md.
 JAVA = _java[0] if _java else None
 JAR = _jar[0] if _jar else None

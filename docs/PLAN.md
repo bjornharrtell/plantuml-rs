@@ -64,7 +64,7 @@ Base version of the port (as of 2026-10-25): PlantUML `1.2026.10beta1`, upstream
 - Graphviz types (via `svek`): class, object, component/deployment, state, use case, legacy activity.
   Java builds a DOT string, runs `dot`, and parses the resulting SVG. We do the same with `graphviz-pure`.
 - Existing Java wasm build (TeaVM, `src/main/java/.../teavm`) is the baseline to beat on size and speed.
-- Oracle: `src/test/resources/vega` has 472 `.puml` files, 431 with a reference `.svg`
+- Reference: `src/test/resources/vega` has 472 `.puml` files, 431 with a reference `.svg`
   (`data-diagram-type` in the SVG gives the diagram type).
 
 ## Prior art evaluated
@@ -166,7 +166,7 @@ Exit criterion for C4: the canonical samples render, reach `text_jaccard` >= 0.9
 generated Java references, and are reviewed side by side. Only the rendering and content of the samples have been
 checked so far, so that comparison is still outstanding.
 
-Oracle: no Vega fixture is a C4 diagram, so references have to be generated: render the samples with a Java PlantUML
+Reference: no Vega fixture is a C4 diagram, so references have to be generated: render the samples with a Java PlantUML
 jar and score them with `scripts/svgdiff.py layout` (or a corpus of them with `scripts/fidelity.py`).
 
 ## Risks
@@ -236,7 +236,7 @@ four layout fixtures under [Residual differences](#residual-differences-accepted
 
 `identical%` is no longer quoted: the stored references were laid out with the shorter point-size line this port used
 before it measured the line box, so structural identity against them says nothing about the output. The
-[live-Java oracle](#live-java-as-a-second-oracle) is the diagnostic for that instead.
+[live-Java comparison](#live-java-as-a-second-reference) is the diagnostic for that instead.
 
 JSON and YAML have only one fixture each and both are in the zero-space family below, so they are measured but no
 longer scored; a deterministic-metrics mode (see [Space advance](#space-advance)) would score them again.
@@ -281,7 +281,7 @@ follow-up, not a shipped mode.
 Sprites use the active label font colour, so C4's white person icon no longer inherits the dark outline colour.
 Regression tests cover the full banking example and inline sprite colour.
 
-### Live Java as a second oracle
+### Live Java as a second reference
 
 The stored corpus was produced by PlantUML's test mode (`SVG_DETERMINISTIC` and the Smetana drawing flow),
 which is not what the jar renders by default. The harness can therefore render its own references:
@@ -295,7 +295,7 @@ python3 scripts/fidelity.py target/release/plantuml-cli \
 
 Each fixture goes through `java -jar … -tsvg -pipe` (in parallel, with its own directory as the working
 directory for relative includes) and is scored against that SVG; the JSON records `"reference": "java"`.
-A jar older than the checkout is not a good oracle — 1.2026.7 fails on 51 fixtures and renders others with
+A jar older than the checkout is not a good reference — 1.2026.7 fails on 51 fixtures and renders others with
 older phrasing — so build the pinned commit.
 
 This is a diagnostic for the shipped behaviour, not a gate. With the matching 1.2026.10beta1 jar, all 442

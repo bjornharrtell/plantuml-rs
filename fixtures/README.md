@@ -1,7 +1,7 @@
 # Reference fixtures for types the Vega corpus does not cover
 
 `src/test/resources/vega` covers sixteen diagram types. EBNF and the C4 model set have no fixtures there, so
-nothing measured them; these directories are their oracle. The `*.svg` files are PlantUML's own output and the
+nothing measured them; these directories are their reference. The `*.svg` files are PlantUML's own output and the
 `*.puml` files are the sources, so the same harness and metrics score them as the Vega corpus.
 
 ## Regenerating
