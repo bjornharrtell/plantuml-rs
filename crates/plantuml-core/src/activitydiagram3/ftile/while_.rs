@@ -57,6 +57,10 @@ impl Diamond {
         }
     }
 
+    pub(crate) fn back(&self) -> HColor {
+        self.back.clone()
+    }
+
     pub(crate) fn width(&self, sb: &dyn StringBounder) -> f64 {
         (self.label.calculate_dimension(sb).width + 24.0).max(48.0)
     }

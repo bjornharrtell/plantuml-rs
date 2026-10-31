@@ -31,9 +31,9 @@ pub struct LongBranch {
 }
 
 /// Centres a tile in at least `min_width` (`FtileMinWidthCentered`).
-struct MinWidthCentered {
-    inner: FtileRef,
-    min_width: f64,
+pub(crate) struct MinWidthCentered {
+    pub(crate) inner: FtileRef,
+    pub(crate) min_width: f64,
 }
 
 impl MinWidthCentered {
@@ -79,12 +79,14 @@ impl Ftile for MinWidthCentered {
 }
 
 /// A condition with labels around it (`FtileDiamondInside2`).
-struct DiamondInside2 {
-    diamond: Diamond,
-    north: Option<Rc<dyn TextBlock>>,
-    west: Option<Rc<dyn TextBlock>>,
-    east: Option<Rc<dyn TextBlock>>,
-    skin: Rc<SkinParam>,
+pub(crate) struct DiamondInside2 {
+    pub(crate) diamond: Diamond,
+    pub(crate) north: Option<Rc<dyn TextBlock>>,
+    pub(crate) west: Option<Rc<dyn TextBlock>>,
+    pub(crate) east: Option<Rc<dyn TextBlock>>,
+    pub(crate) skin: Rc<SkinParam>,
+    /// `FtileDiamondInside2` widens for a wide `north` label, `FtileDiamondInside` does not.
+    pub(crate) north_widens: bool,
 }
 
 impl DiamondInside2 {
@@ -117,7 +119,11 @@ impl Ftile for DiamondInside2 {
         let (w, h) = self.alone(sb);
         let north = Self::size(&self.north, sb);
         let left = w / 2.0;
-        let width = if north.0 > left { left + north.0 } else { w };
+        let width = if self.north_widens && north.0 > left {
+            left + north.0
+        } else {
+            w
+        };
         FtileGeometry::with_out(width, h + north.1, left, 0.0, h)
     }
 
@@ -224,6 +230,7 @@ impl FtileIfLongHorizontal {
                 west,
                 east,
                 skin: skin.clone(),
+                north_widens: true,
             }));
         }
         let tile2: FtileRef = Rc::new(MinWidthCentered {

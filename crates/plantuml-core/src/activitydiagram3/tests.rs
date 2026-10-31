@@ -267,6 +267,39 @@ fn break_leaves_the_loop_through_the_exit_channel() {
 }
 
 #[test]
+fn if_else_places_both_branches_under_the_condition_and_merges_them() {
+    let out = svg("if (c?) then (yes)\n:A;\nelse (no)\n:B;\nendif\n:C;");
+    let polygons: Vec<Vec<f64>> = out
+        .match_indices("points=\"")
+        .map(|(i, _)| {
+            out[i + 8..]
+                .split('"')
+                .next()
+                .unwrap()
+                .split(',')
+                .map(|n| n.parse().unwrap())
+                .collect()
+        })
+        .collect();
+    let hexagon = polygons.iter().find(|p| p.len() == 12).expect("condition");
+    let bottom = hexagon[7];
+    let boxes: Vec<(f64, f64)> = out
+        .match_indices("<rect")
+        .map(|(i, _)| {
+            let tag = &out[i..out[i..].find('>').unwrap() + i];
+            (number(tag, "x").unwrap(), number(tag, "y").unwrap())
+        })
+        .collect();
+    // both branches start 10 below the condition, one on each side of its centre
+    assert!((boxes[0].1 - bottom - 10.0).abs() < 0.01 && (boxes[1].1 - bottom - 10.0).abs() < 0.01);
+    assert!(boxes[0].0 < hexagon[0] && boxes[1].0 > hexagon[0], "{out}");
+    // the merge diamond has four points
+    assert!(polygons
+        .iter()
+        .any(|p| p.len() == 8 && (p[0] - p[4]).abs() < 24.1 && p[1] < p[3]));
+}
+
+#[test]
 fn endwhile_outside_loop_is_an_error() {
     assert!(render("@startuml\nendwhile\n@enduml").is_err());
 }

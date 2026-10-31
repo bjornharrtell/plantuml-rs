@@ -93,6 +93,16 @@ impl InstructionList {
         self.all.is_empty()
     }
 
+    /// The list is a single `stop` (`isOnlySingleStopOrSpot`).
+    pub fn is_only_single_stop(&self) -> bool {
+        self.all.len() == 1
+            && self.all[0]
+                .borrow()
+                .as_any()
+                .downcast_ref::<InstructionNode>()
+                .is_some_and(|n| n.kind() == NodeKind::Stop)
+    }
+
     pub fn last(&self) -> Option<InsRef> {
         self.all.last().cloned()
     }
@@ -754,6 +764,46 @@ impl Instruction for InstructionIf {
                 self.thens[0].color.clone(),
                 skin,
                 factory.string_bounder(),
+                self.in_link_rendering.clone(),
+                self.out_link_rendering.clone(),
+            );
+            return weld(result, welding);
+        }
+        let empty_or_stop = |b: &IfBranch| b.list.is_empty() || b.list.is_only_single_stop();
+        let else_ref = self.else_branch.as_ref();
+        let else_plain = else_ref.is_none_or(&empty_or_stop);
+        let then_plain = empty_or_stop(&self.thens[0]);
+        // Java's `FtileIfDown` handles a branch that is empty or only a `stop` next to a real one
+        // (not ported yet); everything else is `FtileIfWithLinks`.
+        let down = (else_plain && !then_plain) || (then_plain && !else_plain);
+        if !down {
+            let missing_else =
+                IfBranch::new(self.swimlane.clone(), Display::null(), None, None, None);
+            let else_info = else_ref.unwrap_or(&missing_else);
+            let make = |b: &IfBranch| {
+                let tile = b.list.create_ftile(factory);
+                super::ftile::if_links::CondBranch {
+                    tile,
+                    label_test: b.label_test.clone(),
+                    label_positive: b.label_positive.clone(),
+                    color: b.color.clone(),
+                    empty: b.list.is_empty(),
+                }
+            };
+            let (first, second) = (make(&self.thens[0]), make(else_info));
+            let welding: Vec<_> = first
+                .tile
+                .welding_points()
+                .into_iter()
+                .chain(second.tile.welding_points())
+                .collect();
+            let sb = factory.string_bounder();
+            let result = super::ftile::if_links::FtileIfLinks::create(
+                first,
+                second,
+                self.thens[0].color.clone(),
+                skin,
+                sb.as_ref(),
                 self.in_link_rendering.clone(),
                 self.out_link_rendering.clone(),
             );
