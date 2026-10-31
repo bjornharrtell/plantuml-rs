@@ -54,6 +54,108 @@ pub fn transform(input: &str) -> String {
     out
 }
 
+/// Wraps `\w`, `\p{..}` and bracket classes made only of such escapes and caseless characters in
+/// `(?-i:..)`. They are already closed under case folding, and folding them is the bulk of compile time.
+fn skip_case_folding(pattern: &str) -> String {
+    let chars: Vec<char> = pattern.chars().collect();
+    let mut out = String::with_capacity(pattern.len() + 16);
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        if c == '\\' {
+            let end = escape_end(&chars, i);
+            let esc: String = chars[i..end].iter().collect();
+            let unicode = matches!(chars.get(i + 1), Some('w' | 'p' | 'P'));
+            if unicode {
+                out.push_str("(?-i:");
+                out.push_str(&esc);
+                out.push(')');
+            } else {
+                out.push_str(&esc);
+            }
+            i = end;
+        } else if c == '[' {
+            let end = class_end(&chars, i);
+            if is_caseless_class(&chars[i..end]) {
+                out.push_str("(?-i:");
+                out.extend(&chars[i..end]);
+                out.push(')');
+            } else {
+                out.extend(&chars[i..end]);
+            }
+            i = end;
+        } else {
+            out.push(c);
+            i += 1;
+        }
+    }
+    out
+}
+
+/// End (exclusive) of the escape starting at `i`, including a `{..}` argument for `\p`/`\P`.
+fn escape_end(chars: &[char], i: usize) -> usize {
+    let mut end = (i + 2).min(chars.len());
+    if matches!(chars.get(i + 1), Some('p' | 'P')) && chars.get(end) == Some(&'{') {
+        while end < chars.len() && chars[end] != '}' {
+            end += 1;
+        }
+        end = (end + 1).min(chars.len());
+    }
+    end
+}
+
+/// End (exclusive) of the bracket class at `i`, nested classes included.
+fn class_end(chars: &[char], i: usize) -> usize {
+    let (mut depth, mut j) = (0, i);
+    while j < chars.len() {
+        match chars[j] {
+            '\\' => {
+                j = escape_end(chars, j);
+                continue;
+            }
+            '[' => depth += 1,
+            ']' => {
+                depth -= 1;
+                if depth == 0 {
+                    return j + 1;
+                }
+            }
+            _ => {}
+        }
+        j += 1;
+    }
+    chars.len()
+}
+
+/// Whether a whole bracket class holds a Unicode escape and nothing whose meaning depends on case.
+fn is_caseless_class(class: &[char]) -> bool {
+    let inner = &class[1..];
+    let inner = inner.strip_prefix(&['^']).unwrap_or(inner);
+    if inner.first() == Some(&']') || inner.last() != Some(&']') {
+        return false;
+    }
+    let (mut unicode, mut j) = (false, 0);
+    while j < inner.len() - 1 {
+        match inner[j] {
+            '[' => return false,
+            '\\' => {
+                match inner.get(j + 1) {
+                    Some('w' | 'W' | 'p' | 'P') => unicode = true,
+                    Some('d' | 'D' | 's' | 'S' | 'n' | 'r' | 't') => {}
+                    Some(c) if !c.is_alphanumeric() => {}
+                    _ => return false,
+                }
+                j = escape_end(inner, j);
+                continue;
+            }
+            c if c.is_alphabetic() => return false,
+            _ => {}
+        }
+        j += 1;
+    }
+    unicode
+}
+
 /// Compiles with PlantUML semantics (case-insensitive, shorthands expanded).
 pub fn compile(pattern: &str) -> fancy_regex::Regex {
     (*compile_shared(pattern)).clone()
@@ -70,7 +172,7 @@ fn compile_shared(pattern: &str) -> std::rc::Rc<fancy_regex::Regex> {
     if let Some(e) = CACHE.with(|c| c.borrow().get(pattern).cloned()) {
         return e;
     }
-    let full = format!("(?i){}", transform(pattern));
+    let full = format!("(?i){}", skip_case_folding(&transform(pattern)));
     let engine = std::rc::Rc::new(
         fancy_regex::Regex::new(&full).unwrap_or_else(|e| panic!("invalid regex {full}: {e}")),
     );
@@ -349,6 +451,23 @@ impl IRegex {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn skips_case_folding_for_caseless_classes_only() {
+        assert_eq!(skip_case_folding(r"\w+"), r"(?-i:\w)+");
+        assert_eq!(
+            skip_case_folding(r"[\p{L}\p{N}_.@]+"),
+            r"(?-i:[\p{L}\p{N}_.@])+"
+        );
+        assert_eq!(skip_case_folding(r"[\w.]*as"), r"(?-i:[\w.])*as");
+        assert_eq!(skip_case_folding(r"[a\w]"), r"[a\w]");
+        assert_eq!(skip_case_folding(r"[^\p{L}[x]]"), r"[^\p{L}[x]]");
+        assert_eq!(skip_case_folding(r"[abc]"), r"[abc]");
+        assert_eq!(skip_case_folding(r"\[\w"), r"\[(?-i:\w)");
+        let re = compile(r"^([\p{L}\p{N}_.@]+)\s+AS\s+(\w+)$");
+        assert!(re.is_match("Bob as x1").unwrap());
+        assert!(re.is_match("é AS y").unwrap());
+    }
+
     use super::*;
 
     fn cmd() -> IRegex {
