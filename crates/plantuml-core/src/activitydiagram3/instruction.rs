@@ -718,13 +718,6 @@ impl InstructionIf {
 impl Instruction for InstructionIf {
     fn create_ftile(&self, factory: &dyn FtileFactory) -> FtileRef {
         let skin = factory.skin();
-        let tile_of = |b: &IfBranch| super::ftile::if_::Branch {
-            tile: b.list.create_ftile(factory),
-            label: b
-                .label_positive
-                .as_ref()
-                .and_then(|d| super::ftile::factory::arrow_text_block(&skin, d)),
-        };
         if self.thens.len() > 1 {
             let thens: Vec<super::ftile::if_long::LongBranch> = self
                 .thens
@@ -769,57 +762,68 @@ impl Instruction for InstructionIf {
             );
             return weld(result, welding);
         }
+        // `ConditionalBuilder.create`: pick the tile from which branches are empty or a lone `stop`
+        let missing_else = IfBranch::new(self.swimlane.clone(), Display::null(), None, None, None);
+        let (b1, b2) = (
+            &self.thens[0],
+            self.else_branch.as_ref().unwrap_or(&missing_else),
+        );
         let empty_or_stop = |b: &IfBranch| b.list.is_empty() || b.list.is_only_single_stop();
-        let else_ref = self.else_branch.as_ref();
-        let else_plain = else_ref.is_none_or(&empty_or_stop);
-        let then_plain = empty_or_stop(&self.thens[0]);
-        // Java's `FtileIfDown` handles a branch that is empty or only a `stop` next to a real one
-        // (not ported yet); everything else is `FtileIfWithLinks`.
-        let down = (else_plain && !then_plain) || (then_plain && !else_plain);
-        if !down {
-            let missing_else =
-                IfBranch::new(self.swimlane.clone(), Display::null(), None, None, None);
-            let else_info = else_ref.unwrap_or(&missing_else);
-            let make = |b: &IfBranch| {
-                let tile = b.list.create_ftile(factory);
-                super::ftile::if_links::CondBranch {
-                    tile,
-                    label_test: b.label_test.clone(),
-                    label_positive: b.label_positive.clone(),
-                    color: b.color.clone(),
-                    empty: b.list.is_empty(),
-                }
+        let (stop1, stop2) = (b1.list.is_only_single_stop(), b2.list.is_only_single_stop());
+        let first_is_real =
+            (empty_or_stop(b2) && !empty_or_stop(b1)) || (b1.list.is_empty() && stop2);
+        let second_is_real =
+            (empty_or_stop(b1) && !empty_or_stop(b2)) || (b2.list.is_empty() && stop1);
+        let make = |b: &IfBranch| {
+            let tile = b.list.create_ftile(factory);
+            super::ftile::if_links::CondBranch {
+                tile,
+                label_test: b.label_test.clone(),
+                label_positive: b.label_positive.clone(),
+                color: b.color.clone(),
+                empty: b.list.is_empty(),
+            }
+        };
+        let (first, second) = (make(b1), make(b2));
+        let welding: Vec<_> = first
+            .tile
+            .welding_points()
+            .into_iter()
+            .chain(second.tile.welding_points())
+            .collect();
+        let sb = factory.string_bounder();
+        if first_is_real || second_is_real {
+            // `createDown(real, other)`: the branch drawn under the condition comes first
+            let two_branches = {
+                let out = |t: &FtileRef| t.calculate_dimension(sb.as_ref()).has_point_out();
+                out(&first.tile) && out(&second.tile)
             };
-            let (first, second) = (make(&self.thens[0]), make(else_info));
-            let welding: Vec<_> = first
-                .tile
-                .welding_points()
-                .into_iter()
-                .chain(second.tile.welding_points())
-                .collect();
-            let sb = factory.string_bounder();
-            let result = super::ftile::if_links::FtileIfLinks::create(
-                first,
-                second,
+            let (down_first, down_second, first_stop, second_stop) = if first_is_real {
+                (first, second, stop1, stop2)
+            } else {
+                (second, first, stop2, stop1)
+            };
+            let result = super::ftile::if_down::FtileIfDown::create(
+                super::ftile::if_down::DownParts {
+                    first: down_first,
+                    second: down_second,
+                    first_is_stop: first_stop,
+                    second_is_stop: second_stop,
+                    two_branches,
+                },
                 self.thens[0].color.clone(),
                 skin,
-                sb.as_ref(),
                 self.in_link_rendering.clone(),
                 self.out_link_rendering.clone(),
             );
             return weld(result, welding);
         }
-        let branches: Vec<super::ftile::if_::Branch> = self.all_branches().map(tile_of).collect();
-        let welding: Vec<_> = branches
-            .iter()
-            .flat_map(|b| b.tile.welding_points())
-            .collect();
-        let result = super::ftile::if_::FtileIf::new(
-            self.thens[0].label_test.clone(),
-            branches,
-            super::ftile::if_::ConditionalLayout::if_(),
+        let result = super::ftile::if_links::FtileIfLinks::create(
+            first,
+            second,
             self.thens[0].color.clone(),
             skin,
+            sb.as_ref(),
             self.in_link_rendering.clone(),
             self.out_link_rendering.clone(),
         );

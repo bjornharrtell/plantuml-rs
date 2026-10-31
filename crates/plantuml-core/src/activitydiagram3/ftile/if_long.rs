@@ -82,6 +82,8 @@ impl Ftile for MinWidthCentered {
 pub(crate) struct DiamondInside2 {
     pub(crate) diamond: Diamond,
     pub(crate) north: Option<Rc<dyn TextBlock>>,
+    /// Drawn where `north` is but not counted in the geometry (`FtileDiamondInside.south`).
+    pub(crate) south: Option<Rc<dyn TextBlock>>,
     pub(crate) west: Option<Rc<dyn TextBlock>>,
     pub(crate) east: Option<Rc<dyn TextBlock>>,
     pub(crate) skin: Rc<SkinParam>,
@@ -100,6 +102,14 @@ impl DiamondInside2 {
                 label.height.max(2.0 * HEXAGON_HALF_SIZE),
             )
         }
+    }
+
+    pub(crate) fn south_height(&self, sb: &dyn StringBounder) -> f64 {
+        Self::size(&self.south, sb).1
+    }
+
+    pub(crate) fn east_width(&self, sb: &dyn StringBounder) -> f64 {
+        Self::size(&self.east, sb).0
     }
 
     fn size(block: &Option<Rc<dyn TextBlock>>, sb: &dyn StringBounder) -> (f64, f64) {
@@ -131,8 +141,8 @@ impl Ftile for DiamondInside2 {
         let sb = g.string_bounder();
         let (w, h) = self.alone(sb);
         self.diamond.draw(g, 0.0, 0.0, w);
-        if let Some(north) = &self.north {
-            north.draw(&g.ug().apply_translate(UTranslate::new(4.0 + w / 2.0, h)));
+        for label in [&self.north, &self.south].into_iter().flatten() {
+            label.draw(&g.ug().apply_translate(UTranslate::new(4.0 + w / 2.0, h)));
         }
         if let Some(west) = &self.west {
             let d = west.calculate_dimension(sb);
@@ -223,6 +233,7 @@ impl FtileIfLongHorizontal {
             };
             diamonds.push(Rc::new(DiamondInside2 {
                 diamond: Diamond::new(b.label_test.clone(), &skin, color),
+                south: None,
                 north: b
                     .label_positive
                     .as_ref()

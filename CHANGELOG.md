@@ -13,6 +13,9 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 ### Fixed
 
+- Activity `if`: laid out with Java's tiles instead of one generalised tile. Two real branches keep the merge
+  diamond; an `if` without `else`, or with a `break` or `stop`, goes straight down with the other path routed around
+  the branch and no merge diamond for a branch that never leaves.
 - Activity `while (c) is (yes)` / `endwhile (no)` labels were dropped; they are now drawn at the diamond, as Java does.
 - Activity `elseif`: the condition text is no longer dropped, and the branches are laid out as Java does, with the
   conditions side by side and no merge diamond (`FtileIfLongHorizontal`). `else` after `elseif` is an error.

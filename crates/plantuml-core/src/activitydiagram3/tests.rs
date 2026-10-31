@@ -300,6 +300,29 @@ fn if_else_places_both_branches_under_the_condition_and_merges_them() {
 }
 
 #[test]
+fn if_without_else_routes_the_other_path_round_the_branch() {
+    let out = svg("if (ok?) then (yes)\n:A;\nendif\n:B;");
+    let y_of = |t: &str| {
+        let i = out
+            .find(&format!(">{t}</text>"))
+            .unwrap_or_else(|| panic!("{t}: {out}"));
+        number(&out[out[..i].rfind("<text").unwrap()..i], "y").unwrap()
+    };
+    // the `yes` label sits under the condition, above the branch
+    assert!(
+        y_of("yes") > y_of("ok?") && y_of("yes") < y_of("A"),
+        "{out}"
+    );
+    // the path past the branch is one polyline: out of the east vertex, down, back into the merge
+    let verticals = out
+        .match_indices("<line")
+        .map(|(i, _)| &out[i..out[i..].find('>').unwrap() + i])
+        .filter(|l| number(l, "x1") == number(l, "x2"))
+        .count();
+    assert!(verticals >= 4, "{out}");
+}
+
+#[test]
 fn endwhile_outside_loop_is_an_error() {
     assert!(render("@startuml\nendwhile\n@enduml").is_err());
 }

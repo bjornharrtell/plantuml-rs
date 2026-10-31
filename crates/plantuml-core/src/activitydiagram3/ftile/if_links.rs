@@ -101,7 +101,8 @@ impl Ftile for Marged {
 }
 
 /// The empty diamond closing a conditional (`FtileDiamond`).
-struct Merge {
+pub(crate) struct Merge {
+    pub(crate) north: Option<Rc<dyn TextBlock>>,
     west: Option<Rc<dyn TextBlock>>,
     east: Option<Rc<dyn TextBlock>>,
     back: HColor,
@@ -109,7 +110,23 @@ struct Merge {
 }
 
 impl Merge {
-    fn label_height(&self, sb: &dyn StringBounder) -> f64 {
+    pub(crate) fn new(
+        north: Option<Rc<dyn TextBlock>>,
+        west: Option<Rc<dyn TextBlock>>,
+        east: Option<Rc<dyn TextBlock>>,
+        back: HColor,
+        skin: Rc<SkinParam>,
+    ) -> Self {
+        Self {
+            north,
+            west,
+            east,
+            back,
+            skin,
+        }
+    }
+
+    pub(crate) fn label_height(&self, sb: &dyn StringBounder) -> f64 {
         let h = |b: &Option<Rc<dyn TextBlock>>| {
             b.as_ref().map_or(0.0, |b| b.calculate_dimension(sb).height)
         };
@@ -122,9 +139,13 @@ impl Ftile for Merge {
         self.skin.clone()
     }
 
-    fn calculate_dimension(&self, _sb: &dyn StringBounder) -> FtileGeometry {
+    fn calculate_dimension(&self, sb: &dyn StringBounder) -> FtileGeometry {
         let side = 2.0 * HEXAGON_HALF_SIZE;
-        FtileGeometry::with_out(side, side, side / 2.0, 0.0, side)
+        let north = self
+            .north
+            .as_ref()
+            .map_or(0.0, |n| n.calculate_dimension(sb).height);
+        FtileGeometry::with_out(side, side + north, side / 2.0, north, side + north)
     }
 
     fn draw(&self, g: &FtileGraphic) {
@@ -141,12 +162,23 @@ impl Ftile for Merge {
             (0.0, side / 2.0),
         ]);
         polygon.delta_shadow = 0.0;
+        let sb = g.string_bounder();
+        let north_height = self
+            .north
+            .as_ref()
+            .map_or(0.0, |n| n.calculate_dimension(sb).height);
+        let g = &g.apply_translate(UTranslate::dy(north_height));
         g.ug()
             .apply_color(style.value(PName::LineColor).as_color())
             .apply_back_color(self.back.clone())
             .apply_stroke(style.stroke())
             .draw(polygon);
-        let sb = g.string_bounder();
+        if let Some(north) = &self.north {
+            north.draw(
+                &g.ug()
+                    .apply_translate(UTranslate::new(HEXAGON_HALF_SIZE * 1.5, -north_height)),
+            );
+        }
         if let Some(west) = &self.west {
             let d = west.calculate_dimension(sb);
             west.draw(
@@ -207,6 +239,7 @@ impl FtileIfLinks {
         let diamond1: FtileRef = Rc::new(DiamondInside2 {
             diamond: Diamond::new(branch1.label_test.clone(), &skin, color.clone()),
             north: None,
+            south: None,
             west: label1.clone(),
             east: label2.clone(),
             skin: skin.clone(),
@@ -216,6 +249,7 @@ impl FtileIfLinks {
             let out =
                 |b: &CondBranch| arrow_text_block(&skin, b.tile.out_link_rendering().display());
             let merge = Merge {
+                north: None,
                 west: out(&branch1),
                 east: out(&branch2),
                 back: branch2

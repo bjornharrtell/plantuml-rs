@@ -9,6 +9,7 @@ pub mod factory;
 pub mod fork;
 pub mod group;
 pub mod if_;
+pub mod if_down;
 pub mod if_links;
 pub mod if_long;
 pub mod leaf;

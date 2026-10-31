@@ -365,11 +365,12 @@ reports them as `accepted` instead of counting them as failures.
 on the left (x = 12) and the loop-back on the right, with `ConnectionIn`, `ConnectionBackSimple` (with the
 `UEmpty(5, 12)` that keeps the vertical compression from squeezing the loop-back) and `ConnectionOut`. Against a live
 Java render the loop-back, exit and next tile sit at the same offsets (+10, +22, +20 below the body). Ported with it: `break` (an empty tile without exit; the loop draws its arrow to the exit channel) and `backward`
-for `while`. Not ported yet: `backward` in `repeat` (an error with a clear message today), the `if` and `switch` tiles of
-Java's `ConditionalBuilder` family (`FtileIfDown`, `FtileIfWithLinks`: an `if` without `else`, or with a `break`,
-still draws a merge diamond Java omits), and colours on branch arrows. `elseif` is ported (`FtileIfLongHorizontal`:
-conditions side by side, no merge diamond). The `is (yes)` / `endwhile (no)` labels and the arrow label above the
-loop-back are drawn. The remaining accepted activity fixtures depend on those and stay in the
+for `while`. The `if` family follows Java's `ConditionalBuilder`: `FtileIfWithLinks` (two real branches, merge diamond),
+`FtileIfDown` (the other branch empty or a lone `stop`: no merge diamond for a `break`/`stop`, the else path goes round
+the branch) and `FtileIfLongHorizontal` for `elseif`. Not ported yet: `backward` in `repeat` (an error with a clear
+message today), the `switch` tiles (`FtileSwitchWithManyLinks`: one generalised tile still draws them), notes on `if`,
+the swimlane variant of the else arrow (`ConnectionElse1`), colours on branch arrows. The `is (yes)` /
+`endwhile (no)` labels and the arrow label above the loop-back are drawn. The remaining accepted activity fixtures depend on those and stay in the
 accepted set.
 
 ### Measured beyond the Vega corpus
