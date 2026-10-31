@@ -22,7 +22,7 @@ const HEXAGON_HALF_SIZE: f64 = 12.0;
 
 /// The condition diamond (`FtileDiamond`).
 pub(crate) struct Diamond {
-    label: Rc<dyn TextBlock>,
+    pub(crate) label: Rc<dyn TextBlock>,
     back: HColor,
     border: HColor,
     stroke: UStroke,

@@ -24,8 +24,8 @@ are cut (publishing to crates.io runs on pushed tags).
 
 ## Status
 
-377 of 381 scored fixtures meet the fidelity target (text overlap >= 0.95, relative element
-placement >= 0.90), and every one of the 442 scored fixtures renders. 61 fixtures are documented
+379 of 383 scored fixtures meet the fidelity target (text overlap >= 0.95, relative element
+placement >= 0.90), and every one of the 442 scored fixtures renders. 59 fixtures are documented
 accepted differences (activity tile geometry, embedded diagrams, handwritten mode, residual layout
 deltas, the 24 fixtures whose reference was rendered with zero-width spaces and the 5 laid out with
 the shorter line box); none of them is a missing feature or a crash. Against a live Java render the

@@ -196,6 +196,28 @@ fn while_loop_keeps_the_loop_back_and_the_exit_apart() {
 }
 
 #[test]
+fn elseif_conditions_sit_side_by_side_without_a_merge_diamond() {
+    let out = svg("if (c?) then (yes)\n:A;\nelseif (d?) then (maybe)\n:B;\nelse (no)\n:C;\nendif");
+    for text in ["c?", "d?", "yes", "maybe", "no", "A", "B", "C"] {
+        assert!(out.contains(&format!(">{text}</text>")), "{text}: {out}");
+    }
+    // two six-point condition diamonds; a merge diamond would make three (and arrowheads have four points)
+    let diamonds = out
+        .match_indices("points=\"")
+        .filter(|(i, _)| out[i + 8..].split('"').next().unwrap().split(',').count() == 12)
+        .count();
+    assert_eq!(diamonds, 2, "{out}");
+}
+
+#[test]
+fn elseif_after_else_is_an_error() {
+    assert!(render(
+        "@startuml\nif (a?) then\n:A;\nelse\n:B;\nelseif (b?) then\n:C;\nendif\n@enduml"
+    )
+    .is_err());
+}
+
+#[test]
 fn endwhile_outside_loop_is_an_error() {
     assert!(render("@startuml\nendwhile\n@enduml").is_err());
 }

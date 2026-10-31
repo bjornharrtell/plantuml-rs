@@ -661,7 +661,17 @@ fn elseif_branch() -> Cmd {
                     "This syntax is deprecated, you must add <<{color}>> at the end of the line"
                 )]);
             }
-            d.else_branch(arg.get("YES", 0).map(|y| Display::with_newlines(Some(y))))
+            let colors = Stereogroup::build(arg).inner_colors();
+            let test = match arg.get("TEST", 0) {
+                Some("") | None => Display::null(),
+                other => Display::with_newlines(other),
+            };
+            d.else_if(
+                None,
+                test,
+                arg.get("YES", 0).map(|y| Display::with_newlines(Some(y))),
+                colors.color(ColorType::Back).cloned(),
+            )
         },
     )
 }

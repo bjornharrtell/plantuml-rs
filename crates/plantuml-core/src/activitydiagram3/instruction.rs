@@ -541,11 +541,37 @@ impl Instruction for InstructionSwitch {
     }
 }
 
-/// An `if` with its branches (`InstructionIf`).
+/// One branch of an `if` (`Branch`): the condition it tests, the labels around it and its body.
+pub struct IfBranch {
+    list: InstructionList,
+    label_test: Display,
+    label_positive: Option<Display>,
+    inlabel: Option<Display>,
+    color: Option<HColor>,
+}
+
+impl IfBranch {
+    fn new(
+        swimlane: Option<Rc<Swimlane>>,
+        label_test: Display,
+        label_positive: Option<Display>,
+        inlabel: Option<Display>,
+        color: Option<HColor>,
+    ) -> Self {
+        Self {
+            list: InstructionList::new(swimlane),
+            label_test,
+            label_positive,
+            inlabel,
+            color,
+        }
+    }
+}
+
+/// An `if` with its branches (`InstructionIf`): one or more tested branches, then an optional `else`.
 pub struct InstructionIf {
-    branches: Vec<(InstructionList, Option<Display>)>,
-    test: Display,
-    back_color: Option<HColor>,
+    thens: Vec<IfBranch>,
+    else_branch: Option<IfBranch>,
     swimlane: Option<Rc<Swimlane>>,
     in_link_rendering: LinkRendering,
     out_link_rendering: LinkRendering,
@@ -560,18 +586,59 @@ impl InstructionIf {
         in_link_rendering: LinkRendering,
     ) -> Self {
         Self {
-            branches: vec![(InstructionList::new(swimlane.clone()), yes)],
-            test,
-            back_color,
+            thens: vec![IfBranch::new(swimlane.clone(), test, yes, None, back_color)],
+            else_branch: None,
             swimlane,
             in_link_rendering,
             out_link_rendering: LinkRendering::none(),
         }
     }
 
-    pub fn else_branch(&mut self, label: Option<Display>) {
-        self.branches
-            .push((InstructionList::new(self.swimlane.clone()), label));
+    fn current(&mut self) -> &mut IfBranch {
+        match self.else_branch.as_mut() {
+            Some(b) => b,
+            None => self.thens.last_mut().expect("one branch"),
+        }
+    }
+
+    fn all_branches(&self) -> impl Iterator<Item = &IfBranch> {
+        self.thens.iter().chain(self.else_branch.iter())
+    }
+
+    /// `else (label)`; `false` when there already is one (`switchToElse2`).
+    pub fn else_branch(&mut self, label: Option<Display>) -> bool {
+        if self.else_branch.is_some() {
+            return false;
+        }
+        self.else_branch = Some(IfBranch::new(
+            self.swimlane.clone(),
+            Display::null(),
+            label,
+            None,
+            None,
+        ));
+        true
+    }
+
+    /// `elseif (test) then (label)` (`elseIf`).
+    pub fn else_if(
+        &mut self,
+        inlabel: Option<Display>,
+        test: Display,
+        label: Option<Display>,
+        color: Option<HColor>,
+    ) -> bool {
+        if self.else_branch.is_some() {
+            return false;
+        }
+        self.thens.push(IfBranch::new(
+            self.swimlane.clone(),
+            test,
+            label,
+            inlabel,
+            color,
+        ));
+        true
     }
 
     pub fn set_out_rendering(&mut self, link: LinkRendering) {
@@ -580,30 +647,64 @@ impl InstructionIf {
 
     /// Remembers the arrow leaving the current branch (`addElse`).
     pub fn branch_out(&mut self, link: LinkRendering) {
-        if let Some((list, _)) = self.branches.last_mut() {
-            list.set_out_rendering(link);
-        }
+        self.current().list.set_out_rendering(link);
     }
 }
 
 impl Instruction for InstructionIf {
     fn create_ftile(&self, factory: &dyn FtileFactory) -> FtileRef {
         let skin = factory.skin();
-        let branches = self
-            .branches
-            .iter()
-            .map(|(list, label)| super::ftile::if_::Branch {
-                tile: list.create_ftile(factory),
-                label: label
-                    .as_ref()
-                    .and_then(|d| super::ftile::factory::arrow_text_block(&skin, d)),
-            })
-            .collect();
+        let tile_of = |b: &IfBranch| super::ftile::if_::Branch {
+            tile: b.list.create_ftile(factory),
+            label: b
+                .label_positive
+                .as_ref()
+                .and_then(|d| super::ftile::factory::arrow_text_block(&skin, d)),
+        };
+        if self.thens.len() > 1 {
+            let thens = self
+                .thens
+                .iter()
+                .map(|b| super::ftile::if_long::LongBranch {
+                    tile: b.list.create_ftile(factory),
+                    label_test: b.label_test.clone(),
+                    label_positive: b.label_positive.clone(),
+                    inlabel: b.inlabel.clone(),
+                    color: b.color.clone(),
+                })
+                .collect();
+            let else_branch = match &self.else_branch {
+                Some(b) => super::ftile::if_long::LongBranch {
+                    tile: b.list.create_ftile(factory),
+                    label_test: b.label_test.clone(),
+                    label_positive: b.label_positive.clone(),
+                    inlabel: None,
+                    color: None,
+                },
+                None => super::ftile::if_long::LongBranch {
+                    tile: InstructionList::new(self.swimlane.clone()).create_ftile(factory),
+                    label_test: Display::null(),
+                    label_positive: None,
+                    inlabel: None,
+                    color: None,
+                },
+            };
+            return super::ftile::if_long::FtileIfLongHorizontal::new(
+                thens,
+                else_branch,
+                self.thens[0].color.clone(),
+                skin,
+                factory.string_bounder(),
+                self.in_link_rendering.clone(),
+                self.out_link_rendering.clone(),
+            );
+        }
+        let branches = self.all_branches().map(tile_of).collect();
         super::ftile::if_::FtileIf::new(
-            self.test.clone(),
+            self.thens[0].label_test.clone(),
             branches,
             super::ftile::if_::ConditionalLayout::if_(),
-            self.back_color.clone(),
+            self.thens[0].color.clone(),
             skin,
             self.in_link_rendering.clone(),
             self.out_link_rendering.clone(),
@@ -611,13 +712,11 @@ impl Instruction for InstructionIf {
     }
 
     fn add(&mut self, other: InsRef) -> CommandExecutionResult {
-        self.branches.last_mut().expect("one branch").0.add(other)
+        self.current().list.add(other)
     }
 
     fn kill(&mut self) -> bool {
-        self.branches
-            .last_mut()
-            .is_some_and(|(list, _)| list.kill())
+        self.current().list.kill()
     }
 
     fn in_link_rendering(&self) -> LinkRendering {
@@ -625,13 +724,13 @@ impl Instruction for InstructionIf {
     }
 
     fn contains_break(&self) -> bool {
-        self.branches.iter().any(|(l, _)| l.contains_break())
+        self.all_branches().any(|b| b.list.contains_break())
     }
 
     fn swimlanes(&self) -> Vec<Rc<Swimlane>> {
         let mut result = Vec::new();
-        for (list, _) in &self.branches {
-            for lane in list.swimlanes() {
+        for b in self.all_branches() {
+            for lane in b.list.swimlanes() {
                 if !result.iter().any(|l| Rc::ptr_eq(l, &lane)) {
                     result.push(lane);
                 }
@@ -645,7 +744,9 @@ impl Instruction for InstructionIf {
     }
 
     fn swimlane_out(&self) -> Option<Rc<Swimlane>> {
-        self.branches.last().and_then(|(l, _)| l.swimlane_out())
+        self.all_branches()
+            .last()
+            .and_then(|b| b.list.swimlane_out())
     }
 
     fn as_any(&self) -> &dyn Any {

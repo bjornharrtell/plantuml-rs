@@ -282,8 +282,26 @@ impl ActivityDiagram3 {
         self.swimlanes.set_current(if_);
     }
 
-    /// Adds an `else` / `elseif` branch to the current `if`.
+    /// Adds an `else` branch to the current `if`.
     pub fn else_branch(&mut self, label: Option<Display>) -> CommandExecutionResult {
+        self.with_current_if(|if_| if_.else_branch(label))
+    }
+
+    /// Adds an `elseif` branch to the current `if` (`elseIf`).
+    pub fn else_if(
+        &mut self,
+        inlabel: Option<Display>,
+        test: Display,
+        label: Option<Display>,
+        color: Option<HColor>,
+    ) -> CommandExecutionResult {
+        self.with_current_if(|if_| if_.else_if(inlabel, test, label, color))
+    }
+
+    fn with_current_if(
+        &mut self,
+        change: impl FnOnce(&mut InstructionIf) -> bool,
+    ) -> CommandExecutionResult {
         let next = self.next_link_renderer();
         let current = self.current();
         if !current.borrow().as_any().is::<InstructionIf>() {
@@ -294,7 +312,9 @@ impl ActivityDiagram3 {
             return CommandExecutionResult::error("Cannot find if");
         };
         if_.branch_out(next);
-        if_.else_branch(label);
+        if !change(if_) {
+            return CommandExecutionResult::error("You cannot put an elseIf here");
+        }
         self.reset_next_link();
         CommandExecutionResult::ok()
     }
