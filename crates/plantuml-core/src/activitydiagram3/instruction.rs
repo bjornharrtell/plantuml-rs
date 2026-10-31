@@ -864,6 +864,8 @@ impl Instruction for InstructionRepeat {
 pub struct InstructionWhile {
     list: InstructionList,
     test: Display,
+    yes: Option<Display>,
+    out_display: Option<Display>,
     back_color: Option<HColor>,
     in_link_rendering: LinkRendering,
     out_link_rendering: LinkRendering,
@@ -872,6 +874,7 @@ pub struct InstructionWhile {
 impl InstructionWhile {
     pub fn new(
         test: Display,
+        yes: Option<Display>,
         back_color: Option<HColor>,
         swimlane: Option<Rc<Swimlane>>,
         in_link_rendering: LinkRendering,
@@ -879,10 +882,16 @@ impl InstructionWhile {
         Self {
             list: InstructionList::new(swimlane),
             test,
+            yes,
+            out_display: None,
             back_color,
             in_link_rendering,
             out_link_rendering: LinkRendering::none(),
         }
+    }
+
+    pub fn set_out_display(&mut self, out: Option<Display>) {
+        self.out_display = out;
     }
 
     pub fn set_out_rendering(&mut self, link: LinkRendering) {
@@ -896,6 +905,10 @@ impl Instruction for InstructionWhile {
         super::ftile::while_::FtileWhile::new(
             body,
             self.test.clone(),
+            super::ftile::while_::WhileLabels {
+                yes: self.yes.clone(),
+                out: self.out_display.clone(),
+            },
             self.back_color.clone(),
             factory.skin(),
             self.in_link_rendering.clone(),

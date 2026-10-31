@@ -7,6 +7,7 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 ### Fixed
 
+- Activity `while (c) is (yes)` / `endwhile (no)` labels were dropped; they are now drawn at the diamond, as Java does.
 - Activity `elseif`: the condition text is no longer dropped, and the branches are laid out as Java does, with the
   conditions side by side and no merge diamond (`FtileIfLongHorizontal`). `else` after `elseif` is an error.
 - Activity `while` loops: the loop-back and exit arrows no longer overlap below the body, and carry their direction

@@ -1,6 +1,6 @@
 //! A `while` loop (`FtileWhile`, `FtileDiamond`).
 
-use super::factory::FtileRef;
+use super::factory::{arrow_text_block, FtileRef};
 use super::snake::{Arrows, MergeStrategy, Snake};
 use super::{Ftile, FtileGeometry, FtileGraphic};
 use crate::activitydiagram3::rainbow::LinkRendering;
@@ -10,7 +10,7 @@ use crate::klimt::creole::display::Display;
 use crate::klimt::creole::CreoleMode;
 use crate::klimt::drawing::ugraphic::{UPolygon, UShape, UStroke, UTranslate};
 use crate::klimt::font::StringBounder;
-use crate::klimt::geom::{Direction, HorizontalAlignment};
+use crate::klimt::geom::{Direction, HorizontalAlignment, VerticalAlignment};
 use crate::klimt::shape::TextBlock;
 use crate::skin::SkinParam;
 use crate::style::{queries, PName};
@@ -88,10 +88,20 @@ impl Diamond {
     }
 }
 
+/// The labels of a loop: `is (yes)` under the condition and `endwhile (no)` beside it.
+#[derive(Default)]
+pub struct WhileLabels {
+    pub yes: Option<Display>,
+    pub out: Option<Display>,
+}
+
 /// A loop whose condition is tested before the body (`FtileWhile`).
 pub struct FtileWhile {
     body: FtileRef,
     diamond: Diamond,
+    yes: Option<Rc<dyn TextBlock>>,
+    out: Option<Rc<dyn TextBlock>>,
+    back_label: Option<Rc<dyn TextBlock>>,
     skin: Rc<SkinParam>,
     in_link_rendering: LinkRendering,
     out_link_rendering: LinkRendering,
@@ -101,15 +111,23 @@ impl FtileWhile {
     pub fn new(
         body: FtileRef,
         test: Display,
+        labels: WhileLabels,
         back: Option<HColor>,
         skin: Rc<SkinParam>,
         in_link_rendering: LinkRendering,
         out_link_rendering: LinkRendering,
     ) -> Rc<Self> {
         let diamond = Diamond::new(test, &skin, back);
+        let block = |d: &Option<Display>| d.as_ref().and_then(|d| arrow_text_block(&skin, d));
+        let yes = block(&labels.yes);
+        let out = block(&labels.out);
+        let back_label = arrow_text_block(&skin, out_link_rendering.display());
         Rc::new(Self {
             body,
             diamond,
+            yes,
+            out,
+            back_label,
             skin,
             in_link_rendering,
             out_link_rendering,
@@ -120,9 +138,16 @@ impl FtileWhile {
         self.diamond.width(sb)
     }
 
+    fn label_height(block: &Option<Rc<dyn TextBlock>>, sb: &dyn StringBounder) -> f64 {
+        block
+            .as_ref()
+            .map_or(0.0, |b| b.calculate_dimension(sb).height)
+    }
+
+    /// The condition with the `is (yes)` label under it (`FtileDiamondInside.incHeight`).
     fn diamond_geometry(&self, sb: &dyn StringBounder) -> FtileGeometry {
         let (w, h) = (self.diamond_width(sb), self.diamond.height);
-        FtileGeometry::with_out(w, h, w / 2.0, 0.0, h)
+        FtileGeometry::with_out(w, h + Self::label_height(&self.yes, sb), w / 2.0, 0.0, h)
     }
 
     /// `calculateDimensionFtile`: the diamond over the body, a channel on the left for the exit and
@@ -131,7 +156,8 @@ impl FtileWhile {
         let diamond = self.diamond_geometry(sb);
         let body = self.body.calculate_dimension(sb);
         let stacked = diamond.append_bottom(&body);
-        let height = stacked.height + 4.0 * HEXAGON_HALF_SIZE;
+        let height =
+            stacked.height + 4.0 * HEXAGON_HALF_SIZE + Self::label_height(&self.back_label, sb);
         FtileGeometry::with_out(
             stacked.width + 2.0 * HEXAGON_HALF_SIZE + HEXAGON_HALF_SIZE,
             height,
@@ -145,7 +171,8 @@ impl FtileWhile {
         let diamond = self.diamond_geometry(sb);
         let total = self.geometry(sb);
         let body = self.body.calculate_dimension(sb);
-        let y = diamond.height + (total.height - diamond.height - body.height) / 2.0;
+        let supp = Self::label_height(&self.back_label, sb);
+        let y = diamond.height + (total.height - diamond.height - body.height - supp) / 2.0;
         UTranslate::new(total.left() - body.left(), y)
     }
 
@@ -219,7 +246,7 @@ impl Ftile for FtileWhile {
         );
         let p1 = (
             diamond_t.dx + diamond_geo.left(),
-            diamond_t.dy + diamond_geo.height,
+            diamond_t.dy + diamond_geo.out_y,
         );
         let p2 = (body_t.dx + body_geo.left(), body_t.dy + body_geo.in_y);
         down.add_point(p1.0, p1.1);
@@ -238,7 +265,8 @@ impl Ftile for FtileWhile {
                 color.clone(),
                 Some(arrows.as_to(Direction::Left)),
             )
-            .emphasize_direction(Direction::Up);
+            .emphasize_direction(Direction::Up)
+            .with_vertical_label(self.back_label.clone(), VerticalAlignment::Bottom);
             back.add_point(x1, y1);
             back.add_point(x1, y1bis);
             back.add_point(total.width, y1bis);
@@ -265,8 +293,20 @@ impl Ftile for FtileWhile {
         base.add_point(total.left(), total.height);
         g.draw_snake(base);
 
-        self.diamond
-            .draw(g, diamond_t.dx, diamond_t.dy, diamond_geo.width);
+        let dw = self.diamond_width(sb);
+        self.diamond.draw(g, diamond_t.dx, diamond_t.dy, dw);
+        let dh = self.diamond.height;
+        let at = |x: f64, y: f64| {
+            g.ug()
+                .apply_translate(UTranslate::new(diamond_t.dx + x, diamond_t.dy + y))
+        };
+        if let Some(yes) = &self.yes {
+            yes.draw(&at(4.0 + dw / 2.0, dh));
+        }
+        if let Some(out) = &self.out {
+            let d = out.calculate_dimension(sb);
+            out.draw(&at(-d.width, -d.height + dh / 2.0));
+        }
         g.apply_translate(body_t).draw_ftile(self.body.as_ref());
     }
 }

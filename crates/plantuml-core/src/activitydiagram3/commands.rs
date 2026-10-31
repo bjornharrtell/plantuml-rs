@@ -794,7 +794,11 @@ fn while_start() -> Cmd {
             }
             let colors = Stereogroup::build(arg).inner_colors();
             let back = colors.color(ColorType::Back).cloned();
-            d.do_while(Display::with_newlines(arg.get("TEST", 0)), back);
+            d.do_while(
+                Display::with_newlines(arg.get("TEST", 0)),
+                arg.get("YES", 0).map(|y| Display::with_newlines(Some(y))),
+                back,
+            );
             CommandExecutionResult::ok()
         },
     )
@@ -814,7 +818,7 @@ fn while_end() -> Cmd {
             IRegex::leaf(";?"),
             IRegex::end(),
         ],
-        |d, _| d.end_while(),
+        |d, arg| d.end_while(arg.get("OUT", 0).map(|o| Display::with_newlines(Some(o)))),
     )
 }
 

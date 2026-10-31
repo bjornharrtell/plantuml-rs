@@ -218,6 +218,20 @@ fn elseif_after_else_is_an_error() {
 }
 
 #[test]
+fn while_loop_draws_its_yes_and_no_labels() {
+    let out = svg("while (more?) is (go)\n:A;\nendwhile (done)");
+    let x = |t: &str| {
+        let i = out
+            .find(&format!(">{t}</text>"))
+            .unwrap_or_else(|| panic!("{t}: {out}"));
+        number(&out[out[..i].rfind("<text").unwrap()..i], "x").unwrap()
+    };
+    // `no` sits to the left of the condition, `yes` under it, to the right of the centre line
+    assert!(x("done") < x("more?"), "{out}");
+    assert!(x("go") > x("more?"), "{out}");
+}
+
+#[test]
 fn endwhile_outside_loop_is_an_error() {
     assert!(render("@startuml\nendwhile\n@enduml").is_err());
 }

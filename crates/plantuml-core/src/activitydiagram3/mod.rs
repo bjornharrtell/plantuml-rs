@@ -390,10 +390,16 @@ impl ActivityDiagram3 {
     }
 
     /// Starts a `while` loop (`doWhile`).
-    pub fn do_while(&mut self, test: Display, back_color: Option<crate::klimt::color::HColor>) {
+    pub fn do_while(
+        &mut self,
+        test: Display,
+        yes: Option<Display>,
+        back_color: Option<crate::klimt::color::HColor>,
+    ) {
         self.manage_swimlane_strategy();
         let while_ = InstructionWhile::new(
             test,
+            yes,
             back_color,
             self.swimlanes.current_swimlane(),
             self.next_link_renderer(),
@@ -405,7 +411,7 @@ impl ActivityDiagram3 {
     }
 
     /// Closes a `while` loop (`endwhile`).
-    pub fn end_while(&mut self) -> CommandExecutionResult {
+    pub fn end_while(&mut self, out: Option<Display>) -> CommandExecutionResult {
         let current = self.current();
         if !current.borrow().as_any().is::<InstructionWhile>() {
             return CommandExecutionResult::error("Cannot find while");
@@ -416,6 +422,7 @@ impl ActivityDiagram3 {
                 return CommandExecutionResult::error("Cannot find while");
             };
             while_.set_out_rendering(self.next_link_renderer());
+            while_.set_out_display(out);
         }
         self.reset_next_link();
         match self.group_stack.pop() {
