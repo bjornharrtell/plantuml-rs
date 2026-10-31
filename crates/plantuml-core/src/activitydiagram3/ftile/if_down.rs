@@ -329,6 +329,9 @@ impl Ftile for FtileIfDown {
                 s.add_point(xmax, y1);
                 s.add_point(xmax, y2);
                 s.add_point(x2, y2);
+                g.ug()
+                    .apply_translate(UTranslate::new(x2, y2 - HEXAGON_HALF_SIZE))
+                    .draw(UShape::Empty(5.0, HEXAGON_HALF_SIZE));
                 g.draw_snake(s);
             }
         }

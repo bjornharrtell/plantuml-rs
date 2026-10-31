@@ -364,6 +364,33 @@ fn repeat_loop_draws_its_backward_box_and_its_labels() {
 }
 
 #[test]
+fn break_in_an_if_keeps_the_exit_path_20px_above_the_next_tile() {
+    let out = svg("while (more?)\nif (bad?) then (yes)\nbreak\nendif\n:work;\nendwhile");
+    let lines: Vec<(f64, f64, f64, f64)> = out
+        .match_indices("<line")
+        .map(|(i, _)| &out[i..out[i..].find('>').unwrap() + i])
+        .map(|l| {
+            let n = |k| number(l, k).unwrap();
+            (n("x1"), n("y1"), n("x2"), n("y2"))
+        })
+        .collect();
+    let work = out.find(">work</text>").unwrap();
+    let work_box = out[..work].rfind("<rect").unwrap();
+    let top = number(
+        &out[work_box..out[work_box..].find('>').unwrap() + work_box],
+        "y",
+    )
+    .unwrap();
+    // the arrow into the next tile is 20 long: the else path ends on the bottom of the `if` tile
+    assert!(
+        lines
+            .iter()
+            .any(|l| l.0 == l.2 && (l.3 - top).abs() < 0.01 && (l.3 - l.1 - 20.0).abs() < 0.01),
+        "{out}"
+    );
+}
+
+#[test]
 fn endwhile_outside_loop_is_an_error() {
     assert!(render("@startuml\nendwhile\n@enduml").is_err());
 }
