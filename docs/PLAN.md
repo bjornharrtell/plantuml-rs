@@ -215,7 +215,7 @@ and measured but not held to the targets.
 | PACKET | 57 | 100% | 1.00 | 1.00 | 0% | 57/57 | 0 |
 | CLASS | 53 | 100% | 1.00 | 0.94 | 0% | 42/42 | 11 |
 | STATE | 48 | 100% | 1.00 | 0.94 | 0% | 42/42 | 6 |
-| ACTIVITY | 36 | 100% | 0.93 | 0.79 | 0% | 21/21 | 15 |
+| ACTIVITY | 36 | 100% | 0.93 | 0.82 | 0% | 22/22 | 14 |
 | CHART | 35 | 100% | 1.00 | 1.00 | 0% | 35/35 | 0 |
 | GANTT | 16 | 100% | 1.00 | 0.96 | 0% | 15/15 | 1 |
 | SALT | 10 | 100% | 1.00 | 0.95 | 0% | 8/8 | 2 |
@@ -229,7 +229,7 @@ and measured but not held to the targets.
 | JSON | 1 | 100% | 1.00 | 0.86 | 0% | - | 1 |
 | YAML | 1 | 100% | 1.00 | 0.48 | 0% | - | 1 |
 
-All 442 fixtures render. **379 of 383 scored fixtures pass (99%)**, 59 are accepted differences, `layout_mean` 0.94,
+All 442 fixtures render. **380 of 384 scored fixtures pass (99%)**, 58 are accepted differences, `layout_mean` 0.94,
 text jaccard 0.99. Every scored type other than DESCRIPTION and EBNF is green against the target; what remains is the
 four layout fixtures under [Residual differences](#residual-differences-accepted) and the foundations gaps under
 [Remaining work](#remaining-work).
@@ -266,7 +266,7 @@ That single decision separates the two measurements of the same corpus:
 
 | | visible space (shipped) | zero space (`SVG_DETERMINISTIC`) |
 |---|---|---|
-| in-scope pass | 379/383 | 398/403 |
+| in-scope pass | 380/384 | 398/403 |
 | layout_mean | 0.92 | 0.94 |
 | accepted | 63 | 39 |
 | failures | 4 (C4, EBNF) | 5 (C4, EBNF, plus the empty-boundary fixture, which is referenced with real spaces) |
@@ -300,7 +300,7 @@ older phrasing — so build the pinned commit.
 
 This is a diagnostic for the shipped behaviour, not a gate. With the matching 1.2026.10beta1 jar, all 442
 fixtures render on both sides: the port scores text 0.95 and layout 0.80, with 295 of 362 scored fixtures
-inside the target (stored corpus: 0.99 and 0.94, 379/383). Sequence, packet, chart, salt, mindmap, gantt,
+inside the target (stored corpus: 0.99 and 0.94, 380/384). Sequence, packet, chart, salt, mindmap, gantt,
 description and the small types are close; the distance is concentrated in class (text 0.70, layout 0.35)
 and state (1.00, 0.58), where the jar draws through its Graphviz flow while the port follows the Smetana
 flow the stored references use. Three concrete reasons are visible:
@@ -367,8 +367,8 @@ on the left (x = 12) and the loop-back on the right, with `ConnectionIn`, `Conne
 Java render the loop-back, exit and next tile sit at the same offsets (+10, +22, +20 below the body). Ported with it: `break` (an empty tile without exit; the loop draws its arrow to the exit channel) and `backward`
 for `while`. The `if` family follows Java's `ConditionalBuilder`: `FtileIfWithLinks` (two real branches, merge diamond),
 `FtileIfDown` (the other branch empty or a lone `stop`: no merge diamond for a `break`/`stop`, the else path goes round
-the branch) and `FtileIfLongHorizontal` for `elseif`. Not ported yet: `backward` in `repeat` (an error with a clear
-message today), the `switch` tiles (`FtileSwitchWithManyLinks`: one generalised tile still draws them), notes on `if`,
+the branch) and `FtileIfLongHorizontal` for `elseif`. `switch` follows `FtileSwitchWithManyLinks` / `FtileSwitchWithOneLink`. Not ported yet: `backward` in `repeat` (an error with a clear
+message today), notes on `if` and `switch`,
 the swimlane variant of the else arrow (`ConnectionElse1`), colours on branch arrows. The `is (yes)` /
 `endwhile (no)` labels and the arrow label above the loop-back are drawn. The remaining accepted activity fixtures depend on those and stay in the
 accepted set.

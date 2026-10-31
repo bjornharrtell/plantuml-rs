@@ -528,19 +528,18 @@ impl Instruction for InstructionSwitch {
         let branches = self
             .branches
             .iter()
-            .map(|(list, label)| super::ftile::if_::Branch {
+            .map(|(list, label)| super::ftile::if_switch::SwitchBranch {
                 tile: list.create_ftile(factory),
-                label: label
-                    .as_ref()
-                    .and_then(|d| super::ftile::factory::arrow_text_block(&skin, d)),
+                label: label.clone(),
             })
             .collect();
-        super::ftile::if_::FtileIf::new(
+        let sb = factory.string_bounder();
+        super::ftile::if_switch::FtileSwitch::create(
             self.test.clone(),
             branches,
-            super::ftile::if_::ConditionalLayout::switch(),
             self.back_color.clone(),
             skin,
+            sb.as_ref(),
             self.in_link_rendering.clone(),
             self.out_link_rendering.clone(),
         )

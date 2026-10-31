@@ -323,6 +323,27 @@ fn if_without_else_routes_the_other_path_round_the_branch() {
 }
 
 #[test]
+fn switch_places_the_cases_in_a_row_under_the_test_and_merges_them() {
+    let out = svg("switch (k?)\ncase (a)\n:A;\ncase (b)\n:B;\ncase (c)\n:C;\nendswitch\n:D;");
+    let x = |t: &str| {
+        let i = out
+            .find(&format!(">{t}</text>"))
+            .unwrap_or_else(|| panic!("{t}: {out}"));
+        number(&out[out[..i].rfind("<text").unwrap()..i], "x").unwrap()
+    };
+    assert!(x("A") < x("B") && x("B") < x("C"), "{out}");
+    // the labels sit on the arrows into the cases
+    for label in ["a", "b", "c"] {
+        assert!(out.contains(&format!(">{label}</text>")), "{label}: {out}");
+    }
+    let one = svg("switch (k?)\ncase (a)\n:A;\nendswitch\n:D;");
+    assert!(
+        one.contains(">A</text>") && one.contains(">a</text>"),
+        "{one}"
+    );
+}
+
+#[test]
 fn endwhile_outside_loop_is_an_error() {
     assert!(render("@startuml\nendwhile\n@enduml").is_err());
 }

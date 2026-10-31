@@ -12,6 +12,7 @@ pub mod if_;
 pub mod if_down;
 pub mod if_links;
 pub mod if_long;
+pub mod if_switch;
 pub mod leaf;
 pub mod repeat;
 pub mod snake;

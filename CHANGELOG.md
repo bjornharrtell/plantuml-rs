@@ -13,6 +13,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 ### Fixed
 
+- Activity `switch`: laid out with Java's tiles (cases in a row, labels on the arrows, merge diamond, a single
+  straight arrow for one case). The three-case fixture goes from layout 0.22 to 1.0.
 - Activity `if`: laid out with Java's tiles instead of one generalised tile. Two real branches keep the merge
   diamond; an `if` without `else`, or with a `break` or `stop`, goes straight down with the other path routed around
   the branch and no merge diamond for a branch that never leaves.
