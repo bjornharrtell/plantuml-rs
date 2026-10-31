@@ -215,7 +215,7 @@ and measured but not held to the targets.
 | PACKET | 57 | 100% | 1.00 | 1.00 | 0% | 57/57 | 0 |
 | CLASS | 53 | 100% | 1.00 | 0.94 | 0% | 42/42 | 11 |
 | STATE | 48 | 100% | 1.00 | 0.94 | 0% | 42/42 | 6 |
-| ACTIVITY | 36 | 100% | 0.92 | 0.65 | 0% | 17/17 | 19 |
+| ACTIVITY | 36 | 100% | 0.92 | 0.71 | 0% | 19/19 | 17 |
 | CHART | 35 | 100% | 1.00 | 1.00 | 0% | 35/35 | 0 |
 | GANTT | 16 | 100% | 1.00 | 0.96 | 0% | 15/15 | 1 |
 | SALT | 10 | 100% | 1.00 | 0.95 | 0% | 8/8 | 2 |
@@ -229,7 +229,7 @@ and measured but not held to the targets.
 | JSON | 1 | 100% | 1.00 | 0.86 | 0% | - | 1 |
 | YAML | 1 | 100% | 1.00 | 0.48 | 0% | - | 1 |
 
-All 442 fixtures render. **375 of 379 scored fixtures pass (99%)**, 63 are accepted differences, `layout_mean` 0.92,
+All 442 fixtures render. **377 of 381 scored fixtures pass (99%)**, 61 are accepted differences, `layout_mean` 0.93,
 text jaccard 0.99. Every scored type other than DESCRIPTION and EBNF is green against the target; what remains is the
 four layout fixtures under [Residual differences](#residual-differences-accepted) and the foundations gaps under
 [Remaining work](#remaining-work).
@@ -266,7 +266,7 @@ That single decision separates the two measurements of the same corpus:
 
 | | visible space (shipped) | zero space (`SVG_DETERMINISTIC`) |
 |---|---|---|
-| in-scope pass | 375/379 | 398/403 |
+| in-scope pass | 377/381 | 398/403 |
 | layout_mean | 0.92 | 0.94 |
 | accepted | 63 | 39 |
 | failures | 4 (C4, EBNF) | 5 (C4, EBNF, plus the empty-boundary fixture, which is referenced with real spaces) |
@@ -300,7 +300,7 @@ older phrasing — so build the pinned commit.
 
 This is a diagnostic for the shipped behaviour, not a gate. With the matching 1.2026.10beta1 jar, all 442
 fixtures render on both sides: the port scores text 0.95 and layout 0.80, with 295 of 362 scored fixtures
-inside the target (stored corpus: 0.99 and 0.92, 375/379). Sequence, packet, chart, salt, mindmap, gantt,
+inside the target (stored corpus: 0.99 and 0.93, 377/381). Sequence, packet, chart, salt, mindmap, gantt,
 description and the small types are close; the distance is concentrated in class (text 0.70, layout 0.35)
 and state (1.00, 0.58), where the jar draws through its Graphviz flow while the port follows the Smetana
 flow the stored references use. Three concrete reasons are visible:
@@ -348,7 +348,7 @@ reports them as `accepted` instead of counting them as failures.
 
 | Set | Fixtures | Why accepted |
 |---|---|---|
-| `nonreg/activity-deprecated-color/*`, `nonreg/activity-color-prefix/*` | 25 | Activity control blocks with a colour or stereotype prefix (`#F1F1F1:while`, `elseif … <<#palegreen>>`, `while … <<#palegreen>>`). `FtileWhile` and the branch tiles are an approximation of Java's connection-based tiles; matching them needs constants from a running Java build, which is not available here. The diagrams render and the text matches (jaccard 0.92 on the type); only the arrangement is off. Eleven of the 25 already meet the target |
+| `nonreg/activity-deprecated-color/*`, `nonreg/activity-color-prefix/*` | 25 | Activity control blocks with a colour or stereotype prefix (`#F1F1F1:while`, `elseif … <<#palegreen>>`, `while … <<#palegreen>>`). The branch tiles (`elseif`, labels, `backward`) are an approximation of Java's connection-based tiles. The diagrams render and the text matches (jaccard 0.92 on the type); only the arrangement is off. Thirteen of the 25 already meet the target |
 | `tikz/*` | 5 | Embedded `{{ … }}` diagrams with `scale`: out of scope (see [Out of scope](#out-of-scope)), so these fixtures are rendered and measured but not held to the target |
 | `nonreg/simple/A0004.puml` | 1 | Legacy (pre-beta) activity syntax, out of scope |
 | `nonreg/activity/style-block-unclosed-at-eof.puml`, `nonreg/warnings/partition_no_bracket.puml` | 2 | Activity tile geometry: the same ftile approximation as the colour/stereotype set |
@@ -361,19 +361,13 @@ reports them as `accepted` instead of counting them as failures.
 
 ### Known limitation behind the accepted activity set
 
-The accepted activity fixtures are not colour parsing errors. `FtileWhile` here is an approximation of
-`activitydiagram3/ftile/vcompact/FtileWhile.java`, which is connection-based (`ConnectionIn`, `ConnectionBackSimple`,
-`ConnectionOut`, `FtileBackward*`) with translations from `calculateDimensionFtile`:
-
-- width = `max(diamond, body) + 4 * Hexagon.hexagonHalfSize` (12 px each side) and `left = centre + 2 * 12`;
-- height = `diamond + body + 4 * hexagonHalfSize + label height`;
-- the exit runs at `x = 12` inside the tile and closes at `(left, height)`; the loop-back runs at `x = width`;
-- `elseif` branches build a separate branch tile, so `elseif (c?) is (no)` must not collapse into one branch.
-
-Calibrating the constants needs a running Java build to compare against: the reference SVG for
-`activity-color-prefix/color_before_while` is consistent with a 36 px wider tile, a 12 px inset on each side and a 98 px
-tile height, which does not match the current Java source arithmetic exactly, so they cannot be derived from one SVG.
-Until then these fixtures stay in the accepted set.
+`FtileWhile` follows `activitydiagram3/ftile/vcompact/FtileWhile.java`: the diamond over the body, an exit channel
+on the left (x = 12) and the loop-back on the right, with `ConnectionIn`, `ConnectionBackSimple` (with the
+`UEmpty(5, 12)` that keeps the vertical compression from squeezing the loop-back) and `ConnectionOut`. Against a live
+Java render the loop-back, exit and next tile sit at the same offsets (+10, +22, +20 below the body). Not ported yet:
+the `is (yes)` / `endwhile (no)` labels, `backward`, `break`/special-out connections, and the branch tiles of
+`elseif`, which build a separate tile in Java. The remaining accepted activity fixtures depend on those and stay in the
+accepted set.
 
 ### Measured beyond the Vega corpus
 

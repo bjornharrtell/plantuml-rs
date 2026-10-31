@@ -5,6 +5,11 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 ## [Unreleased]
 
+### Fixed
+
+- Activity `while` loops: the loop-back and exit arrows no longer overlap below the body, and carry their direction
+  arrows. The tile now has Java's geometry (exit channel on the left, loop-back on the right).
+
 ### Changed
 
 - Regex compilation skips case folding for `\w`/`\p{..}` classes: the first render takes 31 ms (was 38).

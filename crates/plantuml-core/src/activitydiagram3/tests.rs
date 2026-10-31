@@ -168,6 +168,34 @@ fn while_loop_renders_condition_and_body() {
 }
 
 #[test]
+fn while_loop_keeps_the_loop_back_and_the_exit_apart() {
+    let out = svg("while (more?)\n:A;\nendwhile\n:B;");
+    let attr = |tag: &str, name: &str| number(tag, name).unwrap();
+    let tags = |name: &str| -> Vec<String> {
+        out.match_indices(name)
+            .map(|(i, _)| out[i..out[i..].find('>').unwrap() + i].to_string())
+            .collect()
+    };
+    let boxes = tags("<rect");
+    let (body, next) = (&boxes[0], &boxes[1]);
+    let body_bottom = attr(body, "y") + attr(body, "height");
+    // horizontal runs of the loop-back and of the exit, by y
+    let mut ys: Vec<f64> = tags("<line")
+        .iter()
+        .filter(|l| (attr(l, "y1") - attr(l, "y2")).abs() < 1e-9 && attr(l, "x1") != attr(l, "x2"))
+        .map(|l| attr(l, "y1"))
+        .filter(|y| *y > body_bottom)
+        .collect();
+    ys.dedup_by(|a, b| (*a - *b).abs() < 1e-9);
+    assert_eq!(ys.len(), 2, "{out}");
+    assert!((ys[0] - body_bottom - 10.0).abs() < 0.01, "{ys:?}");
+    assert!((ys[1] - body_bottom - 22.0).abs() < 0.01, "{ys:?}");
+    assert!((attr(next, "y") - ys[1] - 20.0).abs() < 0.01, "{out}");
+    // both vertical runs of the loop carry a direction arrow in the middle
+    assert!(out.matches("<polygon").count() >= 5, "{out}");
+}
+
+#[test]
 fn endwhile_outside_loop_is_an_error() {
     assert!(render("@startuml\nendwhile\n@enduml").is_err());
 }
