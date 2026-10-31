@@ -8,6 +8,7 @@ use super::leaf::FtileEmpty;
 use super::snake::{Arrows, Snake};
 use super::while_::Diamond;
 use super::{same_ftile, Ftile, FtileGeometry, FtileGraphic};
+use crate::activitydiagram3::instruction::PositionedNote;
 use crate::activitydiagram3::rainbow::LinkRendering;
 use crate::activitydiagram3::swimlanes::Swimlane;
 use crate::klimt::color::HColor;
@@ -16,6 +17,7 @@ use crate::klimt::drawing::ugraphic::{UShape, UTranslate};
 use crate::klimt::font::StringBounder;
 use crate::klimt::geom::Direction;
 use crate::skin::SkinParam;
+use crate::svek::image_note::Opale;
 use std::rc::Rc;
 
 const HEXAGON_HALF_SIZE: f64 = 12.0;
@@ -29,9 +31,12 @@ pub struct DownParts {
     pub second_is_stop: bool,
     /// Both original branches leave, so a merge diamond is drawn.
     pub two_branches: bool,
+    /// The note beside the condition; only a single note is laid out (`FtileIfDown`).
+    pub notes: Vec<PositionedNote>,
 }
 
 pub struct FtileIfDown {
+    opale: Option<Opale>,
     then_block: FtileRef,
     diamond1: Rc<DiamondInside2>,
     diamond2: FtileRef,
@@ -56,6 +61,7 @@ impl FtileIfDown {
             first_is_stop,
             second_is_stop,
             two_branches,
+            notes,
         } = parts;
         let block = |d: &Option<Display>| d.as_ref().and_then(|d| arrow_text_block(&skin, d));
         let (tb1, tb2) = (block(&first.label_positive), block(&second.label_positive));
@@ -112,7 +118,9 @@ impl FtileIfDown {
         } else {
             diamond2_for_labels
         };
+        let opale = (notes.len() == 1).then(|| super::note::opale_of(&notes[0], &skin));
         Rc::new(Self {
+            opale,
             then_block,
             diamond1,
             diamond2,
@@ -121,6 +129,13 @@ impl FtileIfDown {
             else_color,
             in_link_rendering,
             out_link_rendering,
+        })
+    }
+
+    fn opale_size(&self, sb: &dyn StringBounder) -> (f64, f64) {
+        self.opale.as_ref().map_or((0.0, 0.0), |o| {
+            let d = o.dimension(sb);
+            (d.width, d.height)
         })
     }
 
@@ -137,7 +152,8 @@ impl FtileIfDown {
         let d2 = self.diamond2.calculate_dimension(sb);
         let total = self.calculate_dimension(sb);
         let then = self.then_block.calculate_dimension(sb);
-        let y = d1.height + (total.height - d1.height - d2.height - then.height) / 2.0;
+        let oh = self.opale_size(sb).1;
+        let y = oh + d1.height + (total.height - oh - d1.height - d2.height - then.height) / 2.0;
         UTranslate::new(total.left() - then.left(), y)
     }
 
@@ -145,7 +161,7 @@ impl FtileIfDown {
         let total = self.calculate_dimension(sb);
         UTranslate::new(
             total.left() - self.diamond1.calculate_dimension(sb).left(),
-            0.0,
+            self.opale_size(sb).1,
         )
     }
 
@@ -177,17 +193,25 @@ impl Ftile for FtileIfDown {
         let then = self.then_block.calculate_dimension(sb);
         let d2 = self.diamond2.calculate_dimension(sb);
         let geo = d1.append_bottom(&then).append_bottom(&d2);
+        let (opale_w, opale_h) = self.opale_size(sb);
         let height = geo.height
             + 3.0 * HEXAGON_HALF_SIZE
-            + HEXAGON_HALF_SIZE.max(self.diamond1.south_height(sb));
-        let mut width = geo.width + HEXAGON_HALF_SIZE;
+            + HEXAGON_HALF_SIZE.max(self.diamond1.south_height(sb))
+            + opale_h;
+        let supp = (opale_w - geo.left()).max(0.0);
+        let left = if supp > 0.0 {
+            opale_w + d1.left()
+        } else {
+            geo.left()
+        };
+        let mut width = supp + geo.width + HEXAGON_HALF_SIZE;
         if let Some(stop) = &self.optional_stop {
             width += stop.calculate_dimension(sb).width + self.additional_width(sb);
         }
         if !then.has_point_out() && self.optional_stop.is_some() {
-            FtileGeometry::new(width, height, geo.left(), d1.in_y)
+            FtileGeometry::new(width, height, left, d1.in_y + opale_h)
         } else {
-            FtileGeometry::with_out(width, height, geo.left(), d1.in_y, height)
+            FtileGeometry::with_out(width, height, left, d1.in_y + opale_h, height)
         }
     }
 
@@ -247,6 +271,10 @@ impl Ftile for FtileIfDown {
     fn draw(&self, g: &FtileGraphic) {
         let sb = g.string_bounder();
         let (then_t, d1t) = (self.translate_then(sb), self.translate_diamond1(sb));
+        if let Some(opale) = &self.opale {
+            let x = d1t.dx - opale.dimension(sb).width;
+            opale.draw(&g.ug().apply_translate(UTranslate::dx(x)), None);
+        }
         g.apply_translate(then_t)
             .draw_ftile(self.then_block.as_ref());
         g.apply_translate(d1t).draw_ftile(self.diamond1.as_ref());

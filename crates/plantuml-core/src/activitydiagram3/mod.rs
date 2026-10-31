@@ -186,6 +186,30 @@ impl ActivityDiagram3 {
         CommandExecutionResult::error("Cannot find repeat")
     }
 
+    /// `note left|right: text`: a note beside the latest instruction (`addNote`).
+    pub fn add_note(
+        &mut self,
+        display: Display,
+        left: bool,
+        floating: bool,
+        colors: Option<crate::klimt::color::colors::Colors>,
+        stereotype: Option<Stereotype>,
+    ) -> CommandExecutionResult {
+        let note = instruction::PositionedNote {
+            display,
+            left,
+            floating,
+            colors,
+            swimlane: self.swimlanes.current_swimlane(),
+            stereotype,
+        };
+        if self.current().borrow_mut().add_note(note) {
+            CommandExecutionResult::ok()
+        } else {
+            CommandExecutionResult::error("Cannot add note here")
+        }
+    }
+
     /// `break`: leaves the enclosing loop (`breakInstruction`).
     pub fn break_instruction(&mut self) {
         self.manage_swimlane_strategy();

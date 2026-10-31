@@ -25,12 +25,28 @@ use std::rc::Rc;
 
 pub type InsRef = Rc<RefCell<dyn Instruction>>;
 
+/// A `note left|right` waiting to be put beside an instruction (`PositionedNote`).
+#[derive(Clone)]
+pub struct PositionedNote {
+    pub display: Display,
+    pub left: bool,
+    pub floating: bool,
+    pub colors: Option<Colors>,
+    pub swimlane: Option<Rc<Swimlane>>,
+    pub stereotype: Option<Stereotype>,
+}
+
 pub trait Instruction {
     fn create_ftile(&self, factory: &dyn FtileFactory) -> FtileRef;
 
     /// Adds a child; only groups accept one.
     fn add(&mut self, _other: InsRef) -> CommandExecutionResult {
         panic!("not a group");
+    }
+
+    /// Attaches a note (`addNote`); `false` when the instruction cannot carry one.
+    fn add_note(&mut self, _note: PositionedNote) -> bool {
+        false
     }
 
     /// `kill`: ends the flow after this instruction.
@@ -65,12 +81,27 @@ pub trait Instruction {
     }
 }
 
+/// Puts the notes of an instruction beside its tile (`eventuallyAddNote`).
+fn noted(
+    tile: FtileRef,
+    notes: &[PositionedNote],
+    with_link: bool,
+    vertical: crate::klimt::geom::VerticalAlignment,
+) -> FtileRef {
+    if notes.is_empty() {
+        tile
+    } else {
+        super::ftile::note::with_notes(tile, notes, with_link, vertical)
+    }
+}
+
 fn single(s: &Option<Rc<Swimlane>>) -> Vec<Rc<Swimlane>> {
     s.iter().cloned().collect()
 }
 
 /// A sequence of instructions (`InstructionList`).
 pub struct InstructionList {
+    notes: Vec<PositionedNote>,
     all: Vec<InsRef>,
     default_swimlane: Option<Rc<Swimlane>>,
     out_link_rendering: Option<LinkRendering>,
@@ -83,6 +114,7 @@ impl InstructionList {
 
     pub fn new(default_swimlane: Option<Rc<Swimlane>>) -> Self {
         Self {
+            notes: Vec::new(),
             all: Vec::new(),
             default_swimlane,
             out_link_rendering: None,
@@ -113,6 +145,16 @@ impl InstructionList {
 }
 
 impl Instruction for InstructionList {
+    fn add_note(&mut self, note: PositionedNote) -> bool {
+        match self.all.last() {
+            None => {
+                self.notes.push(note);
+                true
+            }
+            Some(last) => last.borrow_mut().add_note(note),
+        }
+    }
+
     fn create_ftile(&self, factory: &dyn FtileFactory) -> FtileRef {
         if self.all.is_empty() {
             let mut result: FtileRef =
@@ -123,7 +165,13 @@ impl Instruction for InstructionList {
             return result;
         }
         let mut breaks = Vec::new();
-        let mut result: Option<FtileRef> = None;
+        let mut result: Option<FtileRef> = self.notes.first().map(|note| {
+            super::ftile::note::FtileNoteAlone::create(
+                note,
+                factory.skin(),
+                self.default_swimlane.clone(),
+            )
+        });
         for ins in &self.all {
             let ins = ins.borrow();
             let mut cur = ins.create_ftile(factory);
@@ -200,6 +248,7 @@ impl Instruction for InstructionList {
 
 /// An action (`InstructionSimple`).
 pub struct InstructionSimple {
+    notes: Vec<PositionedNote>,
     killed: bool,
     label: Display,
     colors: Colors,
@@ -224,6 +273,7 @@ impl InstructionSimple {
         style_builder: StyleBuilder,
     ) -> Self {
         Self {
+            notes: Vec::new(),
             killed: false,
             label,
             colors,
@@ -242,6 +292,11 @@ impl InstructionSimple {
 }
 
 impl Instruction for InstructionSimple {
+    fn add_note(&mut self, note: PositionedNote) -> bool {
+        self.notes.push(note);
+        true
+    }
+
     fn create_ftile(&self, factory: &dyn FtileFactory) -> FtileRef {
         let mut result = factory.activity(
             &self.label,
@@ -254,7 +309,12 @@ impl Instruction for InstructionSimple {
         if let Some(url) = &self.url {
             result = factory.add_url(result, url);
         }
-        result
+        noted(
+            result,
+            &self.notes,
+            true,
+            crate::klimt::geom::VerticalAlignment::Center,
+        )
     }
 
     fn kill(&mut self) -> bool {
@@ -289,6 +349,7 @@ pub enum NodeKind {
 
 /// `start`, `stop` and `end` (`InstructionStart`, `InstructionStop`, `InstructionEnd`).
 pub struct InstructionNode {
+    notes: Vec<PositionedNote>,
     kind: NodeKind,
     colors: Colors,
     swimlane: Option<Rc<Swimlane>>,
@@ -303,6 +364,7 @@ impl InstructionNode {
         in_link_rendering: LinkRendering,
     ) -> Self {
         Self {
+            notes: Vec::new(),
             kind,
             colors,
             swimlane,
@@ -316,12 +378,23 @@ impl InstructionNode {
 }
 
 impl Instruction for InstructionNode {
+    fn add_note(&mut self, note: PositionedNote) -> bool {
+        self.notes.push(note);
+        true
+    }
+
     fn create_ftile(&self, factory: &dyn FtileFactory) -> FtileRef {
-        match self.kind {
+        let tile = match self.kind {
             NodeKind::Start => factory.start(self.swimlane.clone(), &self.colors),
             NodeKind::Stop => factory.stop(self.swimlane.clone(), &self.colors),
             NodeKind::End => factory.end(self.swimlane.clone(), &self.colors),
-        }
+        };
+        noted(
+            tile,
+            &self.notes,
+            true,
+            crate::klimt::geom::VerticalAlignment::Center,
+        )
     }
 
     fn in_link_rendering(&self) -> LinkRendering {
@@ -388,6 +461,8 @@ impl Instruction for InstructionBreak {
 
 /// Parallel branches of a fork (`InstructionFork`).
 pub struct InstructionFork {
+    finished: bool,
+    notes: Vec<PositionedNote>,
     branches: Vec<InstructionList>,
     colors: Colors,
     swimlane: Option<Rc<Swimlane>>,
@@ -401,6 +476,8 @@ impl InstructionFork {
         in_link_rendering: LinkRendering,
     ) -> Self {
         Self {
+            finished: false,
+            notes: Vec::new(),
             branches: vec![InstructionList::new(swimlane.clone())],
             colors,
             swimlane,
@@ -416,6 +493,7 @@ impl InstructionFork {
 
     /// Remembers the arrow leaving the current branch (`manageOutRendering`).
     pub fn set_out_rendering(&mut self, link: LinkRendering) {
+        self.finished = true;
         if let Some(last) = self.branches.last_mut() {
             last.set_out_rendering(link);
         }
@@ -423,17 +501,34 @@ impl InstructionFork {
 }
 
 impl Instruction for InstructionFork {
+    fn add_note(&mut self, note: PositionedNote) -> bool {
+        if self.finished {
+            self.notes.push(note);
+            return true;
+        }
+        match self.branches.last_mut() {
+            Some(list) => list.add_note(note),
+            None => false,
+        }
+    }
+
     fn create_ftile(&self, factory: &dyn FtileFactory) -> FtileRef {
         let branches = self
             .branches
             .iter()
             .map(|b| b.create_ftile(factory))
             .collect();
-        super::ftile::fork::FtileParallel::new(
+        let tile = super::ftile::fork::FtileParallel::new(
             branches,
             self.colors.clone(),
             factory.skin(),
             self.in_link_rendering.clone(),
+        );
+        noted(
+            tile,
+            &self.notes,
+            false,
+            crate::klimt::geom::VerticalAlignment::Center,
         )
     }
 
@@ -487,6 +582,7 @@ impl Instruction for InstructionFork {
 
 /// A `switch` with its branches (`InstructionSwitch`).
 pub struct InstructionSwitch {
+    notes: Vec<PositionedNote>,
     branches: Vec<(InstructionList, Option<Display>)>,
     test: Display,
     back_color: Option<HColor>,
@@ -503,6 +599,7 @@ impl InstructionSwitch {
         in_link_rendering: LinkRendering,
     ) -> Self {
         Self {
+            notes: Vec::new(),
             branches: Vec::new(),
             test,
             back_color,
@@ -523,6 +620,16 @@ impl InstructionSwitch {
 }
 
 impl Instruction for InstructionSwitch {
+    fn add_note(&mut self, note: PositionedNote) -> bool {
+        match self.branches.last_mut() {
+            Some((list, _)) if !list.is_empty() => list.add_note(note),
+            _ => {
+                self.notes.push(note);
+                true
+            }
+        }
+    }
+
     fn create_ftile(&self, factory: &dyn FtileFactory) -> FtileRef {
         let skin = factory.skin();
         let branches = self
@@ -534,7 +641,7 @@ impl Instruction for InstructionSwitch {
             })
             .collect();
         let sb = factory.string_bounder();
-        super::ftile::if_switch::FtileSwitch::create(
+        let tile = super::ftile::if_switch::FtileSwitch::create(
             self.test.clone(),
             branches,
             self.back_color.clone(),
@@ -542,6 +649,12 @@ impl Instruction for InstructionSwitch {
             sb.as_ref(),
             self.in_link_rendering.clone(),
             self.out_link_rendering.clone(),
+        );
+        noted(
+            tile,
+            &self.notes,
+            true,
+            crate::klimt::geom::VerticalAlignment::Top,
         )
     }
 
@@ -633,6 +746,8 @@ impl IfBranch {
 
 /// An `if` with its branches (`InstructionIf`): one or more tested branches, then an optional `else`.
 pub struct InstructionIf {
+    finished: bool,
+    notes: Vec<PositionedNote>,
     thens: Vec<IfBranch>,
     else_branch: Option<IfBranch>,
     swimlane: Option<Rc<Swimlane>>,
@@ -649,6 +764,8 @@ impl InstructionIf {
         in_link_rendering: LinkRendering,
     ) -> Self {
         Self {
+            finished: false,
+            notes: Vec::new(),
             thens: vec![IfBranch::new(swimlane.clone(), test, yes, None, back_color)],
             else_branch: None,
             swimlane,
@@ -705,6 +822,7 @@ impl InstructionIf {
     }
 
     pub fn set_out_rendering(&mut self, link: LinkRendering) {
+        self.finished = true;
         self.out_link_rendering = link;
     }
 
@@ -715,6 +833,15 @@ impl InstructionIf {
 }
 
 impl Instruction for InstructionIf {
+    fn add_note(&mut self, note: PositionedNote) -> bool {
+        if self.finished || self.current().list.is_empty() {
+            self.notes.push(note);
+            true
+        } else {
+            self.current().list.add_note(note)
+        }
+    }
+
     fn create_ftile(&self, factory: &dyn FtileFactory) -> FtileRef {
         let skin = factory.skin();
         if self.thens.len() > 1 {
@@ -759,7 +886,12 @@ impl Instruction for InstructionIf {
                 self.in_link_rendering.clone(),
                 self.out_link_rendering.clone(),
             );
-            return weld(result, welding);
+            return noted(
+                weld(result, welding),
+                &self.notes,
+                false,
+                crate::klimt::geom::VerticalAlignment::Center,
+            );
         }
         // `ConditionalBuilder.create`: pick the tile from which branches are empty or a lone `stop`
         let missing_else = IfBranch::new(self.swimlane.clone(), Display::null(), None, None, None);
@@ -809,6 +941,7 @@ impl Instruction for InstructionIf {
                     first_is_stop: first_stop,
                     second_is_stop: second_stop,
                     two_branches,
+                    notes: self.notes.clone(),
                 },
                 self.thens[0].color.clone(),
                 skin,
@@ -823,6 +956,7 @@ impl Instruction for InstructionIf {
             self.thens[0].color.clone(),
             skin,
             sb.as_ref(),
+            &self.notes,
             self.in_link_rendering.clone(),
             self.out_link_rendering.clone(),
         );
@@ -960,6 +1094,10 @@ impl InstructionRepeat {
 }
 
 impl Instruction for InstructionRepeat {
+    fn add_note(&mut self, note: PositionedNote) -> bool {
+        self.list.add_note(note)
+    }
+
     fn create_ftile(&self, factory: &dyn FtileFactory) -> FtileRef {
         let body = self.list.create_ftile(factory);
         let start = self.start_label.as_ref().map(|label| {
@@ -1065,6 +1203,7 @@ struct Backward {
 }
 
 pub struct InstructionWhile {
+    notes: Vec<PositionedNote>,
     backward: Option<Backward>,
     list: InstructionList,
     test: Display,
@@ -1084,6 +1223,7 @@ impl InstructionWhile {
         in_link_rendering: LinkRendering,
     ) -> Self {
         Self {
+            notes: Vec::new(),
             backward: None,
             list: InstructionList::new(swimlane),
             test,
@@ -1125,6 +1265,15 @@ impl InstructionWhile {
 }
 
 impl Instruction for InstructionWhile {
+    fn add_note(&mut self, note: PositionedNote) -> bool {
+        if self.list.is_empty() {
+            self.notes.push(note);
+            true
+        } else {
+            self.list.add_note(note)
+        }
+    }
+
     fn create_ftile(&self, factory: &dyn FtileFactory) -> FtileRef {
         let body = self.list.create_ftile(factory);
         let (back1, back2, backward) = match &self.backward {
@@ -1146,7 +1295,7 @@ impl Instruction for InstructionWhile {
                 None,
             ),
         };
-        super::ftile::while_::FtileWhile::new(
+        let tile: FtileRef = super::ftile::while_::FtileWhile::new(
             body,
             self.test.clone(),
             super::ftile::while_::WhileLabels {
@@ -1160,6 +1309,12 @@ impl Instruction for InstructionWhile {
             factory.skin(),
             self.in_link_rendering.clone(),
             self.out_link_rendering.clone(),
+        );
+        noted(
+            tile,
+            &self.notes,
+            false,
+            crate::klimt::geom::VerticalAlignment::Center,
         )
     }
 
@@ -1231,6 +1386,10 @@ impl InstructionGroup {
 }
 
 impl Instruction for InstructionGroup {
+    fn add_note(&mut self, note: PositionedNote) -> bool {
+        self.list.add_note(note)
+    }
+
     fn create_ftile(&self, factory: &dyn FtileFactory) -> FtileRef {
         let inner = self.list.create_ftile(factory);
         super::ftile::group::FtileGroup::new(

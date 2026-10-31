@@ -7,6 +7,9 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 ### Added
 
+- Activity notes: `note left|right: text`, multi-line `note ... end note` and `floating note`. They were syntax
+  errors. A note belongs to the latest activity (inside a branch, to the activity before it), a note after an
+  `if` sits beside its condition, as in Java.
 - Activity `break` and, for `while` loops, `backward :text;`. Both were syntax errors. A `break` leaves the loop
   through its exit channel; `backward` draws its box on the right with the two arrows Java draws. `backward` in
   a `repeat` loop works too.

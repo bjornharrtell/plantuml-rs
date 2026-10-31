@@ -391,6 +391,43 @@ fn break_in_an_if_keeps_the_exit_path_20px_above_the_next_tile() {
 }
 
 #[test]
+fn notes_sit_beside_the_latest_activity() {
+    let out = svg(":A;\nnote right: on the right\n:B;\nnote left: on the left");
+    let x = |t: &str| {
+        let i = out
+            .find(&format!(">{t}</text>"))
+            .unwrap_or_else(|| panic!("{t}: {out}"));
+        number(&out[out[..i].rfind("<text").unwrap()..i], "x").unwrap()
+    };
+    assert!(x("on the right") > x("A"), "{out}");
+    assert!(x("on the left") < x("B"), "{out}");
+    // a multi-line note and a floating one
+    let out = svg(":A;\nnote left\n  first\n  second\nend note\nfloating note right: loose");
+    for text in ["first", "second", "loose"] {
+        assert!(out.contains(&format!(">{text}</text>")), "{text}: {out}");
+    }
+}
+
+#[test]
+fn a_note_inside_a_branch_belongs_to_the_activity_before_it() {
+    let out = svg("if (a?) then (yes)\n:A;\nnote right: about A\nelse (no)\n:B;\nendif");
+    let x = |t: &str| {
+        let i = out
+            .find(&format!(">{t}</text>"))
+            .unwrap_or_else(|| panic!("{t}: {out}"));
+        number(&out[out[..i].rfind("<text").unwrap()..i], "x").unwrap()
+    };
+    // beside A, still left of B
+    assert!(
+        x("about A") > x("A") && x("about A") < x("B") + 60.0,
+        "{out}"
+    );
+    // a note after the `if` sits beside the condition, not beside the whole tile
+    let out = svg("if (a?) then (yes)\n:A;\nendif\nnote left: after");
+    assert!(out.contains(">after</text>"), "{out}");
+}
+
+#[test]
 fn endwhile_outside_loop_is_an_error() {
     assert!(render("@startuml\nendwhile\n@enduml").is_err());
 }

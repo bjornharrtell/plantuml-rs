@@ -13,6 +13,7 @@ pub mod if_links;
 pub mod if_long;
 pub mod if_switch;
 pub mod leaf;
+pub mod note;
 pub mod repeat;
 pub mod snake;
 pub mod while_;

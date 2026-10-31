@@ -47,6 +47,20 @@ fn url_of(d: &ActivityDiagram3, text: Option<&str>) -> Option<crate::url::Url> {
     UrlBuilder::new(d.skin().get_value("topurl"), UrlMode::Strict).url(text)
 }
 
+/// First line of a multi-line note (`CommandNoteLong3`).
+fn note_long_start() -> IRegex {
+    IRegex::concat(vec![
+        IRegex::start(),
+        IRegex::named("TYPE", "(note|floating note)"),
+        IRegex::space_zero_or_more(),
+        IRegex::named("POSITION", "(left|right)?"),
+        IRegex::space_zero_or_more(),
+        crate::stereo::optional_pattern("STEREO"),
+        color_regex(),
+        IRegex::end(),
+    ])
+}
+
 fn color_regex() -> IRegex {
     ColorParser::simple_color(ColorType::Back).regex()
 }
@@ -1102,7 +1116,58 @@ pub fn commands() -> Vec<Cmd> {
             CommandExecutionResult::ok()
         },
     ));
-    // CommandNote3, CommandNoteLong3
+    // CommandNote3
+    cmds.push(single(
+        vec![
+            IRegex::start(),
+            IRegex::named("TYPE", "(note|floating note)"),
+            IRegex::space_zero_or_more(),
+            IRegex::named("POSITION", "(left|right)?"),
+            IRegex::space_zero_or_more(),
+            color_regex(),
+            IRegex::space_zero_or_more(),
+            crate::stereo::optional_pattern("STEREO"),
+            IRegex::leaf(":"),
+            IRegex::space_zero_or_more(),
+            IRegex::named("NOTE", "(.*)"),
+            IRegex::end(),
+        ],
+        |d, arg| {
+            let colors = ColorParser::simple_color(ColorType::Back).colors(arg);
+            d.add_note(
+                Display::with_newlines(arg.get("NOTE", 0)),
+                arg.get("POSITION", 0) != Some("right"),
+                arg.get("TYPE", 0)
+                    .is_some_and(|t| t.starts_with("floating")),
+                colors,
+                arg.get("STEREO", 0).map(crate::stereo::Stereotype::build),
+            )
+        },
+    ));
+    // CommandNoteLong3
+    cmds.push(Box::new(MultiLineCommand::new(
+        note_long_start(),
+        MultilinesStrategy::RemoveStartingQuote,
+        crate::command::Trim::Both,
+        "^end[%s]?note$",
+        |d: &mut ActivityDiagram3, lines, _| {
+            let first = lines.first().expect("first line").trimmed();
+            let Some(line0) = note_long_start().matcher(first.string()) else {
+                return CommandExecutionResult::error("Cannot parse the note");
+            };
+            let body = lines.sub_extract(1, 1).remove_empty_columns();
+            let colors = ColorParser::simple_color(ColorType::Back).colors(&line0);
+            d.add_note(
+                Display::create(&body.as_strings()),
+                line0.get("POSITION", 0) != Some("right"),
+                line0
+                    .get("TYPE", 0)
+                    .is_some_and(|t| t.starts_with("floating")),
+                colors,
+                line0.get("STEREO", 0).map(crate::stereo::Stereotype::build),
+            )
+        },
+    )));
 
     // CommandActivityLong3
     cmds.push(Box::new(MultiLineCommand::new(
