@@ -56,8 +56,8 @@ The VS Code extension [PlantUML (plantuml-rs)](https://marketplace.visualstudio.
 
 ## Performance
 
-On the 472-file Vega corpus the library renders 2.7 ms per diagram against 2.9 ms for Java PlantUML in
-one JVM — about 10% ahead — with roughly 76 ms of one-time initialization per process. Method,
+On the 472-file Vega corpus the library renders 1.8 ms per diagram against 2.5 ms for Java PlantUML in
+one JVM — about 27% ahead — with roughly 76 ms of one-time initialization per process. Method,
 caveats and the profile behind those numbers are in
 [docs/PERFORMANCE.md](https://github.com/bjornharrtell/plantuml-rs/blob/main/docs/PERFORMANCE.md).
 

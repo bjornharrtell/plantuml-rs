@@ -14,8 +14,13 @@ log = "0.4"
 plantuml-core = { path = "crates/plantuml-core", version = "0.4.0" }
 
 [profile.release]
-opt-level = "z"
 lto = true
 codegen-units = 1
 panic = "abort"
 strip = true
+opt-level = 3
+
+# Size-optimised build for wasm (opt-level "z" costs ~30% native speed).
+[profile.wasm]
+inherits = "release"
+opt-level = "z"

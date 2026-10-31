@@ -8,13 +8,14 @@ Measured on the 472 `.puml` files of the PlantUML Vega corpus, best of five warm
 
 | implementation | total | per diagram | diagrams/s |
 |---|---|---|---|
-| Rust library (`plantuml-core`) | 1.22 s | 2.59 ms | 387 |
+| Rust library (`plantuml-core`) | 0.85 s | 1.79 ms | 559 |
 | Java PlantUML 1.2026.10beta1, one JVM | 1.16 s | 2.46 ms | 407 |
 | Java PlantUML 1.2026.7, one JVM | 1.42 s | 3.01 ms | 332 |
 
 The ranking depends on the Java version: 1.2026.10beta1 renders this corpus about 20% faster than
-1.2026.7, mostly on sequence diagrams, so Rust sits about 5% behind the beta and about 13% ahead of the
-stable jar. Both figures include one process start each — about 130 ms for the JVM and a few milliseconds
+1.2026.7, mostly on sequence diagrams. Rust is about 27% ahead of the beta and about 40% ahead of the
+stable jar. Native builds use `opt-level = 3`; the wasm build uses the size-optimised `wasm` profile
+(`opt-level = "z"`), which was the native profile before and cost about 30% (1.22 s). Both figures include one process start each — about 130 ms for the JVM and a few milliseconds
 for the Rust process — and the JVM also warms up its JIT during the run. Two further caveats: Java writes
 its SVGs to `/dev/shm` while the Rust harness keeps them in memory, and class diagrams are not
 like-for-like — this port lays them out with `graphviz-pure`, while the Java run used Graphviz through its

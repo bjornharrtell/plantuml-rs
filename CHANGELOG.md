@@ -7,6 +7,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 ### Changed
 
+- Native release builds use `opt-level = 3`, about 30% faster rendering (corpus 1.22 s to 0.85 s). The wasm
+  build moves to a `wasm` profile (`cargo build --profile wasm`) that keeps `opt-level = "z"`; its output is unchanged.
 - `graphviz-pure` 0.2.3 (was 0.2.2). The release fixes `sfdp` positioning and clips compound edges
   without arrowheads as C Graphviz does (#490); `sfdp` is unused here and the corpus does not exercise
   the compound fix, so the rendered corpus is unchanged.

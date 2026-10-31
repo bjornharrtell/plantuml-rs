@@ -7,8 +7,8 @@ cd "$(dirname "$0")/.."
 target_dir="${CARGO_TARGET_DIR:-target}"
 version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
 
-cargo build -p plantuml-wasm --target wasm32-unknown-unknown --release
-wasm="$target_dir/wasm32-unknown-unknown/release/plantuml_wasm.wasm"
+cargo build -p plantuml-wasm --target wasm32-unknown-unknown --profile wasm
+wasm="$target_dir/wasm32-unknown-unknown/wasm/plantuml_wasm.wasm"
 
 rm -rf npm/dist
 mkdir -p npm/dist/node npm/dist/web
