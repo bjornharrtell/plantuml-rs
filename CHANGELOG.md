@@ -7,11 +7,12 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 ### Changed
 
+- Regex compilation skips case folding for `\w`/`\p{..}` classes: the first render takes 31 ms (was 38).
 - Native release builds use `opt-level = 3`, about 30% faster rendering (corpus 1.22 s to 0.85 s). The wasm
   build moves to a `wasm` profile (`cargo build --profile wasm`) that keeps `opt-level = "z"`; its output is unchanged.
-- `graphviz-pure` 0.2.3 (was 0.2.2). The release fixes `sfdp` positioning and clips compound edges
-  without arrowheads as C Graphviz does (#490); `sfdp` is unused here and the corpus does not exercise
-  the compound fix, so the rendered corpus is unchanged.
+- `graphviz-pure` 1.0.0 (was 0.2.2). Its calls return the output with Graphviz diagnostics, which are now
+  logged with `log::warn!` instead of reaching stderr. The 0.2.3 fixes (`sfdp` positioning, compound edge
+  clipping, #490) are not exercised here; the rendered corpus is unchanged.
 
 ## [0.4.0] - 2026-10-28
 

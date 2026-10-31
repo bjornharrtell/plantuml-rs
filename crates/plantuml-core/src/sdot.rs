@@ -4,6 +4,15 @@
 //! made with it, so the nodes and links are laid out here by `graphviz-pure` (the layout core)
 //! and drawn exactly as `CucaDiagramFileMakerSmetana` and `SmetanaEdge` do.
 
+/// Runs Graphviz `dot` and logs its diagnostics, which the library no longer writes to stderr.
+pub(crate) fn render_dot(dot: &str, format: &str) -> graphviz_pure::Result<String> {
+    let (out, diagnostics) = graphviz_pure::render_dot(dot, "dot", format)?.into_parts();
+    for d in &diagnostics {
+        log::warn!("graphviz: {}", d.message().trim_end());
+    }
+    Ok(out)
+}
+
 use crate::abel::{Entity, LeafType, Link};
 use crate::cucadiagram::CucaDiagram;
 use crate::json::JsonValue;
@@ -718,7 +727,7 @@ fn layout_from(
     }
     let dot = build_dot(skin, &c, &edges, &**sb, spacing);
     log::debug!("dot input:\n{dot}");
-    let json = match graphviz_pure::render_dot(&dot, "dot", "json") {
+    let json = match render_dot(&dot, "json") {
         Ok(j) => j,
         Err(e) => {
             log::error!("graphviz failed: {e}");

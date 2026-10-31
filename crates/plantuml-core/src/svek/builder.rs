@@ -380,7 +380,7 @@ pub fn build_image(
     };
     let dot = layout.dot_string(&**sb, &dot_strings(cuca));
     log::debug!("dot input:\n{dot}");
-    let svg = match graphviz_pure::render_dot(&dot, "dot", "svg") {
+    let svg = match crate::sdot::render_dot(&dot, "svg") {
         Ok(s) => s,
         Err(e) => {
             log::error!("graphviz failed: {e}");

@@ -4,7 +4,7 @@ Library-level figures for this port and for the Java implementation it is ported
 whole corpus in one process, so neither side pays process or JVM startup per diagram.
 
 Measured on the 472 `.puml` files of the PlantUML Vega corpus, best of five warm runs. Host: Linux,
-16 vCPU, 29 GB RAM. Toolchain: rustc 1.99.1, OpenJDK 25.0.4.1, graphviz-pure 0.2.3.
+16 vCPU, 29 GB RAM. Toolchain: rustc 1.99.1, OpenJDK 25.0.4.1, graphviz-pure 1.0.0.
 
 | implementation | total | per diagram | diagrams/s |
 |---|---|---|---|

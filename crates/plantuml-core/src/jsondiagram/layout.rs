@@ -181,7 +181,7 @@ pub fn layout(
     collect(&mut c, skin, name, sb, root, highlighted);
     let dot = build_dot(&c);
     log::debug!("json dot input:\n{dot}");
-    let json = match graphviz_pure::render_dot(&dot, "dot", "json") {
+    let json = match crate::sdot::render_dot(&dot, "json") {
         Ok(j) => j,
         Err(e) => {
             log::error!("graphviz failed: {e}");
