@@ -335,10 +335,10 @@ metrics described under [Measured beyond the Vega corpus](#measured-beyond-the-v
 
 | Fixture | layout | Cause |
 |---|---|---|
-| `fixtures/c4/context` | 0.69 | boundary and caption layout, the line-height stack, and a reference laid out with the Smetana flow's tighter ranks |
-| `fixtures/c4/container` | 0.30 | same, with a boundary around two containers |
-| `fixtures/ebnf/grammar` | 0.41 | bold rule names widen the production stack |
-| `fixtures/ebnf/expression` | 0.72 | same |
+| `fixtures/c4/context` | 0.77 | boundary and caption layout, and the narrow bold of the shipped width table |
+| `fixtures/c4/container` | 0.84 | same, with a boundary around two containers |
+| `fixtures/ebnf/grammar` | 0.86 | bold rule names are narrower than Java's bold face, so the productions stack tighter |
+| `fixtures/ebnf/expression` | 0.74 | same |
 
 ### Accepted differences
 
@@ -358,16 +358,6 @@ reports them as `accepted` instead of counting them as failures.
 | Point-size line box | 5 | The references were laid out with the point-size line this port used before it measured the face's line box; same text and arrangement, a few percent of drift |
 | Description rank spacing | 2 | `ComponentExtraArrows_0001`, `stereotype-selector-with-embedded-space`: the references were laid out by the Smetana flow (Graphviz's 18/36 px defaults), the port follows the Graphviz flow Java ships (35/60 px). Against a live Java render the port is closer (0.59/0.89 against 0.20/0.11) |
 | `!pragma layout smetana` fixtures still missing the target | 2 of 38 | Non-Graphviz layout engine; arrangement cannot match by construction. The other 36 already pass |
-
-### Known defects
-
-None known. The activity arrow report (arrows not meeting the merge diamond, the `no` label under the
-condition) was the `if`/`endif` tile: the condition and merge diamonds were centred on the tile instead of
-the middle of the branch centres, which `FtileIfWithDiamonds` uses (`dimTotal.getLeft()`), so the right
-branch arrow was zero-length and the return arrows ran along the diamond's top vertex. Both diamonds now
-sit on the branch middle, the return arrows end on the west/east vertices, the branch labels are placed at
-the vertices and drawn after the shapes, and the condition labels are no longer covered. A new report
-needs its source: the Vega corpus only checks segment ends, which is why it missed this.
 
 ### Known limitation behind the accepted activity set
 
@@ -393,11 +383,15 @@ Until then these fixtures stay in the accepted set.
 |---|---|---|
 | EBNF one production, or one special sequence | 1.00 | 1.00 |
 | EBNF one alternation / optional / repetition / concatenation | 1.00 | 1.00 |
-| EBNF a whole grammar (several productions) | 0.41 | 1.00 |
-| EBNF a nested expression grammar, with a comment | 0.72 | 1.00 |
-| C4 context | 0.72 | 1.00 |
-| C4 container, with a boundary | 0.32 | 1.00 |
+| EBNF a whole grammar (several productions) | 0.86 | 1.00 |
+| EBNF a nested expression grammar, with a comment | 0.74 | 1.00 |
+| C4 context | 0.77 | 1.00 |
+| C4 container, with a boundary | 0.84 | 1.00 |
 | C4 empty boundary with one relation | 1.00 | 1.00 |
+
+The fixture references are rendered by the matching jar with `skinparam defaultFontName "Liberation Sans"`
+(see `fixtures/README.md`): the first set came from a machine whose `sans-serif` was DejaVu Sans, which is wider
+than the face the port measures, and scored 0.30-0.69 for that reason alone.
 
 Single tiles are placed exactly, so the tile geometry is right; the gap is in how a diagram stacks several
 tiles and productions and, for C4, in the boundary/caption layout. Text matches every fixture, so none of
@@ -444,7 +438,7 @@ fixtures, which do not, already do.
 
 Taking the embedded bold tables lifts the grammar fixture from 0.38 to 0.66 but costs eleven Vega fixtures
 (titles, dividers, JSON, timing), because those layouts are tuned around the narrow bold. It is therefore not
-kept; EBNF stays at 0.41-0.72 on multi-production grammars for a font-metric reason, not a layout bug.
+kept; EBNF stays at 0.74-0.86 on multi-production grammars for a font-metric reason, not a layout bug.
 
 The stacking gap was the text height: Java's `FileFormat.getJavaDimension` is a line of ascent+descent+line
 gap (26.3 px at size 14), while `TableFontBounder` reported the point size (14). The line box is now the
