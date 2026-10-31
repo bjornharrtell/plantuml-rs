@@ -331,6 +331,51 @@ impl Instruction for InstructionNode {
     }
 }
 
+/// `break`: leaves the enclosing loop (`InstructionBreak`).
+pub struct InstructionBreak {
+    swimlane: Option<Rc<Swimlane>>,
+    in_link_rendering: LinkRendering,
+}
+
+impl InstructionBreak {
+    pub fn new(swimlane: Option<Rc<Swimlane>>, in_link_rendering: LinkRendering) -> Self {
+        Self {
+            swimlane,
+            in_link_rendering,
+        }
+    }
+}
+
+impl Instruction for InstructionBreak {
+    fn create_ftile(&self, factory: &dyn FtileFactory) -> FtileRef {
+        super::ftile::leaf::FtileBreak::new(&factory.skin(), self.swimlane.clone())
+    }
+
+    fn kill(&mut self) -> bool {
+        false
+    }
+
+    fn in_link_rendering(&self) -> LinkRendering {
+        self.in_link_rendering.clone()
+    }
+
+    fn contains_break(&self) -> bool {
+        true
+    }
+
+    fn swimlanes(&self) -> Vec<Rc<Swimlane>> {
+        single(&self.swimlane)
+    }
+
+    fn swimlane_in(&self) -> Option<Rc<Swimlane>> {
+        self.swimlane.clone()
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
 /// Parallel branches of a fork (`InstructionFork`).
 pub struct InstructionFork {
     branches: Vec<InstructionList>,
@@ -541,6 +586,15 @@ impl Instruction for InstructionSwitch {
     }
 }
 
+/// Keeps the `break`s of the branches visible to the enclosing loop (`FtileDecorateWelding`).
+fn weld(tile: FtileRef, points: Vec<super::ftile::WeldingPoint>) -> FtileRef {
+    if points.is_empty() {
+        tile
+    } else {
+        FtileDecorate::welding(tile, points)
+    }
+}
+
 /// One branch of an `if` (`Branch`): the condition it tests, the labels around it and its body.
 pub struct IfBranch {
     list: InstructionList,
@@ -662,7 +716,7 @@ impl Instruction for InstructionIf {
                 .and_then(|d| super::ftile::factory::arrow_text_block(&skin, d)),
         };
         if self.thens.len() > 1 {
-            let thens = self
+            let thens: Vec<super::ftile::if_long::LongBranch> = self
                 .thens
                 .iter()
                 .map(|b| super::ftile::if_long::LongBranch {
@@ -689,7 +743,12 @@ impl Instruction for InstructionIf {
                     color: None,
                 },
             };
-            return super::ftile::if_long::FtileIfLongHorizontal::new(
+            let welding: Vec<_> = thens
+                .iter()
+                .chain(std::iter::once(&else_branch))
+                .flat_map(|b| b.tile.welding_points())
+                .collect();
+            let result = super::ftile::if_long::FtileIfLongHorizontal::new(
                 thens,
                 else_branch,
                 self.thens[0].color.clone(),
@@ -698,9 +757,14 @@ impl Instruction for InstructionIf {
                 self.in_link_rendering.clone(),
                 self.out_link_rendering.clone(),
             );
+            return weld(result, welding);
         }
-        let branches = self.all_branches().map(tile_of).collect();
-        super::ftile::if_::FtileIf::new(
+        let branches: Vec<super::ftile::if_::Branch> = self.all_branches().map(tile_of).collect();
+        let welding: Vec<_> = branches
+            .iter()
+            .flat_map(|b| b.tile.welding_points())
+            .collect();
+        let result = super::ftile::if_::FtileIf::new(
             self.thens[0].label_test.clone(),
             branches,
             super::ftile::if_::ConditionalLayout::if_(),
@@ -708,7 +772,8 @@ impl Instruction for InstructionIf {
             skin,
             self.in_link_rendering.clone(),
             self.out_link_rendering.clone(),
-        )
+        );
+        weld(result, welding)
     }
 
     fn add(&mut self, other: InsRef) -> CommandExecutionResult {
@@ -861,7 +926,18 @@ impl Instruction for InstructionRepeat {
 }
 
 /// A `while` loop (`InstructionWhile`).
+/// The `backward :text;` box of a loop.
+struct Backward {
+    label: Display,
+    box_style: BoxStyle,
+    stereotype: Option<Stereotype>,
+    incoming1: LinkRendering,
+    incoming2: LinkRendering,
+    swimlane: Option<Rc<Swimlane>>,
+}
+
 pub struct InstructionWhile {
+    backward: Option<Backward>,
     list: InstructionList,
     test: Display,
     yes: Option<Display>,
@@ -880,6 +956,7 @@ impl InstructionWhile {
         in_link_rendering: LinkRendering,
     ) -> Self {
         Self {
+            backward: None,
             list: InstructionList::new(swimlane),
             test,
             yes,
@@ -888,6 +965,26 @@ impl InstructionWhile {
             in_link_rendering,
             out_link_rendering: LinkRendering::none(),
         }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn set_backward(
+        &mut self,
+        label: Display,
+        box_style: BoxStyle,
+        incoming1: LinkRendering,
+        incoming2: LinkRendering,
+        stereotype: Option<Stereotype>,
+        swimlane: Option<Rc<Swimlane>>,
+    ) {
+        self.backward = Some(Backward {
+            label,
+            box_style,
+            stereotype,
+            incoming1,
+            incoming2,
+            swimlane,
+        });
     }
 
     pub fn set_out_display(&mut self, out: Option<Display>) {
@@ -902,12 +999,34 @@ impl InstructionWhile {
 impl Instruction for InstructionWhile {
     fn create_ftile(&self, factory: &dyn FtileFactory) -> FtileRef {
         let body = self.list.create_ftile(factory);
+        let (back1, back2, backward) = match &self.backward {
+            Some(b) => (
+                b.incoming1.display().clone(),
+                b.incoming2.display().clone(),
+                Some(factory.activity(
+                    &b.label,
+                    b.swimlane.clone(),
+                    b.box_style,
+                    &Colors::empty(),
+                    b.stereotype.clone(),
+                    None,
+                )),
+            ),
+            None => (
+                self.out_link_rendering.display().clone(),
+                Display::null(),
+                None,
+            ),
+        };
         super::ftile::while_::FtileWhile::new(
             body,
             self.test.clone(),
             super::ftile::while_::WhileLabels {
                 yes: self.yes.clone(),
                 out: self.out_display.clone(),
+                back1,
+                back2,
+                backward,
             },
             self.back_color.clone(),
             factory.skin(),

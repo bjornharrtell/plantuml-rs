@@ -1,6 +1,7 @@
 //! Commands of activity diagrams (`activitydiagram3/command`), in the order of
 //! `ActivityDiagramFactory3.initCommandsList`.
 
+use super::rainbow::LinkRendering;
 use super::rainbow::Rainbow;
 use super::stereogroup::Stereogroup;
 use super::ActivityDiagram3;
@@ -68,6 +69,65 @@ fn node_command(
             let colors = Stereogroup::build(arg).inner_colors();
             f(d, colors);
             CommandExecutionResult::ok()
+        },
+    )
+}
+
+/// The arrow around a `backward` box: its colour and label (`getBackRendering`).
+fn back_rendering(d: &ActivityDiagram3, arg: &RegexResult, key: &str) -> LinkRendering {
+    let space = d.skin().as_int("colorarrowseparationspace", 0);
+    let rainbow = match arg.get(&format!("{key}_COLOR"), 0) {
+        Some(color) => Rainbow::build(d.skin(), color, space),
+        None => Rainbow::none(),
+    };
+    let link = LinkRendering::create(rainbow);
+    match arg.get(key, 0).filter(|t| !t.is_empty()) {
+        Some(text) => link.with_display(Display::with_newlines(Some(text))),
+        None => link,
+    }
+}
+
+/// `backward :label;`: a box on the way back of a loop (`CommandBackward3`).
+fn backward() -> Cmd {
+    let arrow = |key: &'static str| {
+        IRegex::optional(IRegex::group(vec![
+            IRegex::leaf(r"\("),
+            IRegex::optional(IRegex::or(vec![
+                IRegex::leaf("->"),
+                IRegex::named(&format!("{key}_COLOR"), STYLE_COLORS_MULTIPLES),
+            ])),
+            IRegex::named(key, "(.*?)"),
+            IRegex::leaf(r"\)"),
+        ]))
+    };
+    single(
+        vec![
+            IRegex::start(),
+            arrow("INCOMING"),
+            IRegex::space_zero_or_more(),
+            IRegex::leaf("backward"),
+            IRegex::space_zero_or_more(),
+            IRegex::leaf(":"),
+            IRegex::named("LABEL", "(.*?)"),
+            IRegex::leaf(";"),
+            IRegex::space_zero_or_more(),
+            Stereogroup::optional_stereogroup(),
+            IRegex::space_zero_or_more(),
+            arrow("OUTCOMING"),
+            IRegex::space_zero_or_more(),
+            IRegex::end(),
+        ],
+        |d, arg| {
+            let stereogroup = Stereogroup::build(arg);
+            let incoming = back_rendering(d, arg, "INCOMING");
+            let outcoming = back_rendering(d, arg, "OUTCOMING");
+            d.backward(
+                Display::with_newlines(arg.get("LABEL", 0)),
+                stereogroup.box_style(),
+                incoming,
+                outcoming,
+                stereogroup.build_stereotype(),
+            )
         },
     )
 }
@@ -944,7 +1004,20 @@ pub fn commands() -> Vec<Cmd> {
 
     cmds.push(node_command("start", ActivityDiagram3::start));
     cmds.push(node_command("stop", ActivityDiagram3::stop));
-    // CommandCircleSpot3, CommandBreak
+    // CommandCircleSpot3
+    cmds.push(backward());
+    cmds.push(single(
+        vec![
+            IRegex::start(),
+            IRegex::leaf("break"),
+            IRegex::leaf(";?"),
+            IRegex::end(),
+        ],
+        |d, _| {
+            d.break_instruction();
+            CommandExecutionResult::ok()
+        },
+    ));
     cmds.push(node_command("end", ActivityDiagram3::end));
     // CommandKill3
 

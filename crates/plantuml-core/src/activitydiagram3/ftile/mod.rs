@@ -260,9 +260,11 @@ pub trait Ftile {
     }
 }
 
-/// Point where a `break` leaves a loop (`WeldingPoint`); filled in with loops.
-#[derive(Debug, Clone, PartialEq)]
-pub struct WeldingPoint;
+/// Point where a `break` leaves a loop (`WeldingPoint`): the tile of the `break`.
+#[derive(Clone)]
+pub struct WeldingPoint {
+    pub tile: Rc<dyn Ftile>,
+}
 
 /// An arrow between two tiles (`Connection`).
 pub trait Connection {

@@ -27,12 +27,13 @@ use crate::klimt::creole::display::Display;
 use crate::klimt::font::StringBounder;
 use crate::klimt::shape::TextBlock;
 use crate::skin::SkinParam;
+use crate::stereo::Stereotype;
 use crate::style::Style;
 use crate::url::Url;
 use ftile::box_style::BoxStyle;
 use instruction::{
-    InsRef, InstructionFork, InstructionGroup, InstructionIf, InstructionNode, InstructionRepeat,
-    InstructionSimple, InstructionSwitch, InstructionWhile, NodeKind,
+    InsRef, InstructionBreak, InstructionFork, InstructionGroup, InstructionIf, InstructionNode,
+    InstructionRepeat, InstructionSimple, InstructionSwitch, InstructionWhile, NodeKind,
 };
 use rainbow::{LinkRendering, Rainbow};
 use std::cell::RefCell;
@@ -153,6 +154,40 @@ impl ActivityDiagram3 {
         if kind == NodeKind::Start {
             self.reset_next_link();
         }
+    }
+
+    /// `backward :label;` in a loop (`backward`).
+    pub fn backward(
+        &mut self,
+        label: Display,
+        box_style: BoxStyle,
+        incoming1: LinkRendering,
+        incoming2: LinkRendering,
+        stereotype: Option<Stereotype>,
+    ) -> CommandExecutionResult {
+        self.manage_swimlane_strategy();
+        let current = self.current();
+        if current.borrow().as_any().is::<InstructionWhile>() {
+            let swimlane = self.swimlanes.current_swimlane();
+            let mut current = current.borrow_mut();
+            if let Some(while_) = current.as_any_mut().downcast_mut::<InstructionWhile>() {
+                while_.set_backward(label, box_style, incoming1, incoming2, stereotype, swimlane);
+                return CommandExecutionResult::ok();
+            }
+        }
+        if current.borrow().as_any().is::<InstructionRepeat>() {
+            return CommandExecutionResult::error("backward is not supported in a repeat loop yet");
+        }
+        CommandExecutionResult::error("Cannot find repeat")
+    }
+
+    /// `break`: leaves the enclosing loop (`breakInstruction`).
+    pub fn break_instruction(&mut self) {
+        self.manage_swimlane_strategy();
+        let ins =
+            InstructionBreak::new(self.swimlanes.current_swimlane(), self.next_link_renderer());
+        let ins: InsRef = Rc::new(RefCell::new(ins));
+        self.current().borrow_mut().add(ins);
     }
 
     pub fn start(&mut self, colors: crate::klimt::color::colors::Colors) {

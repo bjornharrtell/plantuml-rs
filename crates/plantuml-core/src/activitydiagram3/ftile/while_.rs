@@ -89,10 +89,15 @@ impl Diamond {
 }
 
 /// The labels of a loop: `is (yes)` under the condition and `endwhile (no)` beside it.
-#[derive(Default)]
 pub struct WhileLabels {
     pub yes: Option<Display>,
     pub out: Option<Display>,
+    /// The label of the arrow back to the condition (`incoming1`) and, with a `backward`, of the one
+    /// from the `backward` box (`incoming2`).
+    pub back1: Display,
+    pub back2: Display,
+    /// The `backward :text;` box drawn on the right of the loop.
+    pub backward: Option<FtileRef>,
 }
 
 /// A loop whose condition is tested before the body (`FtileWhile`).
@@ -102,6 +107,8 @@ pub struct FtileWhile {
     yes: Option<Rc<dyn TextBlock>>,
     out: Option<Rc<dyn TextBlock>>,
     back_label: Option<Rc<dyn TextBlock>>,
+    back2_label: Option<Rc<dyn TextBlock>>,
+    backward: Option<FtileRef>,
     skin: Rc<SkinParam>,
     in_link_rendering: LinkRendering,
     out_link_rendering: LinkRendering,
@@ -121,13 +128,16 @@ impl FtileWhile {
         let block = |d: &Option<Display>| d.as_ref().and_then(|d| arrow_text_block(&skin, d));
         let yes = block(&labels.yes);
         let out = block(&labels.out);
-        let back_label = arrow_text_block(&skin, out_link_rendering.display());
+        let back_label = arrow_text_block(&skin, &labels.back1);
+        let back2_label = arrow_text_block(&skin, &labels.back2);
         Rc::new(Self {
             body,
             diamond,
             yes,
             out,
             back_label,
+            back2_label,
+            backward: labels.backward,
             skin,
             in_link_rendering,
             out_link_rendering,
@@ -159,12 +169,24 @@ impl FtileWhile {
         let height =
             stacked.height + 4.0 * HEXAGON_HALF_SIZE + Self::label_height(&self.back_label, sb);
         FtileGeometry::with_out(
-            stacked.width + 2.0 * HEXAGON_HALF_SIZE + HEXAGON_HALF_SIZE,
+            stacked.width + 2.0 * HEXAGON_HALF_SIZE + HEXAGON_HALF_SIZE + self.backward_width(sb),
             height,
             stacked.left() + 2.0 * HEXAGON_HALF_SIZE,
             diamond.in_y,
             height,
         )
+    }
+
+    fn backward_width(&self, sb: &dyn StringBounder) -> f64 {
+        self.backward
+            .as_ref()
+            .map_or(0.0, |b| b.calculate_dimension(sb).width)
+    }
+
+    fn backward_translate(&self, backward: &FtileRef, sb: &dyn StringBounder) -> UTranslate {
+        let total = self.geometry(sb);
+        let dim = backward.calculate_dimension(sb);
+        UTranslate::new(total.width - dim.width, (total.height - dim.height) / 2.0)
     }
 
     fn body_translate(&self, sb: &dyn StringBounder) -> UTranslate {
@@ -194,6 +216,15 @@ impl Ftile for FtileWhile {
     }
 
     fn translate_for(&self, child: &dyn Ftile, sb: &dyn StringBounder) -> Option<UTranslate> {
+        if let Some(b) = &self.backward {
+            let t = self.backward_translate(b, sb);
+            if super::same_ftile(child, b.as_ref()) {
+                return Some(t);
+            }
+            if let Some(c) = b.translate_for(child, sb) {
+                return Some(c.compose(t));
+            }
+        }
         let t = self.body_translate(sb);
         if super::same_ftile(child, self.body.as_ref()) {
             return Some(t);
@@ -202,7 +233,9 @@ impl Ftile for FtileWhile {
     }
 
     fn my_children(&self) -> Vec<FtileRef> {
-        vec![self.body.clone()]
+        let mut children = vec![self.body.clone()];
+        children.extend(self.backward.clone());
+        children
     }
 
     fn swimlane_in(&self) -> Option<Rc<Swimlane>> {
@@ -214,7 +247,13 @@ impl Ftile for FtileWhile {
     }
 
     fn swimlanes(&self) -> Vec<Rc<Swimlane>> {
-        self.body.swimlanes()
+        let mut lanes = self.body.swimlanes();
+        for lane in self.backward.iter().flat_map(|b| b.swimlanes()) {
+            if !lanes.iter().any(|l| Rc::ptr_eq(l, &lane)) {
+                lanes.push(lane);
+            }
+        }
+        lanes
     }
 
     fn in_link_rendering(&self) -> LinkRendering {
@@ -253,8 +292,44 @@ impl Ftile for FtileWhile {
         down.add_point(p2.0, p2.1);
         g.draw_snake(down);
 
+        // ConnectionBackBackward1 and 2: through the `backward` box on the right
+        if let Some(backward) = &self.backward {
+            let back_geo = backward.calculate_dimension(sb);
+            let back_t = self.backward_translate(backward, sb);
+            let x2 = diamond_t.dx + diamond_geo.width;
+            let y2 = diamond_t.dy + diamond_geo.in_y + (diamond_geo.out_y - diamond_geo.in_y) / 2.0;
+            if body_geo.has_point_out() {
+                let (x1, y1) = (body_t.dx + body_geo.left(), body_t.dy + body_geo.out_y);
+                let bottom = body_t.dy + body_geo.height;
+                let y1bis = y1.max(bottom) + HEXAGON_HALF_SIZE;
+                let (bx, by) = (back_t.dx + back_geo.left(), back_t.dy + back_geo.out_y);
+                let mut up =
+                    Snake::create(&self.skin, color.clone(), Some(arrows.as_to(Direction::Up)))
+                        .with_vertical_label(self.back_label.clone(), VerticalAlignment::Bottom);
+                up.add_point(x1, y1);
+                up.add_point(x1, y1bis);
+                up.add_point(bx, y1bis);
+                up.add_point(bx, by);
+                g.draw_snake(up);
+                g.ug()
+                    .apply_translate(UTranslate::new(x1, y1bis))
+                    .draw(UShape::Empty(5.0, HEXAGON_HALF_SIZE));
+            }
+            let (ix, iy) = (back_t.dx + back_geo.left(), back_t.dy + back_geo.in_y);
+            let mut left = Snake::create(
+                &self.skin,
+                color.clone(),
+                Some(arrows.as_to(Direction::Left)),
+            )
+            .with_label(self.back2_label.clone(), self.arrow_horizontal_alignment());
+            left.add_point(ix, iy);
+            left.add_point(ix, y2);
+            left.add_point(x2, y2);
+            g.draw_snake(left);
+        }
+
         // ConnectionBackSimple: body back to the diamond
-        if body_geo.has_point_out() {
+        if self.backward.is_none() && body_geo.has_point_out() {
             let (x1, y1) = (body_t.dx + body_geo.left(), body_t.dy + body_geo.out_y);
             let x2 = diamond_t.dx + diamond_geo.width;
             let y2 = diamond_t.dy + diamond_geo.in_y + (diamond_geo.out_y - diamond_geo.in_y) / 2.0;
@@ -288,10 +363,25 @@ impl Ftile for FtileWhile {
         exit.add_point(HEXAGON_HALF_SIZE, y1);
         exit.add_point(HEXAGON_HALF_SIZE, total.height);
         g.draw_snake(exit);
-        let mut base = Snake::create(&self.skin, color, None);
+        let mut base = Snake::create(&self.skin, color.clone(), None);
         base.add_point(HEXAGON_HALF_SIZE, total.height);
         base.add_point(total.left(), total.height);
         g.draw_snake(base);
+
+        // a `break` leaves through the exit channel (`FtileFactoryDelegatorWhile`)
+        for point in self.body.welding_points() {
+            let Some(t) = self.translate_for(point.tile.as_ref(), sb) else {
+                continue;
+            };
+            let mut leave = Snake::create(
+                &self.skin,
+                color.clone(),
+                Some(arrows.as_to(Direction::Left)),
+            );
+            leave.add_point(t.dx, t.dy);
+            leave.add_point(HEXAGON_HALF_SIZE, t.dy);
+            g.draw_snake(leave);
+        }
 
         let dw = self.diamond_width(sb);
         self.diamond.draw(g, diamond_t.dx, diamond_t.dy, dw);
@@ -308,5 +398,9 @@ impl Ftile for FtileWhile {
             out.draw(&at(-d.width, -d.height + dh / 2.0));
         }
         g.apply_translate(body_t).draw_ftile(self.body.as_ref());
+        if let Some(backward) = &self.backward {
+            g.apply_translate(self.backward_translate(backward, sb))
+                .draw_ftile(backward.as_ref());
+        }
     }
 }

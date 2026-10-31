@@ -5,6 +5,12 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 ## [Unreleased]
 
+### Added
+
+- Activity `break` and, for `while` loops, `backward :text;`. Both were syntax errors. A `break` leaves the loop
+  through its exit channel; `backward` draws its box on the right with the two arrows Java draws. `backward` in
+  a `repeat` loop is reported as unsupported.
+
 ### Fixed
 
 - Activity `while (c) is (yes)` / `endwhile (no)` labels were dropped; they are now drawn at the diamond, as Java does.

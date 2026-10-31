@@ -338,3 +338,52 @@ impl Ftile for FtileEmpty {
 
     fn draw(&self, _g: &FtileGraphic) {}
 }
+
+/// Where a `break` leaves its loop: an empty tile without an exit (`FtileBreak`).
+pub struct FtileBreak {
+    skin: Rc<SkinParam>,
+    swimlane: Option<Rc<Swimlane>>,
+    me: std::rc::Weak<FtileBreak>,
+}
+
+impl FtileBreak {
+    pub fn new(skin: &Rc<SkinParam>, swimlane: Option<Rc<Swimlane>>) -> Rc<Self> {
+        Rc::new_cyclic(|me| Self {
+            skin: skin.clone(),
+            swimlane,
+            me: me.clone(),
+        })
+    }
+}
+
+impl Ftile for FtileBreak {
+    fn skin(&self) -> Rc<SkinParam> {
+        self.skin.clone()
+    }
+
+    fn swimlane_in(&self) -> Option<Rc<Swimlane>> {
+        self.swimlane.clone()
+    }
+
+    fn swimlane_out(&self) -> Option<Rc<Swimlane>> {
+        self.swimlane.clone()
+    }
+
+    fn swimlanes(&self) -> Vec<Rc<Swimlane>> {
+        swimlanes_of(&self.swimlane)
+    }
+
+    fn calculate_dimension(&self, _sb: &dyn StringBounder) -> FtileGeometry {
+        FtileGeometry::new(0.0, 0.0, 0.0, 0.0)
+    }
+
+    fn welding_points(&self) -> Vec<super::WeldingPoint> {
+        self.me
+            .upgrade()
+            .map(|tile| super::WeldingPoint { tile })
+            .into_iter()
+            .collect()
+    }
+
+    fn draw(&self, _g: &FtileGraphic) {}
+}

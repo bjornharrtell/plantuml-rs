@@ -232,6 +232,41 @@ fn while_loop_draws_its_yes_and_no_labels() {
 }
 
 #[test]
+fn while_loop_draws_its_backward_box_on_the_right() {
+    let out = svg("while (more?)\n:step;\nbackward :undo;\nendwhile");
+    let x = |t: &str| {
+        let i = out
+            .find(&format!(">{t}</text>"))
+            .unwrap_or_else(|| panic!("{t}: {out}"));
+        number(&out[out[..i].rfind("<text").unwrap()..i], "x").unwrap()
+    };
+    assert!(x("undo") > x("step"), "{out}");
+    assert!(render("@startuml\nrepeat\n:a;\nbackward :b;\nrepeat while (c?)\n@enduml").is_err());
+    assert!(render("@startuml\n:a;\nbackward :b;\n@enduml").is_err());
+}
+
+#[test]
+fn break_leaves_the_loop_through_the_exit_channel() {
+    let out = svg("while (more?)\nif (bad?) then (yes)\nbreak\nendif\n:work;\nendwhile\n:done;");
+    for text in ["more?", "bad?", "work", "done"] {
+        assert!(out.contains(&format!(">{text}</text>")), "{text}: {out}");
+    }
+    // the exit channel is the leftmost vertical line; the break joins it with a horizontal one
+    let xs: Vec<f64> = out
+        .match_indices("<line")
+        .map(|(i, _)| &out[i..out[i..].find('>').unwrap() + i])
+        .filter(|l| (number(l, "y1").unwrap() - number(l, "y2").unwrap()).abs() < 1e-9)
+        .map(|l| number(l, "x2").unwrap())
+        .collect();
+    let channel = xs.iter().cloned().fold(f64::MAX, f64::min);
+    assert!(
+        xs.iter().filter(|x| (**x - channel).abs() < 0.01).count() >= 2,
+        "{xs:?}"
+    );
+    assert!(render("@startuml\nbreak\n@enduml").is_ok());
+}
+
+#[test]
 fn endwhile_outside_loop_is_an_error() {
     assert!(render("@startuml\nendwhile\n@enduml").is_err());
 }

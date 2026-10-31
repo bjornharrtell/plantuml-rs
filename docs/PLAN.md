@@ -364,10 +364,12 @@ reports them as `accepted` instead of counting them as failures.
 `FtileWhile` follows `activitydiagram3/ftile/vcompact/FtileWhile.java`: the diamond over the body, an exit channel
 on the left (x = 12) and the loop-back on the right, with `ConnectionIn`, `ConnectionBackSimple` (with the
 `UEmpty(5, 12)` that keeps the vertical compression from squeezing the loop-back) and `ConnectionOut`. Against a live
-Java render the loop-back, exit and next tile sit at the same offsets (+10, +22, +20 below the body). Not ported yet:
-`backward` and the `break`/special-out connections. The `is (yes)` / `endwhile (no)` labels and the arrow label above the loop-back are drawn. `elseif` is ported
-(`FtileIfLongHorizontal`: conditions side by side, no merge diamond); the plain two-way `if` and `switch` still use one
-generalised tile instead of Java's `ConditionalBuilder` family, and branch colours on the arrows are not carried. The remaining accepted activity fixtures depend on those and stay in the
+Java render the loop-back, exit and next tile sit at the same offsets (+10, +22, +20 below the body). Ported with it: `break` (an empty tile without exit; the loop draws its arrow to the exit channel) and `backward`
+for `while`. Not ported yet: `backward` in `repeat` (an error with a clear message today), the `if` and `switch` tiles of
+Java's `ConditionalBuilder` family (`FtileIfDown`, `FtileIfWithLinks`: an `if` without `else`, or with a `break`,
+still draws a merge diamond Java omits), and colours on branch arrows. `elseif` is ported (`FtileIfLongHorizontal`:
+conditions side by side, no merge diamond). The `is (yes)` / `endwhile (no)` labels and the arrow label above the
+loop-back are drawn. The remaining accepted activity fixtures depend on those and stay in the
 accepted set.
 
 ### Measured beyond the Vega corpus
