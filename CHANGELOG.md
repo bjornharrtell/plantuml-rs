@@ -7,6 +7,9 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 ### Added
 
+- Playground: an opt-in "all fixtures" checkbox opens a browser over every repository fixture and every file of the
+  PlantUML test corpus (filter box, previous/next). The default view stays one example per diagram type.
+  `scripts/build-examples.py` writes `site/examples.json`; the Pages workflow fetches the pinned corpus for it.
 - Activity notes: `note left|right: text`, multi-line `note ... end note` and `floating note`. They were syntax
   errors. A note belongs to the latest activity (inside a branch, to the activity before it), a note after an
   `if` sits beside its condition, as in Java.

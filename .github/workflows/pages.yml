@@ -25,6 +25,11 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: wasm-bindgen-cli@0.2.129
+      # the playground can browse the PlantUML test corpus the fidelity numbers come from
+      - run: |
+          git clone --quiet --filter=blob:none --sparse https://github.com/plantuml/plantuml ../plantuml
+          git -C ../plantuml sparse-checkout set src/test/resources/vega
+          git -C ../plantuml checkout --quiet e6c3adc2be7a50daa5f04b2b0f9d24928aa08efa
       - run: ./scripts/build-site.sh
       - uses: actions/upload-pages-artifact@v3
         with:

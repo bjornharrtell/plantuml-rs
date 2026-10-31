@@ -15,6 +15,11 @@
   header { display: flex; gap: 12px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
   header h1 { font-size: 15px; margin: 0; font-weight: 600; }
   header .grow { flex: 1; }
+  input[type=search] { font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+  #browser { display: inline-flex; gap: 6px; align-items: center; }
+  #browser[hidden] { display: none; }
+  #all-examples { max-width: 26em; }
+  #count { color: var(--muted); font-size: 12px; white-space: nowrap; }
   select, button { font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
   a { color: var(--accent); }
   main { flex: 1; display: grid; grid-template-columns: minmax(280px, 40%) 1fr; min-height: 0; }
@@ -31,6 +36,14 @@
 <header>
   <h1>plantuml-rs</h1>
   <label>Example <select id="samples"></select></label>
+  <label title="Browse and render every fixture and test-corpus example"><input type="checkbox" id="browse-all"> all fixtures</label>
+  <span id="browser" hidden>
+    <button id="prev" title="Previous example" aria-label="Previous example">&larr;</button>
+    <select id="all-examples" aria-label="Fixture"></select>
+    <button id="next" title="Next example" aria-label="Next example">&rarr;</button>
+    <input id="filter" type="search" placeholder="filter" size="14" aria-label="Filter fixtures">
+    <span id="count"></span>
+  </span>
   <button id="download">Download SVG</button>
   <span class="grow"></span>
   <span class="grow"></span>
@@ -357,6 +370,71 @@ document.getElementById('download').addEventListener('click', () => {
   a.click();
   URL.revokeObjectURL(url);
 });
+
+// Browsing every fixture is opt-in so the default view stays one example per diagram type.
+const browseAll = document.getElementById('browse-all');
+const browser = document.getElementById('browser');
+const allExamples = document.getElementById('all-examples');
+const filterBox = document.getElementById('filter');
+const count = document.getElementById('count');
+let examples = null;
+let shown = [];
+
+function fillList(keepEditor = false) {
+  const q = filterBox.value.trim().toLowerCase();
+  shown = examples.map((e, i) => ({ e, i })).filter(({ e }) => !q || `${e.g}/${e.n}`.toLowerCase().includes(q));
+  allExamples.textContent = '';
+  let group = null;
+  let optgroup = null;
+  for (const { e, i } of shown) {
+    if (e.g !== group) {
+      group = e.g;
+      optgroup = document.createElement('optgroup');
+      optgroup.label = group;
+      allExamples.append(optgroup);
+    }
+    optgroup.append(new Option(e.n, String(i)));
+  }
+  count.textContent = `${shown.length} of ${examples.length}`;
+  if (shown.length && !keepEditor) pick(shown[0].i);
+}
+
+function pick(index) {
+  allExamples.value = String(index);
+  editor.value = examples[index].s;
+  samples.value = '';
+  schedule();
+}
+
+function step(delta) {
+  const at = shown.findIndex(({ i }) => String(i) === allExamples.value);
+  const next = shown[at + delta];
+  if (next) pick(next.i);
+}
+
+async function setBrowsing(on) {
+  browser.hidden = !on;
+  try { localStorage.setItem('browse-all', on ? '1' : ''); } catch {}
+  if (!on || examples) return;
+  try {
+    const response = await fetch('./examples.json');
+    if (!response.ok) throw new Error(String(response.status));
+    examples = await response.json();
+    // a shared #link keeps its diagram instead of jumping to the first fixture
+    fillList(location.hash.length > 1);
+  } catch (e) {
+    count.textContent = 'examples.json missing (run scripts/build-site.sh)';
+  }
+}
+
+browseAll.addEventListener('change', () => setBrowsing(browseAll.checked));
+allExamples.addEventListener('change', () => pick(Number(allExamples.value)));
+filterBox.addEventListener('input', () => examples && fillList());
+document.getElementById('prev').addEventListener('click', () => step(-1));
+document.getElementById('next').addEventListener('click', () => step(1));
+try {
+  if (localStorage.getItem('browse-all')) { browseAll.checked = true; setBrowsing(true); }
+} catch {}
 
 const first = Object.keys(SAMPLES)[0];
 try {

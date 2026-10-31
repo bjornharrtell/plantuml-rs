@@ -1,6 +1,7 @@
 fidelity.json
 target/
 site/pkg/
+site/examples.json
 .claude/
 __pycache__/
 *.pyc
