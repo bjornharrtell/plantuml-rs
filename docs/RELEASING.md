@@ -57,14 +57,7 @@ personal token. The skip-if-already-published check in the workflow makes it saf
 
 ## Notes
 
-- `0.1.0` of `plantuml-core` and `plantuml-cli` was published by hand before this workflow existed, and
-  crates.io never reuses a version: bump the version first, then tag. The first automated release will
-  therefore be the next version, and the `v0.1.0` tag (if pushed) only records history and publishes
-  nothing, because both crates are skipped as already published.
-
-- crates.io does not allow deleting a published version, only yanking. Check the public API surface
-  (everything in the `abel`, `klimt`, `svek`, … modules is public) before the first tag.
-- `cargo publish --dry-run -p plantuml-core` reproduces the packaging step locally; the CLI cannot be
-dry-run before core is published.
-- The workflow does not create a GitHub release. If that is wanted, add a step using
-  `gh release create "$GITHUB_REF_NAME" --notes-file CHANGELOG.md` with `contents: write`.
+- crates.io does not allow deleting a published version, only yanking, and never reuses a version: bump first, then
+  tag. Everything in the `abel`, `klimt`, `svek`, ... modules is public API.
+- `cargo publish --dry-run -p plantuml-core` reproduces the packaging step locally; the CLI cannot be dry-run before
+  core is published.
