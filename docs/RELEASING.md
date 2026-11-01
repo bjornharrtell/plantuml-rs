@@ -32,9 +32,12 @@ release with those archives, a `SHA256SUMS` file and the changelog section for t
 
 ## npm package
 
-`scripts/build-npm.sh -p` builds both wasm targets into `npm/dist` (Node/CommonJS and browser/ESM) and
-packs the tarball. Publishing is manual: `npm login`, then `npm publish npm/plantuml-rs-<version>.tgz`.
-The package version follows the workspace version.
+The `npm` job of the release workflow builds both wasm targets with `scripts/build-npm.sh` and runs `npm publish`,
+after the crates are published. It uses npm **trusted publishing**: the job carries `id-token: write` and no
+`NPM_TOKEN` secret exists. A version that is already on npm is skipped, so re-running a tag is safe. The package
+version follows the workspace version; the job checks that the tag equals `npm/package.json`.
+
+`scripts/build-npm.sh -p` builds and packs the tarball locally, to inspect or smoke-test it.
 
 ## One-time setup
 
@@ -54,6 +57,10 @@ only be configured for a crate that already exists, which is why `0.1.0` was pub
 
 Trusted publishing covers CI only: publishing from a workstation still needs `cargo login` with a
 personal token. The skip-if-already-published check in the workflow makes it safe to re-run a tag.
+
+npm needs the same once, on npmjs.com: package `plantuml-rs` → Settings → Trusted Publisher → GitHub Actions, with
+user `bjornharrtell`, repository `plantuml-rs`, workflow `release.yml` and no environment. The package has to exist
+first (it does); until the trusted publisher is set up, the `npm` job fails and the rest of the release is unaffected.
 
 ## Notes
 

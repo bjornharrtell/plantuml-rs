@@ -91,6 +91,46 @@ jobs:
           done
           cargo publish -p "$crate"
 
+  # npm trusted publishing: the workflow's OIDC identity is the credential, so no NPM_TOKEN secret exists. The
+  # package settings on npmjs.com must list this repository and `release.yml` as the trusted publisher.
+  npm:
+    needs: [crates]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen-cli@0.2.129
+      # trusted publishing needs npm >= 11.5.1, which ships with Node 24
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: Tag matches the npm package version
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./npm/package.json').version")
+          test "${GITHUB_REF_NAME}" = "v${version}" \
+            || { echo "::error::tag ${GITHUB_REF_NAME} does not match npm/package.json ${version}"; exit 1; }
+
+      - name: Build the package
+        run: scripts/build-npm.sh
+
+      - name: Publish plantuml-rs
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./npm/package.json').version")
+          if npm view "plantuml-rs@${version}" version >/dev/null 2>&1; then
+            echo "plantuml-rs ${version} is already published, skipping"
+            exit 0
+          fi
+          npm publish ./npm --access public --provenance
+
   binaries:
     runs-on: ${{ matrix.os }}
     strategy:
