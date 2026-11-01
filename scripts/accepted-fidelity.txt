@@ -1,10 +1,18 @@
 # Fixtures whose differences are accepted by the fidelity target (docs/PLAN.md).
 # One glob per line, relative to VEGA_DIR; text after '#' is the reason.
-nonreg/activity-deprecated-color/*  # activity control-block colour/stereotype prefix: the ftile layer is an approximation
-nonreg/activity-color-prefix/*     # same, with the colour written before the keyword
+# Deprecated colour syntax: the diagram starts with a warning box that the reference laid out with
+# the point-size line and zero-width spaces (docs/PLAN.md, "Space advance"), so everything below it drifts.
+nonreg/activity-deprecated-color/elseif_color.puml      # warning box metrics
+nonreg/activity-deprecated-color/elseif_is_color.puml   # warning box metrics
+nonreg/activity-deprecated-color/if_color.puml          # warning box metrics
+nonreg/activity-deprecated-color/if_is_color.puml       # warning box metrics
+nonreg/activity-deprecated-color/switch_color.puml      # warning box metrics
+nonreg/activity-deprecated-color/while_color.puml       # warning box metrics
+nonreg/activity-color-prefix/color_multiline_activity.puml   # warning box metrics
+nonreg/activity-color-prefix/deprecated_color_ignored.puml   # warning box metrics
 nonreg/simple/A0004.puml           # legacy (pre-beta) activity syntax, out of scope
 tikz/*                              # embedded {{ ... }} diagrams with scale: not rendered, out of scope
-nonreg/warnings/partition_no_bracket.puml         # activity tile geometry: same ftile approximation
+nonreg/warnings/partition_no_bracket.puml         # warning box metrics (three warnings)
 nonreg/warnings/skinparam_handwritten.puml        # handwritten mode needs a handwritten font, which is not embedded
 # Residual layout deltas: element placement differs by a few percent of the canvas where Java
 # derives the numbers from a mix of AWT text metrics and its own internal iteration order. The

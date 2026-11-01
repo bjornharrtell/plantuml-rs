@@ -25,15 +25,15 @@ are cut (publishing to crates.io runs on pushed tags).
 ## Status
 
 382 of 386 scored fixtures meet the fidelity target (text overlap >= 0.95, relative element
-placement >= 0.90), and every one of the 442 scored fixtures renders. 56 fixtures are documented
-accepted differences (activity tile geometry, embedded diagrams, handwritten mode, residual layout
-deltas, the 24 fixtures whose reference was rendered with zero-width spaces and the 5 laid out with
-the shorter line box); none of them is a missing feature or a crash. Against a live Java render the
-port scores text 0.91 and layout 0.71 over the 391 fixtures Java can render. Supported today:
-sequence, class (with object and description diagrams), state, activity, packet, chart, gantt, timing,
-mindmap, WBS, salt, JSON/YAML/HCL, Chen EER, EBNF and the crash diagram. C4-PlantUML renders
-through the bundled stdlib. Four C4/EBNF fixtures still miss the layout target; accepted
-differences and open items are listed in the plan.
+placement >= 0.90), and every one of the 442 fixtures renders. 56 fixtures are documented accepted
+differences (mostly text-metric differences of the stored references: zero-width spaces, the shorter
+line box, warning boxes; plus embedded diagrams, handwritten mode and residual layout deltas); none of
+them is a missing feature or a crash. Against a live Java render the port scores layout 0.81 and
+298 of 375 in-scope fixtures. Supported today: sequence, class (with object and description
+diagrams), state, activity (with swimlanes, notes, loops and `break`), packet, chart, gantt, timing,
+mindmap, WBS, salt, JSON/YAML/HCL, Chen EER, EBNF and the crash diagram. C4-PlantUML renders through
+the bundled stdlib. Four C4/EBNF fixtures still miss the layout target; accepted differences and open
+items are listed in the plan.
 
 ## JavaScript
 
@@ -56,9 +56,9 @@ The VS Code extension [PlantUML (plantuml-rs)](https://marketplace.visualstudio.
 
 ## Performance
 
-On the 472-file Vega corpus the library renders 1.8 ms per diagram against 2.5 ms for Java PlantUML in
-one JVM — about 27% ahead — with roughly 76 ms of one-time initialization per process. Method,
-caveats and the profile behind those numbers are in
+On the 472-file Vega corpus the library renders 1.7 ms per diagram against 2.6 ms for Java PlantUML in
+one JVM — about 34% ahead — with roughly 31 ms of one-time initialization per process. Method,
+caveats and what is left are in
 [docs/PERFORMANCE.md](https://github.com/bjornharrtell/plantuml-rs/blob/main/docs/PERFORMANCE.md).
 
 ## License

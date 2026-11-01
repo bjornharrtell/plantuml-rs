@@ -7,47 +7,37 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 ### Added
 
-- Activity swimlanes: `|lane|`, `|#color|lane|label|` and `swimlane name as label`, which were syntax errors.
-  Each lane is measured and drawn in its own pass, with its title, background colour and dividers; the arrows that
-  leave a lane are redrawn between the lanes, for `if`, `elseif`, `switch`, `while`, `repeat` (with `backward` and
-  `break`) and `fork`, as Java does. `swimlaneWidth`, `swimlaneWrapTitleWidth` and the `swimlane` style apply.
+- Activity swimlanes: `|lane|`, `|#color|lane|label|` and `swimlane name as label`, which were syntax errors. Each lane
+  is drawn in its own pass with its title, background colour and dividers, and the arrows that leave a lane are
+  redrawn between the lanes for `if`, `elseif`, `switch`, `while`, `repeat` and `fork`, as Java does.
+  `swimlaneWidth`, `swimlaneWrapTitleWidth` and the `swimlane` style apply.
+- Activity notes: `note left|right: text`, multi-line `note ... end note` and `floating note`, which were syntax
+  errors. A note belongs to the latest activity (inside a branch, to the activity before it); a note after an `if`
+  sits beside its condition.
+- Activity `break`, and `backward :text;` in `while` and `repeat` loops; all were syntax errors.
 - Playground: an opt-in "all fixtures" checkbox opens a browser over every repository fixture and every file of the
-  PlantUML test corpus (filter box, previous/next). The default view stays one example per diagram type.
+  PlantUML test corpus, with a filter and previous/next buttons. The default view stays one example per diagram type.
   `scripts/build-examples.py` writes `site/examples.json`; the Pages workflow fetches the pinned corpus for it.
-- Activity notes: `note left|right: text`, multi-line `note ... end note` and `floating note`. They were syntax
-  errors. A note belongs to the latest activity (inside a branch, to the activity before it), a note after an
-  `if` sits beside its condition, as in Java.
-- Activity `break` and, for `while` loops, `backward :text;`. Both were syntax errors. A `break` leaves the loop
-  through its exit channel; `backward` draws its box on the right with the two arrows Java draws. `backward` in
-  a `repeat` loop works too.
 
 ### Fixed
 
-- Activity `repeat` with a `break`: the diamond the breaks lead to is joined to the loop with the 35 px arrow
-  `assembly` draws, as in Java (it sat 20 px too high). The condition diamonds close their outline like Java's, and
-  `switch` ends in the empty hexagon Java draws.
-- Activity `repeat`: laid out with Java's `FtileRepeat` (start diamond or `repeat :label;` box, condition below with
-  its `is (yes) not (no)` labels, loop-back on the right, `backward` box, and a diamond for `break`). The repeat
-  fixtures reach layout 1.0 (`repeat_stereo` was 0.0).
-- Activity `switch`: laid out with Java's tiles (cases in a row, labels on the arrows, merge diamond, a single
-  straight arrow for one case). The three-case fixture goes from layout 0.22 to 1.0.
-- Activity `if`: laid out with Java's tiles instead of one generalised tile. Two real branches keep the merge
-  diamond; an `if` without `else`, or with a `break` or `stop`, goes straight down with the other path routed around
-  the branch and no merge diamond for a branch that never leaves.
-- Activity `while (c) is (yes)` / `endwhile (no)` labels were dropped; they are now drawn at the diamond, as Java does.
-- Activity `elseif`: the condition text is no longer dropped, and the branches are laid out as Java does, with the
-  conditions side by side and no merge diamond (`FtileIfLongHorizontal`). `else` after `elseif` is an error.
-- Activity `while` loops: the loop-back and exit arrows no longer overlap below the body, and carry their direction
-  arrows. The tile now has Java's geometry (exit channel on the left, loop-back on the right).
+- Activity tiles follow Java's: `if` (two real branches keep the merge diamond; an `if` without `else`, or with a
+  `break` or `stop`, goes straight down with the other path routed around the branch), `elseif` (conditions side by
+  side, no merge diamond; its condition text was dropped), `switch` (cases in a row with labels on the arrows),
+  `while` (loop-back and exit arrows no longer overlap; `is (yes)` / `endwhile (no)` labels were dropped) and
+  `repeat` (condition below, `is (yes) not (no)` labels, loop-back on the right). The repeat and switch fixtures
+  reach layout 1.0 (`repeat_stereo` was 0.0, a three-case `switch` 0.22).
+- The arrow leaving a branch takes the colour set after its last activity, not the colour of the arrow into it.
 
 ### Changed
 
-- Regex compilation skips case folding for `\w`/`\p{..}` classes: the first render takes 31 ms (was 38).
-- Native release builds use `opt-level = 3`, about 30% faster rendering (corpus 1.22 s to 0.85 s). The wasm
-  build moves to a `wasm` profile (`cargo build --profile wasm`) that keeps `opt-level = "z"`; its output is unchanged.
-- `graphviz-pure` 1.0.0 (was 0.2.2). Its calls return the output with Graphviz diagnostics, which are now
-  logged with `log::warn!` instead of reaching stderr. The 0.2.3 fixes (`sfdp` positioning, compound edge
-  clipping, #490) are not exercised here; the rendered corpus is unchanged.
+- Native release builds use `opt-level = 3`, about 30% faster rendering (corpus 1.22 s to 0.8 s). The wasm build
+  moves to a `wasm` profile (`cargo build --profile wasm`) that keeps `opt-level = "z"`; its output is unchanged.
+- Regex compilation skips case folding for `\w` and `\p{..}` classes: the first render takes 31 ms (was 38).
+- `graphviz-pure` 1.0.0 (was 0.2.2). Its calls return the output with Graphviz diagnostics, which are now logged with
+  `log::warn!` instead of reaching stderr. The rendered corpus is unchanged.
+- The EBNF and C4 fixture references are re-rendered with Liberation Sans, the face the port measures (they came from a
+  machine whose `sans-serif` was the wider DejaVu Sans).
 
 ## [0.4.0] - 2026-10-28
 
