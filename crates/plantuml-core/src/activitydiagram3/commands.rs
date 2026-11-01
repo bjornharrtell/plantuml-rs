@@ -964,8 +964,7 @@ fn lane_colors(arg: &RegexResult) -> Option<crate::klimt::color::colors::Colors>
 }
 
 fn lane_label(arg: &RegexResult) -> Option<Display> {
-    arg.get("LABEL", 0)
-        .map(|l| Display::with_newlines(Some(l)))
+    arg.get("LABEL", 0).map(|l| Display::with_newlines(Some(l)))
 }
 
 /// `|name|label|` (`CommandSwimlane`).

@@ -85,7 +85,14 @@ impl FtileRepeat {
         let block = |d: &Option<Display>| d.as_ref().and_then(|d| arrow_text_block(&skin, d));
         let diamond1: FtileRef = match entry {
             Some(tile) => tile,
-            None => Rc::new(Merge::new(None, None, None, color1, skin.clone(), swimlane.clone())),
+            None => Rc::new(Merge::new(
+                None,
+                None,
+                None,
+                color1,
+                skin.clone(),
+                swimlane.clone(),
+            )),
         };
         let no_out = !body.calculate_dimension(sb).has_point_out();
         let diamond2: FtileRef = if no_out && test.is_null() {
@@ -276,7 +283,7 @@ impl Ftile for FtileRepeat {
         let align = self.arrow_horizontal_alignment();
         let skin = self.skin.clone();
         let new_snake = {
-            let (skin, color, arrows) = (skin.clone(), color.clone(), arrows.clone());
+            let (skin, color, arrows) = (skin.clone(), color.clone(), arrows);
             move |dir: Direction| Snake::create(&skin, color.clone(), Some(arrows.as_to(dir)))
         };
         let diamond1: Option<FtileRef> = Some(self.diamond1.clone());
@@ -304,46 +311,9 @@ impl Ftile for FtileRepeat {
             move |g| draw_in(g, (p1x, p1y), (p2x, p2y))
         })
         .translatable(move |g, t1, t2| {
-            draw_in(
-                g,
-                (p1x + t1.dx, p1y + t1.dy),
-                (p2x + t2.dx, p2y + t2.dy),
-            )
+            draw_in(g, (p1x + t1.dx, p1y + t1.dy), (p2x + t2.dx, p2y + t2.dy))
         });
         g.draw_connection(&conn);
-
-        // ConnectionOut
-        if rg.has_point_out() {
-            let (o1x, o1y) = (rx + rg.left(), ry + rg.out_y);
-            let (o2x, o2y) = (d2x + d2.left(), d2y + d2.in_y);
-            let tbout = self.tbout.clone();
-            let ns = new_snake.clone();
-            let (skin, color) = (skin.clone(), color.clone());
-            let conn = FnConnection::new(Some(self.repeat.clone()), diamond2.clone(), move |g| {
-                let mut out = ns(Direction::Down).with_label(tbout.clone(), align);
-                out.add_point(o1x, o1y);
-                out.add_point(o2x, o2y);
-                g.draw_snake(out);
-            })
-            .translatable({
-                let (ns, tbout) = (new_snake.clone(), self.tbout.clone());
-                move |g, t1, t2| {
-                    let mp1 = (o1x + t1.dx, o1y + t1.dy);
-                    let mp2 = (o2x + t2.dx, o2y + t2.dy);
-                    let middle = (mp1.1 + mp2.1) / 2.0;
-                    let mut s = Snake::create(&skin, color.clone(), None);
-                    s.add_point(mp1.0, mp1.1);
-                    s.add_point(mp1.0, middle);
-                    s.add_point(mp2.0, middle);
-                    g.draw_snake(s);
-                    let mut small = ns(Direction::Down).with_label(tbout.clone(), align);
-                    small.add_point(mp2.0, middle);
-                    small.add_point(mp2.0, mp2.1);
-                    g.draw_snake(small);
-                }
-            });
-            g.draw_connection(&conn);
-        }
 
         match &self.backward {
             None => {
@@ -459,7 +429,11 @@ impl Ftile for FtileRepeat {
                         let on_a = x1 < (x2a + x2b) / 2.0;
                         let x2 = if on_a { x2a } else { x2b };
                         let y2 = p2.1 + d1.height / 2.0;
-                        let dir = if on_a { Direction::Right } else { Direction::Left };
+                        let dir = if on_a {
+                            Direction::Right
+                        } else {
+                            Direction::Left
+                        };
                         let mut snake = ns2(dir)
                             .emphasize_direction(Direction::Up)
                             .with_label(label2.clone(), align);
@@ -517,7 +491,11 @@ impl Ftile for FtileRepeat {
                     if x2 < x1 {
                         x2 += d1.width;
                     }
-                    let dir = if x2 < x1 { Direction::Left } else { Direction::Right };
+                    let dir = if x2 < x1 {
+                        Direction::Left
+                    } else {
+                        Direction::Right
+                    };
                     let mut snake = ns3(dir).with_label(label3.clone(), align);
                     snake.add_point(x1, y1);
                     snake.add_point(x1, y2);
@@ -526,6 +504,39 @@ impl Ftile for FtileRepeat {
                 });
                 g.draw_connection(&conn);
             }
+        }
+
+        // ConnectionOut
+        if rg.has_point_out() {
+            let (o1x, o1y) = (rx + rg.left(), ry + rg.out_y);
+            let (o2x, o2y) = (d2x + d2.left(), d2y + d2.in_y);
+            let tbout = self.tbout.clone();
+            let ns = new_snake.clone();
+            let (skin, color) = (skin.clone(), color.clone());
+            let conn = FnConnection::new(Some(self.repeat.clone()), diamond2.clone(), move |g| {
+                let mut out = ns(Direction::Down).with_label(tbout.clone(), align);
+                out.add_point(o1x, o1y);
+                out.add_point(o2x, o2y);
+                g.draw_snake(out);
+            })
+            .translatable({
+                let (ns, tbout) = (new_snake.clone(), self.tbout.clone());
+                move |g, t1, t2| {
+                    let mp1 = (o1x + t1.dx, o1y + t1.dy);
+                    let mp2 = (o2x + t2.dx, o2y + t2.dy);
+                    let middle = (mp1.1 + mp2.1) / 2.0;
+                    let mut s = Snake::create(&skin, color.clone(), None);
+                    s.add_point(mp1.0, mp1.1);
+                    s.add_point(mp1.0, middle);
+                    s.add_point(mp2.0, middle);
+                    g.draw_snake(s);
+                    let mut small = ns(Direction::Down).with_label(tbout.clone(), align);
+                    small.add_point(mp2.0, middle);
+                    small.add_point(mp2.0, mp2.1);
+                    g.draw_snake(small);
+                }
+            });
+            g.draw_connection(&conn);
         }
     }
 }
@@ -551,14 +562,8 @@ impl RepeatBreaks {
             return repeat;
         }
         let back = color.unwrap_or_else(|| Diamond::new(Display::null(), &skin, None).back());
-        let diamond_break: FtileRef = Rc::new(Merge::new(
-            None,
-            None,
-            None,
-            back,
-            skin.clone(),
-            swimlane,
-        ));
+        let diamond_break: FtileRef =
+            Rc::new(Merge::new(None, None, None, back, skin.clone(), swimlane));
         let assembly =
             FtileAssemblySimple::new(Marged::horizontal(repeat, 10.0, 0.0), diamond_break.clone());
         Rc::new(Self {

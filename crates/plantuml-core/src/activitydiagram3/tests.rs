@@ -608,3 +608,117 @@ fn merge_diamond_meets_the_return_arrows() {
         "return arrows do not reach the diamond ({min_x}..{max_x} at y={middle_y}): {horizontal:?}"
     );
 }
+
+fn tag_after(svg: &str, start: usize) -> &str {
+    let tag = &svg[start..];
+    &tag[..tag.find('>').unwrap_or(tag.len())]
+}
+
+/// Every `<line>` as `(x1, y1, x2, y2)`.
+fn lines(svg: &str) -> Vec<(f64, f64, f64, f64)> {
+    svg.match_indices("<line")
+        .filter_map(|(i, _)| {
+            let tag = tag_after(svg, i);
+            Some((
+                number(tag, "x1")?,
+                number(tag, "y1")?,
+                number(tag, "x2")?,
+                number(tag, "y2")?,
+            ))
+        })
+        .collect()
+}
+
+#[test]
+fn swimlane_commands_create_lanes_with_titles_and_dividers() {
+    let out = svg("|A|\nstart\n:one;\n|#pink|B|\n:two;\nswimlane C as Third\n:three;\nstop");
+    for title in ["A", "B", "Third"] {
+        assert!(out.contains(&format!(">{title}</text>")), "{title}: {out}");
+    }
+    // one divider per lane border: 3 lanes, 4 borders
+    let tall = |l: &&(f64, f64, f64, f64)| (l.0 - l.2).abs() < 0.001 && l.3 - l.1 > 100.0;
+    assert_eq!(lines(&out).iter().filter(tall).count(), 4, "{out}");
+    // the background of the second lane
+    assert!(out.contains("fill=\"#FFC0CB\""), "{out}");
+    let (xa, _) = text_x(&out, "one").expect("one");
+    let (xb, _) = text_x(&out, "two").expect("two");
+    let (xc, _) = text_x(&out, "three").expect("three");
+    assert!(xa < xb && xb < xc, "{xa} {xb} {xc}");
+}
+
+#[test]
+fn single_swimlane_is_drawn_like_a_plain_flow() {
+    let with_lane = svg("|A|\nstart\n:one;\nstop");
+    assert!(!with_lane.contains(">A</text>"), "{with_lane}");
+    assert_eq!(with_lane.matches("<rect").count(), 1, "{with_lane}");
+}
+
+#[test]
+fn arrow_between_lanes_goes_through_the_middle() {
+    let out = svg("|A|\nstart\n:one;\n|B|\n:two;\nstop");
+    let (xa, wa) = text_x(&out, "one").expect("one");
+    let (xb, wb) = text_x(&out, "two").expect("two");
+    let (ca, cb) = (xa + wa / 2.0, xb + wb / 2.0);
+    // down from `one`, across, down into `two`
+    let all = lines(&out);
+    assert!(
+        all.iter().any(|l| (l.1 - l.3).abs() < 0.001
+            && l.0.min(l.2) <= ca + 1.0
+            && l.0.max(l.2) >= cb - 1.0),
+        "{all:?}"
+    );
+}
+
+#[test]
+fn if_branches_in_other_lanes_get_their_arrows_redrawn() {
+    let out = svg(
+        "|A|\nstart\nif (ok?) then (yes)\n|B|\n:two;\nelse (no)\n:three;\nendif\n|C|\n:four;\nstop",
+    );
+    for text in ["ok?", "two", "three", "four"] {
+        assert!(out.contains(&format!(">{text}</text>")), "{text}: {out}");
+    }
+    // the condition sits in the first lane, `four` in the last
+    let (xc, _) = text_x(&out, "ok?").expect("condition");
+    let (x4, _) = text_x(&out, "four").expect("four");
+    assert!(xc < x4, "{out}");
+}
+
+#[test]
+fn loops_cross_lanes() {
+    let out = svg(
+        "|Alpha|\nstart\nrepeat\n:a;\n|Beta|\n:b;\nrepeat while (more?) is (yes) not (no)\nwhile (go?)\n|Alpha|\n:c;\nendwhile\n|Beta|\n:d;\nstop",
+    );
+    for text in ["a", "b", "c", "d", "more?", "go?", "Alpha", "Beta"] {
+        assert!(out.contains(&format!(">{text}</text>")), "{text}: {out}");
+    }
+}
+
+#[test]
+fn elseif_and_switch_cross_lanes() {
+    let out = svg(
+        "|A|\nstart\nif (a?) then (1)\n:x;\nelseif (b?) then (2)\n|B|\n:y;\nelse (3)\n|C|\n:z;\nendif\n|A|\nstop",
+    );
+    for text in ["x", "y", "z", "a?", "b?"] {
+        assert!(out.contains(&format!(">{text}</text>")), "{text}: {out}");
+    }
+    let out = svg(
+        "|A|\nstart\nswitch (v?)\ncase (1)\n:x;\ncase (2)\n|B|\n:y;\ncase (3)\n|C|\n:z;\nendswitch\n|A|\nstop",
+    );
+    for text in ["x", "y", "z", "v?"] {
+        assert!(out.contains(&format!(">{text}</text>")), "{text}: {out}");
+    }
+}
+
+#[test]
+fn if_without_else_leaves_through_the_other_lane_arrows() {
+    let out = svg("|A|\nstart\nif (ok?) then (yes)\n|B|\n:two;\nstop\nendif\n|A|\n:after;\nstop");
+    for text in ["ok?", "two", "after", "yes"] {
+        assert!(out.contains(&format!(">{text}</text>")), "{text}: {out}");
+    }
+}
+
+#[test]
+fn swimlane_after_an_instruction_is_refused() {
+    let err = render("@startuml\n:a;\n|A|\n:b;\n@enduml");
+    assert!(err.is_err());
+}

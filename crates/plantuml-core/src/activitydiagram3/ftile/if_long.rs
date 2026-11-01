@@ -212,6 +212,7 @@ pub struct FtileIfLongHorizontal {
 }
 
 impl FtileIfLongHorizontal {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         thens: Vec<LongBranch>,
         else_branch: LongBranch,
@@ -453,7 +454,7 @@ impl Ftile for FtileIfLongHorizontal {
         let color = in_link_rendering_color(&self.skin, self.couples[0].tile.as_ref());
         let skin = self.skin.clone();
         let snake = {
-            let (skin, color, arrows) = (skin.clone(), color.clone(), arrows.clone());
+            let (skin, color, arrows) = (skin.clone(), color.clone(), arrows);
             move |dir: Direction| Snake::create(&skin, color.clone(), Some(arrows.as_to(dir)))
         };
         let n = self.couples.len();

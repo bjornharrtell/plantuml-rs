@@ -13,7 +13,9 @@ use crate::klimt::color::colors::{ColorType, Colors};
 use crate::klimt::compress::{CompressionMode, CompressionXorYBuilder};
 use crate::klimt::creole::display::Display;
 use crate::klimt::creole::LineBreakStrategy;
-use crate::klimt::drawing::ugraphic::{find_limits, ULine, URectangle, UShape, UGraphic, UTranslate};
+use crate::klimt::drawing::ugraphic::{
+    find_limits, UGraphic, ULine, URectangle, UShape, UTranslate,
+};
 use crate::klimt::font::{Dimension, StringBounder};
 use crate::klimt::geom::{HorizontalAlignment, MinMax};
 use crate::klimt::shape::TextBlock;
@@ -409,7 +411,10 @@ impl SwimlanesBlock {
                 .apply_translate(lane.translate())
                 .apply_translate(title_dy)
                 .draw_ftile(full.as_ref());
-            divider1.draw(&ug.apply_translate(UTranslate::dx(xpos - divider1.width())), &style);
+            divider1.draw(
+                &ug.apply_translate(UTranslate::dx(xpos - divider1.width())),
+                &style,
+            );
         }
 
         let cross = base.for_cross().apply_translate(title_dy);

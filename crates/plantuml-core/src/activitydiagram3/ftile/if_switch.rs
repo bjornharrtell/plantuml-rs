@@ -108,6 +108,7 @@ fn size(block: &Option<Rc<dyn TextBlock>>, sb: &dyn StringBounder) -> (f64, f64)
 }
 
 impl FtileSwitch {
+    #[allow(clippy::too_many_arguments)]
     pub fn create(
         test: Display,
         branches: Vec<SwitchBranch>,
@@ -133,7 +134,15 @@ impl FtileSwitch {
             .clone()
             .unwrap_or_else(|| Diamond::new(Display::null(), &skin, None).back());
         let diamond2 = Rc::new(
-            Merge::new(None, None, None, diamond2_back, skin.clone(), swimlane.clone()).hexagon(),
+            Merge::new(
+                None,
+                None,
+                None,
+                diamond2_back,
+                skin.clone(),
+                swimlane.clone(),
+            )
+            .hexagon(),
         );
         let mut tiles: Vec<FtileRef> = Vec::new();
         let mut positive = Vec::new();
@@ -378,7 +387,7 @@ impl Ftile for FtileSwitch {
         let skin = self.skin.clone();
         let color = self.arrow_color.clone();
         let snake = {
-            let (skin, color, arrows) = (skin.clone(), color.clone(), arrows.clone());
+            let (skin, color, arrows) = (skin.clone(), color.clone(), arrows);
             move |dir: Direction| Snake::create(&skin, color.clone(), Some(arrows.as_to(dir)))
         };
         let mid1 = (d1.in_y + d1.out_y) / 2.0;
@@ -626,14 +635,18 @@ impl Ftile for FtileSwitch {
             let og = origin.calculate_dimension(sb);
             let p1 = (t.dx + og.left(), t.dy + og.out_y);
             let p2 = (d2t.dx + d2.left(), d2t.dy + d2.in_y);
-            let (skin, color, arrows) = (skin.clone(), color.clone(), arrows.clone());
+            let (skin, color, arrows) = (skin.clone(), color.clone(), arrows);
             let (half_w, half_h) = (d2.width / 2.0, d2.height / 2.0);
             let conn = FnConnection::new(Some(origin.clone()), Some(diamond2.clone()), |_| {})
                 .translatable(move |g, t1, t2| {
                     let mp1 = (p1.0 + t1.dx, p1.1 + t1.dy);
                     let mp2 = (p2.0 + t2.dx, p2.1 + t2.dy);
                     let left = mp1.0 > mp2.0;
-                    let arrow = arrows.as_to(if left { Direction::Left } else { Direction::Right });
+                    let arrow = arrows.as_to(if left {
+                        Direction::Left
+                    } else {
+                        Direction::Right
+                    });
                     let mut s = Snake::create(&skin, color.clone(), Some(arrow));
                     s.add_point(mp1.0, mp1.1);
                     s.add_point(mp1.0, mp2.1 + half_h);

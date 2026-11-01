@@ -1,8 +1,8 @@
 //! A `while` loop (`FtileWhile`, `FtileDiamond`).
 
 use super::factory::{arrow_text_block, FtileRef};
-use super::snake::{Arrows, MergeStrategy, Snake};
 use super::leaf::FtileEmpty;
+use super::snake::{Arrows, MergeStrategy, Snake};
 use super::{FnConnection, Ftile, FtileGeometry, FtileGraphic};
 use crate::activitydiagram3::rainbow::LinkRendering;
 use crate::activitydiagram3::swimlanes::Swimlane;
@@ -78,7 +78,12 @@ impl Diamond {
         ])
     }
 
-    fn styled(&self, g: &FtileGraphic, x: f64, y: f64) -> crate::klimt::drawing::ugraphic::UGraphic {
+    fn styled(
+        &self,
+        g: &FtileGraphic,
+        x: f64,
+        y: f64,
+    ) -> crate::klimt::drawing::ugraphic::UGraphic {
         g.ug()
             .apply_translate(UTranslate::new(x, y))
             .apply_color(self.border.clone())
@@ -129,6 +134,7 @@ pub struct FtileWhile {
 }
 
 impl FtileWhile {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         body: FtileRef,
         test: Display,
@@ -304,7 +310,7 @@ impl Ftile for FtileWhile {
         let diamond_tile: FtileRef = FtileEmpty::new(&self.skin, 0.0, 0.0, self.swimlane.clone());
         let body_ref = self.body.clone();
         let ns = {
-            let (skin, color, arrows) = (skin.clone(), color.clone(), arrows.clone());
+            let (skin, color, arrows) = (skin.clone(), color.clone(), arrows);
             move |dir: Direction| Snake::create(&skin, color.clone(), Some(arrows.as_to(dir)))
         };
 
@@ -351,18 +357,19 @@ impl Ftile for FtileWhile {
                 let y1bis = y1.max(bottom) + HEXAGON_HALF_SIZE;
                 let (bx, by) = (back_t.dx + back_geo.left(), back_t.dy + back_geo.out_y);
                 let (ns, label) = (ns.clone(), self.back_label.clone());
-                let conn = FnConnection::new(Some(body_ref.clone()), Some(backward.clone()), move |g| {
-                    let mut up = ns(Direction::Up)
-                        .with_vertical_label(label.clone(), VerticalAlignment::Bottom);
-                    up.add_point(x1, y1);
-                    up.add_point(x1, y1bis);
-                    up.add_point(bx, y1bis);
-                    up.add_point(bx, by);
-                    g.draw_snake(up);
-                    g.ug()
-                        .apply_translate(UTranslate::new(x1, y1bis))
-                        .draw(UShape::Empty(5.0, HEXAGON_HALF_SIZE));
-                });
+                let conn =
+                    FnConnection::new(Some(body_ref.clone()), Some(backward.clone()), move |g| {
+                        let mut up = ns(Direction::Up)
+                            .with_vertical_label(label.clone(), VerticalAlignment::Bottom);
+                        up.add_point(x1, y1);
+                        up.add_point(x1, y1bis);
+                        up.add_point(bx, y1bis);
+                        up.add_point(bx, by);
+                        g.draw_snake(up);
+                        g.ug()
+                            .apply_translate(UTranslate::new(x1, y1bis))
+                            .draw(UShape::Empty(5.0, HEXAGON_HALF_SIZE));
+                    });
                 g.draw_connection(&conn);
             }
             let (ix, iy) = (back_t.dx + back_geo.left(), back_t.dy + back_geo.in_y);
@@ -392,20 +399,24 @@ impl Ftile for FtileWhile {
             let total_width = total.width;
             let arrow_up = arrows.as_to(Direction::Up);
             let back_color = color.colors()[0].arrow_color.clone();
-            let conn = FnConnection::new(Some(body_ref.clone()), Some(diamond_tile.clone()), move |g| {
-                let mut back = ns1(Direction::Left)
-                    .emphasize_direction(Direction::Up)
-                    .with_vertical_label(label.clone(), VerticalAlignment::Bottom);
-                back.add_point(x1, y1);
-                back.add_point(x1, y1bis);
-                back.add_point(total_width, y1bis);
-                back.add_point(total_width, y2);
-                back.add_point(x2, y2);
-                g.draw_snake(back);
-                g.ug()
-                    .apply_translate(UTranslate::new(x1, y1bis))
-                    .draw(UShape::Empty(5.0, HEXAGON_HALF_SIZE));
-            })
+            let conn = FnConnection::new(
+                Some(body_ref.clone()),
+                Some(diamond_tile.clone()),
+                move |g| {
+                    let mut back = ns1(Direction::Left)
+                        .emphasize_direction(Direction::Up)
+                        .with_vertical_label(label.clone(), VerticalAlignment::Bottom);
+                    back.add_point(x1, y1);
+                    back.add_point(x1, y1bis);
+                    back.add_point(total_width, y1bis);
+                    back.add_point(total_width, y2);
+                    back.add_point(x2, y2);
+                    g.draw_snake(back);
+                    g.ug()
+                        .apply_translate(UTranslate::new(x1, y1bis))
+                        .draw(UShape::Empty(5.0, HEXAGON_HALF_SIZE));
+                },
+            )
             .translatable(move |g, t1, t2| {
                 let q1 = (x1 + t1.dx, y1 + t1.dy);
                 let ex2 = diamond_t.dx + t2.dx + diamond_geo.width;
@@ -481,8 +492,7 @@ impl Ftile for FtileWhile {
         };
         if g.accepts(&self.swimlane) {
             // `FtileDiamondInside.drawU`: polygon, north, label, west
-            self.diamond
-                .draw_polygon(g, diamond_t.dx, diamond_t.dy, dw);
+            self.diamond.draw_polygon(g, diamond_t.dx, diamond_t.dy, dw);
             if let Some(yes) = &self.yes {
                 yes.draw(&at(4.0 + dw / 2.0, dh));
             }

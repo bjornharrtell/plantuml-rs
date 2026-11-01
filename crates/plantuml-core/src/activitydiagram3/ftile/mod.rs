@@ -380,13 +380,16 @@ impl PendingSnake {
     }
 }
 
+/// The lanes of the diagram in order.
+pub type LaneList = Rc<Vec<Rc<Swimlane>>>;
+
 /// What a drawing pass keeps of the tiles when the flow has several lanes.
 #[derive(Clone)]
 enum LaneFilter {
     /// Everything (a single lane).
     All,
     /// Only what belongs to one lane (`UGraphicInterceptorOneSwimlane`), with all the lanes in order.
-    One(Rc<Swimlane>, Rc<Vec<Rc<Swimlane>>>),
+    One(Rc<Swimlane>, LaneList),
     /// The same, when measuring the lanes: arrows do not see which lane is drawn
     /// (`UGraphicInterceptorAllSwimlanes` is not a `UGraphicInterceptorOneSwimlane`).
     Measuring(Rc<Swimlane>),
@@ -420,7 +423,7 @@ impl FtileGraphic {
     }
 
     /// The pass that draws what belongs to `lane`.
-    pub fn for_swimlane(&self, lane: Rc<Swimlane>, all: Rc<Vec<Rc<Swimlane>>>) -> Self {
+    pub fn for_swimlane(&self, lane: Rc<Swimlane>, all: LaneList) -> Self {
         Self {
             filter: LaneFilter::One(lane, all),
             ..self.clone()
@@ -471,13 +474,15 @@ impl FtileGraphic {
     /// Whether shapes of the lane are drawn by this pass (for tiles that draw their own shapes).
     pub fn accepts(&self, lane: &Option<Rc<Swimlane>>) -> bool {
         match &self.filter {
-            LaneFilter::One(one, _) | LaneFilter::Measuring(one) => lane.as_ref().is_some_and(|l| Rc::ptr_eq(l, one)),
+            LaneFilter::One(one, _) | LaneFilter::Measuring(one) => {
+                lane.as_ref().is_some_and(|l| Rc::ptr_eq(l, one))
+            }
             _ => true,
         }
     }
 
     /// The lane being drawn and the list of all lanes, for the arrows that depend on them.
-    pub fn one_lane(&self) -> Option<(Rc<Swimlane>, Rc<Vec<Rc<Swimlane>>>)> {
+    pub fn one_lane(&self) -> Option<(Rc<Swimlane>, LaneList)> {
         match &self.filter {
             LaneFilter::One(lane, all) => Some((lane.clone(), all.clone())),
             _ => None,

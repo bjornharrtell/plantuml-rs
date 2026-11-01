@@ -8,7 +8,7 @@ use super::if_long::{DiamondInside2, MinWidthCentered};
 use super::leaf::FtileEmpty;
 use super::snake::{Arrows, MergeStrategy, Snake};
 use super::while_::Diamond;
-use super::{left_or_right, same_ftile, Ftile, FtileGeometry, FtileGraphic, FnConnection};
+use super::{left_or_right, same_ftile, FnConnection, Ftile, FtileGeometry, FtileGraphic};
 use crate::activitydiagram3::instruction::PositionedNote;
 use crate::activitydiagram3::rainbow::LinkRendering;
 use crate::activitydiagram3::swimlanes::Swimlane;
@@ -613,10 +613,7 @@ impl Ftile for FtileIfLinks {
                 },
             )
             .translatable(move |g, t1, t2| {
-                let (mut q1, q2) = (
-                    (p1.0 + t1.dx, p1.1 + t1.dy),
-                    (p2.0 + t2.dx, p2.1 + t2.dy),
-                );
+                let (mut q1, q2) = ((p1.0 + t1.dx, p1.1 + t1.dy), (p2.0 + t2.dx, p2.1 + t2.dy));
                 if left_or_right(p1, p2) != left_or_right(q1, q2) {
                     let delta = if left_or_right(p1, p2) == Direction::Right {
                         -half
@@ -630,8 +627,8 @@ impl Ftile for FtileIfLinks {
                     q1 = small.last();
                     g.draw_snake(small);
                 }
-                let mut s =
-                    Snake::create(&skin, color.clone(), end.clone()).with_merge(MergeStrategy::Limited);
+                let mut s = Snake::create(&skin, color.clone(), end.clone())
+                    .with_merge(MergeStrategy::Limited);
                 s.add_point(q1.0, q1.1);
                 s.add_point(q2.0, q1.1);
                 s.add_point(q2.0, q2.1);
@@ -687,8 +684,8 @@ impl Ftile for FtileIfLinks {
                     } else {
                         (mp2.0 + delta, mp2.1 - 1.5 * half)
                     };
-                    let mut s =
-                        Snake::create(&skin, color.clone(), None).with_merge(MergeStrategy::Limited);
+                    let mut s = Snake::create(&skin, color.clone(), None)
+                        .with_merge(MergeStrategy::Limited);
                     s.add_point(mp1.0, mp1.1);
                     if original == new {
                         let middle = (mp1.1 + mp2.1) / 2.0;
@@ -728,8 +725,8 @@ impl Ftile for FtileIfLinks {
                 .translatable(move |g, t1, t2| {
                     let mp1 = (x1 + t1.dx, y1 + t1.dy);
                     let mp2 = (lx + t2.dx, th - half + t2.dy);
-                    let mut s =
-                        Snake::create(&skin, color.clone(), None).with_merge(MergeStrategy::Limited);
+                    let mut s = Snake::create(&skin, color.clone(), None)
+                        .with_merge(MergeStrategy::Limited);
                     s.add_point(mp1.0, mp1.1);
                     s.add_point(mp1.0, mp2.1);
                     s.add_point(mp2.0, mp2.1);

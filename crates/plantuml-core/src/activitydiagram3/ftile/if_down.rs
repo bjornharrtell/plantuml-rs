@@ -387,16 +387,13 @@ impl Ftile for FtileIfDown {
                     (d1t.dx + d1.width, d1t.dy + mid1),
                     (st.dx, st.dy + sg.height / 2.0),
                 );
-                let conn = FnConnection::new(
-                    Some(diamond1.clone()),
-                    Some(stop.clone()),
-                    move |g| {
+                let conn =
+                    FnConnection::new(Some(diamond1.clone()), Some(stop.clone()), move |g| {
                         let mut s = Snake::create(&skin, color.clone(), Some(end.clone()));
                         s.add_point(a.0, a.1);
                         s.add_point(b.0, b.1);
                         g.draw_snake(s);
-                    },
-                );
+                    });
                 g.draw_connection(&conn);
             }
             None if then_geo.has_point_out() && self.else1 => {
