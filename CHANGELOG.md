@@ -5,6 +5,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-01
+
 ### Changed
 
 - The release workflow publishes the npm package `plantuml-rs` with npm trusted publishing (OIDC, no token), after
