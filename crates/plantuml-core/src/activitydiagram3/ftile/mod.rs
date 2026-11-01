@@ -279,6 +279,70 @@ pub trait Connection {
     fn draw_translate(&self, _g: &FtileGraphic, _t1: UTranslate, _t2: UTranslate) {}
 }
 
+/// An arrow whose drawing is a closure, for tiles that draw their own arrows
+/// (the `Connection` inner classes of Java's tiles).
+pub struct FnConnection {
+    ftile1: Option<Rc<dyn Ftile>>,
+    ftile2: Option<Rc<dyn Ftile>>,
+    draw: Box<dyn Fn(&FtileGraphic)>,
+    translate: Option<TranslateFn>,
+}
+
+/// Redraws an arrow between two lanes (`ConnectionTranslatable.drawTranslate`).
+pub type TranslateFn = Box<dyn Fn(&FtileGraphic, UTranslate, UTranslate)>;
+
+impl FnConnection {
+    pub fn new(
+        ftile1: Option<Rc<dyn Ftile>>,
+        ftile2: Option<Rc<dyn Ftile>>,
+        draw: impl Fn(&FtileGraphic) + 'static,
+    ) -> Self {
+        Self {
+            ftile1,
+            ftile2,
+            draw: Box::new(draw),
+            translate: None,
+        }
+    }
+
+    pub fn translatable(
+        mut self,
+        translate: impl Fn(&FtileGraphic, UTranslate, UTranslate) + 'static,
+    ) -> Self {
+        self.translate = Some(Box::new(translate));
+        self
+    }
+}
+
+impl Connection for FnConnection {
+    fn ftile1(&self) -> Option<Rc<dyn Ftile>> {
+        self.ftile1.clone()
+    }
+
+    fn ftile2(&self) -> Option<Rc<dyn Ftile>> {
+        self.ftile2.clone()
+    }
+
+    fn draw(&self, g: &FtileGraphic) {
+        (self.draw)(g);
+    }
+
+    fn draw_translate(&self, g: &FtileGraphic, t1: UTranslate, t2: UTranslate) {
+        if let Some(f) = &self.translate {
+            f(g, t1, t2);
+        }
+    }
+}
+
+/// `Direction.leftOrRight`: Java names the side the second point lies on the other way round.
+pub fn left_or_right(p1: (f64, f64), p2: (f64, f64)) -> crate::klimt::geom::Direction {
+    if p1.0 < p2.0 {
+        crate::klimt::geom::Direction::Left
+    } else {
+        crate::klimt::geom::Direction::Right
+    }
+}
+
 struct PendingSnake {
     snake: Snake,
     ug: UGraphic,
@@ -316,11 +380,25 @@ impl PendingSnake {
     }
 }
 
+/// What a drawing pass keeps of the tiles when the flow has several lanes.
+#[derive(Clone)]
+enum LaneFilter {
+    /// Everything (a single lane).
+    All,
+    /// Only what belongs to one lane (`UGraphicInterceptorOneSwimlane`).
+    One(Rc<Swimlane>),
+    /// Only the arrows going from a lane to another (`Swimlanes.Cross`).
+    Cross,
+}
+
 /// Drawing context of tiles: a [`UGraphic`] that also collects arrows and merges them before
 /// they are drawn (`UGraphicForSnake` and `UGraphicDispatchFtile`).
 #[derive(Clone)]
 pub struct FtileGraphic {
     ug: UGraphic,
+    /// Where arrows go: `ug`, except in the pass of the arrows between lanes, which draws no shapes.
+    snake_ug: UGraphic,
+    filter: LaneFilter,
     snakes: Rc<RefCell<Vec<PendingSnake>>>,
     dx: f64,
     dy: f64,
@@ -329,10 +407,29 @@ pub struct FtileGraphic {
 impl FtileGraphic {
     pub fn new(ug: UGraphic) -> Self {
         Self {
+            snake_ug: ug.clone(),
             ug,
+            filter: LaneFilter::All,
             snakes: Rc::new(RefCell::new(Vec::new())),
             dx: 0.0,
             dy: 0.0,
+        }
+    }
+
+    /// The pass that draws what belongs to `lane`.
+    pub fn for_swimlane(&self, lane: Rc<Swimlane>) -> Self {
+        Self {
+            filter: LaneFilter::One(lane),
+            ..self.clone()
+        }
+    }
+
+    /// The pass that draws the arrows between lanes.
+    pub fn for_cross(&self) -> Self {
+        Self {
+            ug: self.ug.discarding(),
+            filter: LaneFilter::Cross,
+            ..self.clone()
         }
     }
 
@@ -348,6 +445,8 @@ impl FtileGraphic {
     pub fn apply_translate(&self, t: UTranslate) -> Self {
         Self {
             ug: self.ug.apply_translate(t),
+            snake_ug: self.snake_ug.apply_translate(t),
+            filter: self.filter.clone(),
             snakes: self.snakes.clone(),
             dx: self.dx + t.dx,
             dy: self.dy + t.dy,
@@ -358,19 +457,68 @@ impl FtileGraphic {
         UTranslate::new(self.dx, self.dy)
     }
 
+    /// Whether shapes of the lane are drawn by this pass (for tiles that draw their own shapes).
+    pub fn accepts(&self, lane: &Option<Rc<Swimlane>>) -> bool {
+        match &self.filter {
+            LaneFilter::One(one) => lane.as_ref().is_some_and(|l| Rc::ptr_eq(l, one)),
+            _ => true,
+        }
+    }
+
     pub fn draw_ftile(&self, ftile: &dyn Ftile) {
+        if let LaneFilter::One(lane) = &self.filter {
+            if !ftile.swimlanes().iter().any(|s| Rc::ptr_eq(s, lane)) {
+                return;
+            }
+        }
         ftile.draw(self);
     }
 
     pub fn draw_connection(&self, connection: &dyn Connection) {
-        connection.draw(self);
+        match &self.filter {
+            LaneFilter::All => connection.draw(self),
+            LaneFilter::One(lane) => {
+                let in_lane = |s: Option<Rc<Swimlane>>| s.is_none_or(|s| Rc::ptr_eq(&s, lane));
+                let ok1 = connection
+                    .ftile1()
+                    .is_none_or(|t| in_lane(t.swimlane_out()));
+                let ok2 = connection.ftile2().is_none_or(|t| in_lane(t.swimlane_in()));
+                if ok1 && ok2 {
+                    connection.draw(self);
+                }
+            }
+            LaneFilter::Cross => {
+                let (Some(t1), Some(t2)) = (connection.ftile1(), connection.ftile2()) else {
+                    return;
+                };
+                let (lane1, lane2) = (t1.swimlane_out(), t2.swimlane_in());
+                let same = match (&lane1, &lane2) {
+                    (Some(a), Some(b)) => Rc::ptr_eq(a, b),
+                    (None, None) => true,
+                    _ => false,
+                };
+                if same {
+                    return;
+                }
+                // `ConnectionCross`: only arrows that can be redrawn between two lanes.
+                if let (Some(a), Some(b)) = (lane1, lane2) {
+                    // `ConnectionCross.drawU(getUg())`: the arrow draws on the plain context
+                    let plain = Self {
+                        ug: self.snake_ug.clone(),
+                        filter: LaneFilter::All,
+                        ..self.clone()
+                    };
+                    connection.draw_translate(&plain, a.translate(), b.translate());
+                }
+            }
+        }
     }
 
     /// Queues an arrow, merged with a pending one when they touch (`addPendingSnake`).
     pub fn draw_snake(&self, snake: Snake) {
         let item = PendingSnake {
             snake,
-            ug: self.ug.clone(),
+            ug: self.snake_ug.clone(),
             dx: self.dx,
             dy: self.dy,
         };

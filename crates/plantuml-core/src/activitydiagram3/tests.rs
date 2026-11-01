@@ -201,10 +201,10 @@ fn elseif_conditions_sit_side_by_side_without_a_merge_diamond() {
     for text in ["c?", "d?", "yes", "maybe", "no", "A", "B", "C"] {
         assert!(out.contains(&format!(">{text}</text>")), "{text}: {out}");
     }
-    // two six-point condition diamonds; a merge diamond would make three (and arrowheads have four points)
+    // two closed six-point condition diamonds; a merge diamond would make three (and arrowheads have four points)
     let diamonds = out
         .match_indices("points=\"")
-        .filter(|(i, _)| out[i + 8..].split('"').next().unwrap().split(',').count() == 12)
+        .filter(|(i, _)| out[i + 8..].split('"').next().unwrap().split(',').count() == 14)
         .count();
     assert_eq!(diamonds, 2, "{out}");
 }
@@ -280,7 +280,7 @@ fn if_else_places_both_branches_under_the_condition_and_merges_them() {
                 .collect()
         })
         .collect();
-    let hexagon = polygons.iter().find(|p| p.len() == 12).expect("condition");
+    let hexagon = polygons.iter().find(|p| p.len() == 14).expect("condition");
     let bottom = hexagon[7];
     let boxes: Vec<(f64, f64)> = out
         .match_indices("<rect")
@@ -292,10 +292,10 @@ fn if_else_places_both_branches_under_the_condition_and_merges_them() {
     // both branches start 10 below the condition, one on each side of its centre
     assert!((boxes[0].1 - bottom - 10.0).abs() < 0.01 && (boxes[1].1 - bottom - 10.0).abs() < 0.01);
     assert!(boxes[0].0 < hexagon[0] && boxes[1].0 > hexagon[0], "{out}");
-    // the merge diamond has four points
+    // the merge diamond has four points, closed
     assert!(polygons
         .iter()
-        .any(|p| p.len() == 8 && (p[0] - p[4]).abs() < 24.1 && p[1] < p[3]));
+        .any(|p| p.len() == 10 && (p[0] - p[4]).abs() < 24.1 && p[1] < p[3]));
 }
 
 #[test]
@@ -546,7 +546,7 @@ fn if_labels_sit_beside_the_condition_and_stay_on_top() {
     let out = svg("if (Graphviz installed?) then (yes)\n  :a;\nelse (no)\n  :b;\nendif");
     let hexagon = polygons(&out)
         .into_iter()
-        .find(|p| p.len() == 6)
+        .find(|p| p.len() == 7)
         .expect("condition hexagon");
     let min_x = hexagon.iter().map(|p| p.0).fold(f64::MAX, f64::min);
     let max_x = hexagon.iter().map(|p| p.0).fold(f64::MIN, f64::max);
@@ -572,7 +572,7 @@ fn merge_diamond_meets_the_return_arrows() {
     let out = svg("if (c?) then (yes)\n  :a;\nelse (no)\n  :b;\nendif");
     let diamond = polygons(&out)
         .into_iter()
-        .find(|p| p.len() == 4)
+        .find(|p| p.len() == 5)
         .expect("merge diamond");
     let min_x = diamond.iter().map(|p| p.0).fold(f64::MAX, f64::min);
     let max_x = diamond.iter().map(|p| p.0).fold(f64::MIN, f64::max);

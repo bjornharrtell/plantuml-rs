@@ -89,6 +89,7 @@ pub(crate) struct DiamondInside2 {
     pub(crate) skin: Rc<SkinParam>,
     /// `FtileDiamondInside2` widens for a wide `north` label, `FtileDiamondInside` does not.
     pub(crate) north_widens: bool,
+    pub(crate) swimlane: Option<Rc<Swimlane>>,
 }
 
 impl DiamondInside2 {
@@ -125,6 +126,18 @@ impl Ftile for DiamondInside2 {
         self.skin.clone()
     }
 
+    fn swimlane_in(&self) -> Option<Rc<Swimlane>> {
+        self.swimlane.clone()
+    }
+
+    fn swimlane_out(&self) -> Option<Rc<Swimlane>> {
+        self.swimlane.clone()
+    }
+
+    fn swimlanes(&self) -> Vec<Rc<Swimlane>> {
+        self.swimlane.iter().cloned().collect()
+    }
+
     fn calculate_dimension(&self, sb: &dyn StringBounder) -> FtileGeometry {
         let (w, h) = self.alone(sb);
         let north = Self::size(&self.north, sb);
@@ -140,10 +153,11 @@ impl Ftile for DiamondInside2 {
     fn draw(&self, g: &FtileGraphic) {
         let sb = g.string_bounder();
         let (w, h) = self.alone(sb);
-        self.diamond.draw(g, 0.0, 0.0, w);
+        self.diamond.draw_polygon(g, 0.0, 0.0, w);
         for label in [&self.north, &self.south].into_iter().flatten() {
             label.draw(&g.ug().apply_translate(UTranslate::new(4.0 + w / 2.0, h)));
         }
+        self.diamond.draw_label(g, 0.0, 0.0, w);
         if let Some(west) = &self.west {
             let d = west.calculate_dimension(sb);
             west.draw(
@@ -206,6 +220,7 @@ impl FtileIfLongHorizontal {
         sb: Rc<dyn StringBounder>,
         in_link_rendering: LinkRendering,
         out_link_rendering: LinkRendering,
+        swimlane: Option<Rc<Swimlane>>,
     ) -> Rc<Self> {
         let sb = sb.as_ref();
         let last = thens.len() - 1;
@@ -242,6 +257,7 @@ impl FtileIfLongHorizontal {
                 east,
                 skin: skin.clone(),
                 north_widens: true,
+                swimlane: swimlane.clone(),
             }));
         }
         let tile2: FtileRef = Rc::new(MinWidthCentered {

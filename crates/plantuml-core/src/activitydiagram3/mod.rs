@@ -447,7 +447,14 @@ impl ActivityDiagram3 {
             let Some(repeat) = current.as_any_mut().downcast_mut::<InstructionRepeat>() else {
                 return CommandExecutionResult::error("Cannot find repeat");
             };
-            repeat.set_test(test, yes, out, back_link, test_color);
+            repeat.set_test(
+                test,
+                yes,
+                out,
+                back_link,
+                test_color,
+                self.swimlanes.current_swimlane(),
+            );
             repeat.set_out_rendering(self.next_link_renderer());
         }
         self.reset_next_link();

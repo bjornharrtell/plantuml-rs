@@ -56,6 +56,7 @@ impl FtileIfDown {
         skin: Rc<SkinParam>,
         in_link_rendering: LinkRendering,
         out_link_rendering: LinkRendering,
+        swimlane: Option<Rc<Swimlane>>,
     ) -> FtileRef {
         let DownParts {
             first,
@@ -76,6 +77,7 @@ impl FtileIfDown {
             east: tb2,
             skin: skin.clone(),
             north_widens: false,
+            swimlane: swimlane.clone(),
         });
         let merge_back = second
             .color
@@ -91,9 +93,10 @@ impl FtileIfDown {
                 out(&second),
                 merge_back,
                 skin.clone(),
+                swimlane.clone(),
             ))
         } else {
-            FtileEmpty::new(&skin, 0.0, HEXAGON_HALF_SIZE / 2.0, None)
+            FtileEmpty::new(&skin, 0.0, HEXAGON_HALF_SIZE / 2.0, swimlane.clone())
         };
         let else_color = out_link_rendering_color(&skin, second.tile.as_ref());
         let min_width = |t: FtileRef| -> FtileRef {
@@ -116,7 +119,7 @@ impl FtileIfDown {
             (min_width(first.tile), None)
         };
         let diamond2: FtileRef = if optional_stop.is_some() {
-            FtileEmpty::new(&skin, 0.0, 0.0, None)
+            FtileEmpty::new(&skin, 0.0, 0.0, swimlane.clone())
         } else {
             diamond2_for_labels
         };

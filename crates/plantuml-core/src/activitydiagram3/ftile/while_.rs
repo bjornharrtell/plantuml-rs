@@ -2,7 +2,8 @@
 
 use super::factory::{arrow_text_block, FtileRef};
 use super::snake::{Arrows, MergeStrategy, Snake};
-use super::{Ftile, FtileGeometry, FtileGraphic};
+use super::leaf::FtileEmpty;
+use super::{FnConnection, Ftile, FtileGeometry, FtileGraphic};
 use crate::activitydiagram3::rainbow::LinkRendering;
 use crate::activitydiagram3::swimlanes::Swimlane;
 use crate::klimt::color::HColor;
@@ -73,17 +74,25 @@ impl Diamond {
             (width - DIAMOND_SLOPE, self.height),
             (DIAMOND_SLOPE, self.height),
             (0.0, self.height / 2.0),
+            (DIAMOND_SLOPE, 0.0),
         ])
     }
 
-    pub(crate) fn draw(&self, g: &FtileGraphic, x: f64, y: f64, width: f64) {
-        let ug = g
-            .ug()
+    fn styled(&self, g: &FtileGraphic, x: f64, y: f64) -> crate::klimt::drawing::ugraphic::UGraphic {
+        g.ug()
             .apply_translate(UTranslate::new(x, y))
             .apply_color(self.border.clone())
             .apply_back_color(self.back.clone())
-            .apply_stroke(self.stroke);
-        ug.draw(self.polygon(width));
+            .apply_stroke(self.stroke)
+    }
+
+    pub(crate) fn draw_polygon(&self, g: &FtileGraphic, x: f64, y: f64, width: f64) {
+        self.styled(g, x, y).draw(self.polygon(width));
+    }
+
+    /// The condition, once the labels around the polygon are drawn (`FtileDiamondInside.drawU`).
+    pub(crate) fn draw_label(&self, g: &FtileGraphic, x: f64, y: f64, width: f64) {
+        let ug = self.styled(g, x, y);
         let dim = self.label.calculate_dimension(g.string_bounder());
         let lx = (width - dim.width) / 2.0;
         let ly = (self.height - dim.height) / 2.0;
@@ -116,6 +125,7 @@ pub struct FtileWhile {
     skin: Rc<SkinParam>,
     in_link_rendering: LinkRendering,
     out_link_rendering: LinkRendering,
+    swimlane: Option<Rc<Swimlane>>,
 }
 
 impl FtileWhile {
@@ -127,6 +137,7 @@ impl FtileWhile {
         skin: Rc<SkinParam>,
         in_link_rendering: LinkRendering,
         out_link_rendering: LinkRendering,
+        swimlane: Option<Rc<Swimlane>>,
     ) -> Rc<Self> {
         let diamond = Diamond::new(test, &skin, back);
         let block = |d: &Option<Display>| d.as_ref().and_then(|d| arrow_text_block(&skin, d));
@@ -145,6 +156,7 @@ impl FtileWhile {
             skin,
             in_link_rendering,
             out_link_rendering,
+            swimlane,
         })
     }
 
@@ -243,15 +255,20 @@ impl Ftile for FtileWhile {
     }
 
     fn swimlane_in(&self) -> Option<Rc<Swimlane>> {
-        self.body.swimlane_in()
+        self.swimlane.clone()
     }
 
     fn swimlane_out(&self) -> Option<Rc<Swimlane>> {
-        self.body.swimlane_out()
+        self.swimlane.clone()
     }
 
     fn swimlanes(&self) -> Vec<Rc<Swimlane>> {
         let mut lanes = self.body.swimlanes();
+        if let Some(lane) = &self.swimlane {
+            if !lanes.iter().any(|l| Rc::ptr_eq(l, lane)) {
+                lanes.push(lane.clone());
+            }
+        }
         for lane in self.backward.iter().flat_map(|b| b.swimlanes()) {
             if !lanes.iter().any(|l| Rc::ptr_eq(l, &lane)) {
                 lanes.push(lane);
@@ -281,20 +298,46 @@ impl Ftile for FtileWhile {
         );
         let arrows = Arrows::from_skin(&self.skin);
 
+        let skin = self.skin.clone();
+        let align = self.arrow_horizontal_alignment();
+        // the condition diamond stands in for its tile in the arrows
+        let diamond_tile: FtileRef = FtileEmpty::new(&self.skin, 0.0, 0.0, self.swimlane.clone());
+        let body_ref = self.body.clone();
+        let ns = {
+            let (skin, color, arrows) = (skin.clone(), color.clone(), arrows.clone());
+            move |dir: Direction| Snake::create(&skin, color.clone(), Some(arrows.as_to(dir)))
+        };
+
         // ConnectionIn: diamond to body
-        let mut down = Snake::create(
-            &self.skin,
-            color.clone(),
-            Some(arrows.as_to(Direction::Down)),
-        );
         let p1 = (
             diamond_t.dx + diamond_geo.left(),
             diamond_t.dy + diamond_geo.out_y,
         );
         let p2 = (body_t.dx + body_geo.left(), body_t.dy + body_geo.in_y);
-        down.add_point(p1.0, p1.1);
-        down.add_point(p2.0, p2.1);
-        g.draw_snake(down);
+        let conn = FnConnection::new(Some(diamond_tile.clone()), Some(body_ref.clone()), {
+            let ns = ns.clone();
+            move |g| {
+                let mut down = ns(Direction::Down);
+                down.add_point(p1.0, p1.1);
+                down.add_point(p2.0, p2.1);
+                g.draw_snake(down);
+            }
+        })
+        .translatable({
+            let ns = ns.clone();
+            move |g, t1, t2| {
+                let mp1 = (p1.0 + t1.dx, p1.1 + t1.dy);
+                let mp2 = (p2.0 + t2.dx, p2.1 + t2.dy);
+                let middle = (mp1.1 + mp2.1) / 2.0;
+                let mut s = ns(Direction::Down).with_merge(MergeStrategy::Limited);
+                s.add_point(mp1.0, mp1.1);
+                s.add_point(mp1.0, middle);
+                s.add_point(mp2.0, middle);
+                s.add_point(mp2.0, mp2.1);
+                g.draw_snake(s);
+            }
+        });
+        g.draw_connection(&conn);
 
         // ConnectionBackBackward1 and 2: through the `backward` box on the right
         if let Some(backward) = &self.backward {
@@ -307,29 +350,35 @@ impl Ftile for FtileWhile {
                 let bottom = body_t.dy + body_geo.height;
                 let y1bis = y1.max(bottom) + HEXAGON_HALF_SIZE;
                 let (bx, by) = (back_t.dx + back_geo.left(), back_t.dy + back_geo.out_y);
-                let mut up =
-                    Snake::create(&self.skin, color.clone(), Some(arrows.as_to(Direction::Up)))
-                        .with_vertical_label(self.back_label.clone(), VerticalAlignment::Bottom);
-                up.add_point(x1, y1);
-                up.add_point(x1, y1bis);
-                up.add_point(bx, y1bis);
-                up.add_point(bx, by);
-                g.draw_snake(up);
-                g.ug()
-                    .apply_translate(UTranslate::new(x1, y1bis))
-                    .draw(UShape::Empty(5.0, HEXAGON_HALF_SIZE));
+                let (ns, label) = (ns.clone(), self.back_label.clone());
+                let conn = FnConnection::new(Some(body_ref.clone()), Some(backward.clone()), move |g| {
+                    let mut up = ns(Direction::Up)
+                        .with_vertical_label(label.clone(), VerticalAlignment::Bottom);
+                    up.add_point(x1, y1);
+                    up.add_point(x1, y1bis);
+                    up.add_point(bx, y1bis);
+                    up.add_point(bx, by);
+                    g.draw_snake(up);
+                    g.ug()
+                        .apply_translate(UTranslate::new(x1, y1bis))
+                        .draw(UShape::Empty(5.0, HEXAGON_HALF_SIZE));
+                });
+                g.draw_connection(&conn);
             }
             let (ix, iy) = (back_t.dx + back_geo.left(), back_t.dy + back_geo.in_y);
-            let mut left = Snake::create(
-                &self.skin,
-                color.clone(),
-                Some(arrows.as_to(Direction::Left)),
-            )
-            .with_label(self.back2_label.clone(), self.arrow_horizontal_alignment());
-            left.add_point(ix, iy);
-            left.add_point(ix, y2);
-            left.add_point(x2, y2);
-            g.draw_snake(left);
+            let (ns, label) = (ns.clone(), self.back2_label.clone());
+            let conn = FnConnection::new(
+                Some(backward.clone()),
+                Some(diamond_tile.clone()),
+                move |g| {
+                    let mut left = ns(Direction::Left).with_label(label.clone(), align);
+                    left.add_point(ix, iy);
+                    left.add_point(ix, y2);
+                    left.add_point(x2, y2);
+                    g.draw_snake(left);
+                },
+            );
+            g.draw_connection(&conn);
         }
 
         // ConnectionBackSimple: body back to the diamond
@@ -339,69 +388,110 @@ impl Ftile for FtileWhile {
             let y2 = diamond_t.dy + diamond_geo.in_y + (diamond_geo.out_y - diamond_geo.in_y) / 2.0;
             let bottom = body_t.dy + body_geo.height;
             let y1bis = y1.max(bottom) + HEXAGON_HALF_SIZE;
-            let mut back = Snake::create(
-                &self.skin,
-                color.clone(),
-                Some(arrows.as_to(Direction::Left)),
-            )
-            .emphasize_direction(Direction::Up)
-            .with_vertical_label(self.back_label.clone(), VerticalAlignment::Bottom);
-            back.add_point(x1, y1);
-            back.add_point(x1, y1bis);
-            back.add_point(total.width, y1bis);
-            back.add_point(total.width, y2);
-            back.add_point(x2, y2);
-            g.draw_snake(back);
-            g.ug()
-                .apply_translate(UTranslate::new(x1, y1bis))
-                .draw(UShape::Empty(5.0, HEXAGON_HALF_SIZE));
+            let (ns1, ns2, label) = (ns.clone(), ns.clone(), self.back_label.clone());
+            let total_width = total.width;
+            let arrow_up = arrows.as_to(Direction::Up);
+            let back_color = color.colors()[0].arrow_color.clone();
+            let conn = FnConnection::new(Some(body_ref.clone()), Some(diamond_tile.clone()), move |g| {
+                let mut back = ns1(Direction::Left)
+                    .emphasize_direction(Direction::Up)
+                    .with_vertical_label(label.clone(), VerticalAlignment::Bottom);
+                back.add_point(x1, y1);
+                back.add_point(x1, y1bis);
+                back.add_point(total_width, y1bis);
+                back.add_point(total_width, y2);
+                back.add_point(x2, y2);
+                g.draw_snake(back);
+                g.ug()
+                    .apply_translate(UTranslate::new(x1, y1bis))
+                    .draw(UShape::Empty(5.0, HEXAGON_HALF_SIZE));
+            })
+            .translatable(move |g, t1, t2| {
+                let q1 = (x1 + t1.dx, y1 + t1.dy);
+                let ex2 = diamond_t.dx + t2.dx + diamond_geo.width;
+                let ey2 = diamond_t.dy
+                    + t2.dy
+                    + diamond_geo.in_y
+                    + (diamond_geo.out_y - diamond_geo.in_y) / 2.0;
+                let mut s = ns2(Direction::Left).with_merge(MergeStrategy::Limited);
+                s.add_point(q1.0, q1.1);
+                s.add_point(q1.0, q1.1 + HEXAGON_HALF_SIZE);
+                let xx = t1.dx.max(t2.dx) + total_width;
+                s.add_point(xx, q1.1 + HEXAGON_HALF_SIZE);
+                s.add_point(xx, ey2);
+                s.add_point(ex2, ey2);
+                g.draw_snake(s);
+                g.ug()
+                    .apply_translate(UTranslate::new(q1.0, q1.1 + HEXAGON_HALF_SIZE))
+                    .draw(UShape::Empty(5.0, HEXAGON_HALF_SIZE));
+                // the arrow head, on the way up
+                let up = g
+                    .ug()
+                    .apply_color(back_color.clone())
+                    .apply_back_color(back_color.clone());
+                up.apply_translate(UTranslate::new(xx, (q1.1 + ey2) / 2.0))
+                    .draw(arrow_up.clone());
+            });
+            g.draw_connection(&conn);
         }
 
         // ConnectionOut: the exit channel on the left
         let half = (diamond_geo.out_y - diamond_geo.in_y) / 2.0;
         let y1 = diamond_t.dy + diamond_geo.in_y + half;
-        let mut exit = Snake::create(&self.skin, color.clone(), None)
-            .with_merge(MergeStrategy::Limited)
-            .emphasize_direction(Direction::Down);
-        exit.add_point(diamond_t.dx, y1);
-        exit.add_point(HEXAGON_HALF_SIZE, y1);
-        exit.add_point(HEXAGON_HALF_SIZE, total.height);
-        g.draw_snake(exit);
-        let mut base = Snake::create(&self.skin, color.clone(), None);
-        base.add_point(HEXAGON_HALF_SIZE, total.height);
-        base.add_point(total.left(), total.height);
-        g.draw_snake(base);
+        let (total_height, total_left) = (total.height, total.left());
+        let conn = FnConnection::new(Some(diamond_tile.clone()), None, {
+            let (skin, color) = (skin.clone(), color.clone());
+            move |g| {
+                let mut exit = Snake::create(&skin, color.clone(), None)
+                    .with_merge(MergeStrategy::Limited)
+                    .emphasize_direction(Direction::Down);
+                exit.add_point(diamond_t.dx, y1);
+                exit.add_point(HEXAGON_HALF_SIZE, y1);
+                exit.add_point(HEXAGON_HALF_SIZE, total_height);
+                g.draw_snake(exit);
+                let mut base = Snake::create(&skin, color.clone(), None);
+                base.add_point(HEXAGON_HALF_SIZE, total_height);
+                base.add_point(total_left, total_height);
+                g.draw_snake(base);
+            }
+        });
+        g.draw_connection(&conn);
 
         // a `break` leaves through the exit channel (`FtileFactoryDelegatorWhile`)
         for point in self.body.welding_points() {
             let Some(t) = self.translate_for(point.tile.as_ref(), sb) else {
                 continue;
             };
-            let mut leave = Snake::create(
-                &self.skin,
-                color.clone(),
-                Some(arrows.as_to(Direction::Left)),
-            );
-            leave.add_point(t.dx, t.dy);
-            leave.add_point(HEXAGON_HALF_SIZE, t.dy);
-            g.draw_snake(leave);
+            let ns = ns.clone();
+            let conn = FnConnection::new(Some(point.tile.clone()), None, move |g| {
+                let mut leave = ns(Direction::Left);
+                leave.add_point(t.dx, t.dy);
+                leave.add_point(HEXAGON_HALF_SIZE, t.dy);
+                g.draw_snake(leave);
+            });
+            g.draw_connection(&conn);
         }
 
+        g.apply_translate(body_t).draw_ftile(self.body.as_ref());
         let dw = self.diamond_width(sb);
-        self.diamond.draw(g, diamond_t.dx, diamond_t.dy, dw);
         let dh = self.diamond.height;
         let at = |x: f64, y: f64| {
             g.ug()
                 .apply_translate(UTranslate::new(diamond_t.dx + x, diamond_t.dy + y))
         };
-        if let Some(yes) = &self.yes {
-            yes.draw(&at(4.0 + dw / 2.0, dh));
+        if g.accepts(&self.swimlane) {
+            // `FtileDiamondInside.drawU`: polygon, north, label, west
+            self.diamond
+                .draw_polygon(g, diamond_t.dx, diamond_t.dy, dw);
+            if let Some(yes) = &self.yes {
+                yes.draw(&at(4.0 + dw / 2.0, dh));
+            }
+            self.diamond.draw_label(g, diamond_t.dx, diamond_t.dy, dw);
+            if let Some(out) = &self.out {
+                let d = out.calculate_dimension(sb);
+                out.draw(&at(-d.width, -d.height + dh / 2.0));
+            }
         }
-        if let Some(out) = &self.out {
-            let d = out.calculate_dimension(sb);
-            out.draw(&at(-d.width, -d.height + dh / 2.0));
-        }
-        g.apply_translate(body_t).draw_ftile(self.body.as_ref());
         if let Some(backward) = &self.backward {
             g.apply_translate(self.backward_translate(backward, sb))
                 .draw_ftile(backward.as_ref());

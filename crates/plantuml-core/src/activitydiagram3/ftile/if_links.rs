@@ -6,9 +6,9 @@ use super::factory::{
 };
 use super::if_long::{DiamondInside2, MinWidthCentered};
 use super::leaf::FtileEmpty;
-use super::snake::{Arrows, Snake};
+use super::snake::{Arrows, MergeStrategy, Snake};
 use super::while_::Diamond;
-use super::{same_ftile, Ftile, FtileGeometry, FtileGraphic};
+use super::{left_or_right, same_ftile, Ftile, FtileGeometry, FtileGraphic, FnConnection};
 use crate::activitydiagram3::instruction::PositionedNote;
 use crate::activitydiagram3::rainbow::LinkRendering;
 use crate::activitydiagram3::swimlanes::Swimlane;
@@ -112,6 +112,7 @@ pub(crate) struct Merge {
     east: Option<Rc<dyn TextBlock>>,
     back: HColor,
     skin: Rc<SkinParam>,
+    swimlane: Option<Rc<Swimlane>>,
 }
 
 impl Merge {
@@ -121,6 +122,7 @@ impl Merge {
         east: Option<Rc<dyn TextBlock>>,
         back: HColor,
         skin: Rc<SkinParam>,
+        swimlane: Option<Rc<Swimlane>>,
     ) -> Self {
         Self {
             north,
@@ -128,6 +130,7 @@ impl Merge {
             east,
             back,
             skin,
+            swimlane,
         }
     }
 
@@ -142,6 +145,18 @@ impl Merge {
 impl Ftile for Merge {
     fn skin(&self) -> Rc<SkinParam> {
         self.skin.clone()
+    }
+
+    fn swimlane_in(&self) -> Option<Rc<Swimlane>> {
+        self.swimlane.clone()
+    }
+
+    fn swimlane_out(&self) -> Option<Rc<Swimlane>> {
+        self.swimlane.clone()
+    }
+
+    fn swimlanes(&self) -> Vec<Rc<Swimlane>> {
+        self.swimlane.iter().cloned().collect()
     }
 
     fn calculate_dimension(&self, sb: &dyn StringBounder) -> FtileGeometry {
@@ -165,6 +180,7 @@ impl Ftile for Merge {
             (side, side / 2.0),
             (side / 2.0, side),
             (0.0, side / 2.0),
+            (side / 2.0, 0.0),
         ]);
         polygon.delta_shadow = 0.0;
         let sb = g.string_bounder();
@@ -218,6 +234,7 @@ pub struct FtileIfLinks {
     skin: Rc<SkinParam>,
     in_link_rendering: LinkRendering,
     out_link_rendering: LinkRendering,
+    swimlane: Option<Rc<Swimlane>>,
 }
 
 impl FtileIfLinks {
@@ -231,6 +248,7 @@ impl FtileIfLinks {
         notes: &[PositionedNote],
         in_link_rendering: LinkRendering,
         out_link_rendering: LinkRendering,
+        swimlane: Option<Rc<Swimlane>>,
     ) -> FtileRef {
         let block = |d: &Option<Display>| d.as_ref().and_then(|d| arrow_text_block(&skin, d));
         let (label1, label2) = (
@@ -256,6 +274,7 @@ impl FtileIfLinks {
             east: label2.clone(),
             skin: skin.clone(),
             north_widens: false,
+            swimlane: swimlane.clone(),
         });
         let (diamond2, merge_label_height): (FtileRef, f64) = if two_branches {
             let out =
@@ -270,12 +289,13 @@ impl FtileIfLinks {
                     .or(color)
                     .unwrap_or_else(|| Diamond::new(Display::null(), &skin, None).back()),
                 skin: skin.clone(),
+                swimlane: swimlane.clone(),
             };
             let h = merge.label_height(sb);
             (Rc::new(merge), h)
         } else {
             (
-                FtileEmpty::new(&skin, 0.0, HEXAGON_HALF_SIZE / 2.0, None),
+                FtileEmpty::new(&skin, 0.0, HEXAGON_HALF_SIZE / 2.0, swimlane.clone()),
                 0.0,
             )
         };
@@ -306,6 +326,7 @@ impl FtileIfLinks {
             skin,
             in_link_rendering,
             out_link_rendering,
+            swimlane: swimlane.clone(),
         });
         // room for the notes beside the condition (`FtileIfWithDiamonds` constructor)
         if let Some(left) = &core.opale_left {
@@ -484,7 +505,7 @@ impl Ftile for FtileIfLinks {
     }
 
     fn swimlane_in(&self) -> Option<Rc<Swimlane>> {
-        self.tile1.swimlane_in()
+        self.swimlane.clone()
     }
 
     fn swimlane_out(&self) -> Option<Rc<Swimlane>> {
@@ -492,7 +513,7 @@ impl Ftile for FtileIfLinks {
     }
 
     fn swimlanes(&self) -> Vec<Rc<Swimlane>> {
-        let mut lanes: Vec<Rc<Swimlane>> = Vec::new();
+        let mut lanes: Vec<Rc<Swimlane>> = self.swimlane.iter().cloned().collect();
         for part in [&self.tile1, &self.tile2] {
             for lane in part.swimlanes() {
                 if !lanes.iter().any(|l| Rc::ptr_eq(l, &lane)) {
@@ -542,6 +563,7 @@ impl Ftile for FtileIfLinks {
             (&self.tile1, b1t, self.empty1, 0.0, 0.0),
             (&self.tile2, b2t, self.empty2, d1.width, d2.width),
         ];
+        let half = HEXAGON_HALF_SIZE;
 
         // ConnectionHorizontalThenVertical: from the condition's side vertices to the branches
         for (tile, t, empty, x1, _) in &branches {
@@ -552,12 +574,48 @@ impl Ftile for FtileIfLinks {
             } else {
                 Some(arrows.as_to(Direction::Down))
             };
-            let mut s = Snake::create(&self.skin, color, end);
-            let (px, py) = (t.dx + tg.left(), t.dy + tg.in_y);
-            s.add_point(d1t.dx + x1, d1t.dy + mid1);
-            s.add_point(px, d1t.dy + mid1);
-            s.add_point(px, py);
-            g.draw_snake(s);
+            let p1 = (d1t.dx + x1, d1t.dy + mid1);
+            let p2 = (t.dx + tg.left(), t.dy + tg.in_y);
+            let (skin, diamond_height) = (self.skin.clone(), d1.height);
+            let (color1, end1) = (color.clone(), end.clone());
+            let skin1 = skin.clone();
+            let conn = FnConnection::new(
+                Some(self.diamond1.clone()),
+                Some((*tile).clone()),
+                move |g| {
+                    let mut s = Snake::create(&skin1, color1.clone(), end1.clone());
+                    s.add_point(p1.0, p1.1);
+                    s.add_point(p2.0, p1.1);
+                    s.add_point(p2.0, p2.1);
+                    g.draw_snake(s);
+                },
+            )
+            .translatable(move |g, t1, t2| {
+                let (mut q1, q2) = (
+                    (p1.0 + t1.dx, p1.1 + t1.dy),
+                    (p2.0 + t2.dx, p2.1 + t2.dy),
+                );
+                if left_or_right(p1, p2) != left_or_right(q1, q2) {
+                    let delta = if left_or_right(p1, p2) == Direction::Right {
+                        -half
+                    } else {
+                        half
+                    };
+                    let mut small = Snake::create(&skin, color.clone(), None);
+                    small.add_point(q1.0, q1.1);
+                    small.add_point(q1.0 + delta, q1.1);
+                    small.add_point(q1.0 + delta, q1.1 + diamond_height * 0.75);
+                    q1 = small.last();
+                    g.draw_snake(small);
+                }
+                let mut s =
+                    Snake::create(&skin, color.clone(), end.clone()).with_merge(MergeStrategy::Limited);
+                s.add_point(q1.0, q1.1);
+                s.add_point(q2.0, q1.1);
+                s.add_point(q2.0, q2.1);
+                g.draw_snake(s);
+            });
+            g.draw_connection(&conn);
         }
 
         // the exits: to the merge diamond, or straight down when only one branch leaves
@@ -572,6 +630,7 @@ impl Ftile for FtileIfLinks {
             }
             let color = out_link_rendering_color(&self.skin, tile.as_ref());
             let (x1, y1) = (t.dx + tg.left(), t.dy + tg.out_y);
+            let (skin, empty) = (self.skin.clone(), *empty);
             if outs[0] && outs[1] {
                 let (x2, y2) = (d2t.dx + x2, d2t.dy + mid2);
                 let arrow = if x2 > x1 {
@@ -579,24 +638,83 @@ impl Ftile for FtileIfLinks {
                 } else {
                     Direction::Left
                 };
-                let mut s = Snake::create(&self.skin, color, Some(arrows.as_to(arrow)));
-                if *empty {
-                    s = s.emphasize_direction(Direction::Down);
-                }
-                s.add_point(x1, y1);
-                s.add_point(x1, y2);
-                s.add_point(x2, y2);
-                g.draw_snake(s);
+                let end = arrows.as_to(arrow);
+                let (skin1, color1, end1) = (skin.clone(), color.clone(), end.clone());
+                let conn = FnConnection::new(
+                    Some((*tile).clone()),
+                    Some(self.diamond2.clone()),
+                    move |g| {
+                        let mut s = Snake::create(&skin1, color1.clone(), Some(end1.clone()));
+                        if empty {
+                            s = s.emphasize_direction(Direction::Down);
+                        }
+                        s.add_point(x1, y1);
+                        s.add_point(x1, y2);
+                        s.add_point(x2, y2);
+                        g.draw_snake(s);
+                    },
+                )
+                .translatable(move |g, t1, t2| {
+                    let mp1 = (x1 + t1.dx, y1 + t1.dy);
+                    let mp2 = (x2 + t2.dx, y2 + t2.dy);
+                    let delta = if x2 > x1 { -1.5 * half } else { 1.5 * half };
+                    let original = left_or_right((x1, y1), (x2, y2));
+                    let new = left_or_right(mp1, mp2);
+                    let mp2bc = if original == new {
+                        (mp2.0 + delta, mp2.1)
+                    } else {
+                        (mp2.0 + delta, mp2.1 - 1.5 * half)
+                    };
+                    let mut s =
+                        Snake::create(&skin, color.clone(), None).with_merge(MergeStrategy::Limited);
+                    s.add_point(mp1.0, mp1.1);
+                    if original == new {
+                        let middle = (mp1.1 + mp2.1) / 2.0;
+                        s.add_point(mp1.0, middle);
+                        s.add_point(mp2bc.0, middle);
+                    } else {
+                        s.add_point(mp1.0, mp2bc.1);
+                    }
+                    s.add_point(mp2bc.0, mp2bc.1);
+                    g.draw_snake(s);
+                    let mut small = Snake::create(&skin, color.clone(), Some(end.clone()))
+                        .with_merge(MergeStrategy::Limited);
+                    small.add_point(mp2bc.0, mp2bc.1);
+                    small.add_point(mp2bc.0, mp2.1);
+                    small.add_point(mp2.0, mp2.1);
+                    g.draw_snake(small);
+                });
+                g.draw_connection(&conn);
             } else {
-                let mut s = Snake::create(&self.skin, color, None);
-                if *empty {
-                    s = s.emphasize_direction(Direction::Down);
-                }
-                s.add_point(x1, y1);
-                s.add_point(x1, total.height);
-                s.add_point(total.left(), total.height);
-                s.add_point(total.left(), total.height);
-                g.draw_snake(s);
+                let (lx, th) = (total.left(), total.height);
+                let (skin1, color1) = (skin.clone(), color.clone());
+                let conn = FnConnection::new(
+                    Some((*tile).clone()),
+                    Some(self.diamond2.clone()),
+                    move |g| {
+                        let mut s = Snake::create(&skin1, color1.clone(), None);
+                        if empty {
+                            s = s.emphasize_direction(Direction::Down);
+                        }
+                        s.add_point(x1, y1);
+                        s.add_point(x1, th);
+                        s.add_point(lx, th);
+                        s.add_point(lx, th);
+                        g.draw_snake(s);
+                    },
+                )
+                .translatable(move |g, t1, t2| {
+                    let mp1 = (x1 + t1.dx, y1 + t1.dy);
+                    let mp2 = (lx + t2.dx, th - half + t2.dy);
+                    let mut s =
+                        Snake::create(&skin, color.clone(), None).with_merge(MergeStrategy::Limited);
+                    s.add_point(mp1.0, mp1.1);
+                    s.add_point(mp1.0, mp2.1);
+                    s.add_point(mp2.0, mp2.1);
+                    s.add_point(mp2.0, th);
+                    g.draw_snake(s);
+                });
+                g.draw_connection(&conn);
             }
         }
     }

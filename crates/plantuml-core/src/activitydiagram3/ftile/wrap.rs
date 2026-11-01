@@ -418,3 +418,40 @@ impl Connection for ConnectionVerticalDown {
         g.draw_snake(snake);
     }
 }
+
+/// A tile with other entry and exit lanes (`FtileWithSwimlanes`).
+pub struct FtileWithSwimlanes {
+    inner: Rc<dyn Ftile>,
+    lane_in: Option<Rc<Swimlane>>,
+    lane_out: Option<Rc<Swimlane>>,
+}
+
+impl FtileWithSwimlanes {
+    /// `FtileUtils.withSwimlaneIn`.
+    pub fn with_swimlane_in(inner: Rc<dyn Ftile>, lane_in: Option<Rc<Swimlane>>) -> Rc<Self> {
+        let lane_out = inner.swimlane_out();
+        Rc::new(Self {
+            inner,
+            lane_in,
+            lane_out,
+        })
+    }
+}
+
+impl Ftile for FtileWithSwimlanes {
+    fn skin(&self) -> Rc<SkinParam> {
+        self.inner.skin()
+    }
+
+    fn decorated(&self) -> Option<Rc<dyn Ftile>> {
+        Some(self.inner.clone())
+    }
+
+    fn swimlane_in(&self) -> Option<Rc<Swimlane>> {
+        self.lane_in.clone()
+    }
+
+    fn swimlane_out(&self) -> Option<Rc<Swimlane>> {
+        self.lane_out.clone()
+    }
+}

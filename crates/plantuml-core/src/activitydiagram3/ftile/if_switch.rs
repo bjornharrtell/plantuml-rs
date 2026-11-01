@@ -115,6 +115,7 @@ impl FtileSwitch {
         sb: &dyn StringBounder,
         in_link_rendering: LinkRendering,
         out_link_rendering: LinkRendering,
+        swimlane: Option<Rc<Swimlane>>,
     ) -> FtileRef {
         let color = back;
         let diamond1 = Rc::new(DiamondInside2 {
@@ -125,11 +126,12 @@ impl FtileSwitch {
             east: None,
             skin: skin.clone(),
             north_widens: false,
+            swimlane: swimlane.clone(),
         });
         let diamond2_back = color
             .clone()
             .unwrap_or_else(|| Diamond::new(Display::null(), &skin, None).back());
-        let diamond2 = Rc::new(Merge::new(None, None, None, diamond2_back, skin.clone()));
+        let diamond2 = Rc::new(Merge::new(None, None, None, diamond2_back, skin.clone(), swimlane.clone()));
         let mut tiles: Vec<FtileRef> = Vec::new();
         let mut positive = Vec::new();
         let mut special = Vec::new();

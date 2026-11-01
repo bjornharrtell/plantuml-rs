@@ -649,6 +649,7 @@ impl Instruction for InstructionSwitch {
             sb.as_ref(),
             self.in_link_rendering.clone(),
             self.out_link_rendering.clone(),
+            self.swimlane.clone(),
         );
         noted(
             tile,
@@ -885,6 +886,7 @@ impl Instruction for InstructionIf {
                 factory.string_bounder(),
                 self.in_link_rendering.clone(),
                 self.out_link_rendering.clone(),
+                self.swimlane.clone(),
             );
             return noted(
                 weld(result, welding),
@@ -947,6 +949,7 @@ impl Instruction for InstructionIf {
                 skin,
                 self.in_link_rendering.clone(),
                 self.out_link_rendering.clone(),
+                self.swimlane.clone(),
             );
             return weld(result, welding);
         }
@@ -959,6 +962,7 @@ impl Instruction for InstructionIf {
             &self.notes,
             self.in_link_rendering.clone(),
             self.out_link_rendering.clone(),
+            self.swimlane.clone(),
         );
         weld(result, welding)
     }
@@ -1024,6 +1028,8 @@ pub struct InstructionRepeat {
     back_color: Option<HColor>,
     colors: Colors,
     swimlane: Option<Rc<Swimlane>>,
+    /// The lane of the `repeat while` condition.
+    swimlane_out: Option<Rc<Swimlane>>,
     in_link_rendering: LinkRendering,
     out_link_rendering: LinkRendering,
 }
@@ -1047,12 +1053,14 @@ impl InstructionRepeat {
             start_label,
             back_color,
             colors,
+            swimlane_out: swimlane.clone(),
             swimlane,
             in_link_rendering,
             out_link_rendering: LinkRendering::none(),
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn set_test(
         &mut self,
         test: Display,
@@ -1060,7 +1068,9 @@ impl InstructionRepeat {
         out: Option<Display>,
         back_link: LinkRendering,
         test_color: Option<HColor>,
+        swimlane_out: Option<Rc<Swimlane>>,
     ) {
+        self.swimlane_out = swimlane_out;
         self.test = test;
         self.yes = yes;
         self.out = out;
@@ -1140,18 +1150,22 @@ impl Instruction for InstructionRepeat {
                 back2,
                 entry_color: self.back_color.clone(),
                 test_color: self.test_color.clone(),
+                swimlane: self.swimlane.clone(),
+                swimlane_out: self.swimlane_out.clone(),
             },
             skin.clone(),
             sb.as_ref(),
             self.in_link_rendering.clone(),
             self.out_link_rendering.clone(),
         );
-        super::ftile::repeat::RepeatBreaks::wrap(
+        let wrapped = super::ftile::repeat::RepeatBreaks::wrap(
             result,
             welding,
             self.test_color.clone().or_else(|| self.back_color.clone()),
             skin,
-        )
+            self.swimlane.clone(),
+        );
+        super::ftile::wrap::FtileWithSwimlanes::with_swimlane_in(wrapped, self.swimlane.clone())
     }
 
     fn add(&mut self, other: InsRef) -> CommandExecutionResult {
@@ -1210,6 +1224,7 @@ pub struct InstructionWhile {
     yes: Option<Display>,
     out_display: Option<Display>,
     back_color: Option<HColor>,
+    swimlane: Option<Rc<Swimlane>>,
     in_link_rendering: LinkRendering,
     out_link_rendering: LinkRendering,
 }
@@ -1225,11 +1240,12 @@ impl InstructionWhile {
         Self {
             notes: Vec::new(),
             backward: None,
-            list: InstructionList::new(swimlane),
+            list: InstructionList::new(swimlane.clone()),
             test,
             yes,
             out_display: None,
             back_color,
+            swimlane,
             in_link_rendering,
             out_link_rendering: LinkRendering::none(),
         }
@@ -1309,6 +1325,7 @@ impl Instruction for InstructionWhile {
             factory.skin(),
             self.in_link_rendering.clone(),
             self.out_link_rendering.clone(),
+            self.swimlane.clone(),
         );
         noted(
             tile,

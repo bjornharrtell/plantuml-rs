@@ -175,7 +175,21 @@ impl SlotRecorder {
 
     pub fn record(&self, sb: &dyn StringBounder, x: f64, y: f64, shape: &UShape) {
         match shape {
-            UShape::Rectangle(r) => self.add(x, x + r.width, y, y + r.height),
+            UShape::Rectangle(r) => {
+                let on_x = self.mode == CompressionMode::OnX;
+                if (on_x && r.ignore_for_compression_x) || (!on_x && r.ignore_for_compression_y) {
+                    // `URectangle.drawWhenCompressed`: only the two edges are kept.
+                    if on_x {
+                        self.add(x, x + 2.0, y, y + r.height);
+                        self.add(x + r.width - 2.0, x + r.width, y, y + r.height);
+                    } else {
+                        self.add(x, x + r.width, y, y + 2.0);
+                        self.add(x, x + r.width, y + r.height - 2.0, y + r.height);
+                    }
+                } else {
+                    self.add(x, x + r.width, y, y + r.height);
+                }
+            }
             UShape::Path(p) => {
                 if let Some((x1, y1, x2, y2)) = p.min_max() {
                     self.add(x + x1, x + x2, y + y1, y + y2);
@@ -207,6 +221,27 @@ pub struct CompressLayer {
 }
 
 impl CompressLayer {
+    /// Where a text centered in `total_width` goes, and the layer left to apply to its shapes
+    /// (the `CenteredText` branch of `UGraphicCompressOnXorY.draw`).
+    pub fn centered(
+        &self,
+        x: f64,
+        y: f64,
+        total_width: f64,
+        text_width: f64,
+    ) -> (f64, f64, Option<Rc<CompressLayer>>) {
+        let (ox, oy) = (self.origin.dx, self.origin.dy);
+        let ct = |v: f64| self.transform.transform(v);
+        if self.mode == CompressionMode::OnX {
+            let real = ct(x - ox + total_width) - ct(x - ox);
+            let pos = (real - text_width) / 2.0;
+            (ox + ct(x - ox) + pos, y, self.parent.clone())
+        } else {
+            let pos = (total_width - text_width) / 2.0;
+            (x + pos, oy + ct(y - oy), self.parent.clone())
+        }
+    }
+
     pub fn new(
         mode: CompressionMode,
         origin: UTranslate,

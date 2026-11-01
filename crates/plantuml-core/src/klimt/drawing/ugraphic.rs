@@ -141,6 +141,10 @@ pub struct URectangle {
     pub rx: f64,
     pub ry: f64,
     pub delta_shadow: f64,
+    /// Only its edges count when looking for empty bands to compress
+    /// (`ignoreForCompressionOnX`, `ignoreForCompressionOnY`).
+    pub ignore_for_compression_x: bool,
+    pub ignore_for_compression_y: bool,
 }
 
 impl URectangle {
@@ -151,7 +155,19 @@ impl URectangle {
             rx: 0.0,
             ry: 0.0,
             delta_shadow: 0.0,
+            ignore_for_compression_x: false,
+            ignore_for_compression_y: false,
         }
+    }
+
+    pub fn ignore_for_compression_on_x(mut self) -> Self {
+        self.ignore_for_compression_x = true;
+        self
+    }
+
+    pub fn ignore_for_compression_on_y(mut self) -> Self {
+        self.ignore_for_compression_y = true;
+        self
     }
     pub fn rounded(mut self, round: f64) -> Self {
         self.rx = round;
@@ -627,6 +643,35 @@ impl UGraphic {
         let mut u = self.clone();
         u.translate = u.translate.compose(t);
         u
+    }
+
+    /// A copy that draws nothing (`UGraphicNo`), keeping the string bounder.
+    pub fn discarding(&self) -> UGraphic {
+        let mut u = self.clone();
+        u.limit = Some(Rc::new(RefCell::new(MinMax::empty(false))));
+        u.slots = None;
+        u.footprint = None;
+        u
+    }
+
+    /// Draws `text` centered in `total_width`, in the space left once the compression is applied
+    /// (`CenteredText`). Measuring passes ignore it, unless a compression layer expands it first.
+    pub fn draw_centered_text(&self, text: &dyn crate::klimt::shape::TextBlock, total_width: f64) {
+        if self.compress.is_none() && (self.is_finding_limits() || self.footprint.is_some()) {
+            return;
+        }
+        let text_width = text.calculate_dimension(self.bounder.as_ref()).width;
+        let (x, y) = (self.translate.dx, self.translate.dy);
+        let mut u = self.clone();
+        match &self.compress {
+            Some(layer) => {
+                let (nx, ny, parent) = layer.centered(x, y, total_width, text_width);
+                u.translate = UTranslate::new(nx, ny);
+                u.compress = parent;
+            }
+            None => u.translate = UTranslate::new(x + (total_width - text_width) / 2.0, y),
+        }
+        text.draw(&u);
     }
     pub fn apply_color(&self, c: HColor) -> UGraphic {
         let mut u = self.clone();

@@ -957,6 +957,61 @@ fn while_end() -> Cmd {
     )
 }
 
+/// The background of a lane given by `|#color|name|` (`HColorSet.getColor`).
+fn lane_colors(arg: &RegexResult) -> Option<crate::klimt::color::colors::Colors> {
+    let color = arg.get("COLOR", 0)?;
+    crate::klimt::color::colors::Colors::parse(color, ColorType::Back)
+}
+
+fn lane_label(arg: &RegexResult) -> Option<Display> {
+    arg.get("LABEL", 0)
+        .map(|l| Display::with_newlines(Some(l)))
+}
+
+/// `|name|label|` (`CommandSwimlane`).
+fn swimlane() -> Cmd {
+    single(
+        vec![
+            IRegex::start(),
+            IRegex::leaf(r"\|"),
+            crate::klimt::color::parser::exp6(),
+            IRegex::named("SWIMLANE", "([^|]+)"),
+            IRegex::leaf(r"\|"),
+            IRegex::named("LABEL", "([^|]+)?"),
+            IRegex::end(),
+        ],
+        |d, arg| {
+            let name = arg.get("SWIMLANE", 0).unwrap_or("");
+            d.swimlane(name, lane_colors(arg), lane_label(arg))
+        },
+    )
+}
+
+/// `swimlane name as label` (`CommandSwimlane2`).
+fn swimlane2() -> Cmd {
+    single(
+        vec![
+            IRegex::start(),
+            IRegex::leaf("swimlane"),
+            IRegex::space_one_or_more(),
+            crate::klimt::color::parser::exp7(),
+            IRegex::space_zero_or_more(),
+            IRegex::named("SWIMLANE", "([^|]+?)"),
+            IRegex::optional(IRegex::group(vec![
+                IRegex::space_one_or_more(),
+                IRegex::leaf("as"),
+                IRegex::space_one_or_more(),
+                IRegex::named("LABEL", "([^|]+)"),
+            ])),
+            IRegex::end(),
+        ],
+        |d, arg| {
+            let name = arg.get("SWIMLANE", 0).unwrap_or("");
+            d.swimlane(name, lane_colors(arg), lane_label(arg))
+        },
+    )
+}
+
 pub fn commands() -> Vec<Cmd> {
     let mut cmds: Vec<Cmd> = Vec::new();
     // CommandFootboxIgnored
@@ -971,7 +1026,8 @@ pub fn commands() -> Vec<Cmd> {
         |_, _| CommandExecutionResult::ok(),
     ));
     cmds.extend(crate::command::common::common_commands());
-    // CommandSwimlane, CommandSwimlane2
+    cmds.push(swimlane());
+    cmds.push(swimlane2());
     cmds.push(open_group());
     cmds.push(close_group());
     cmds.push(close_group_legacy());
