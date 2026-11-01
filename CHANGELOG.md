@@ -7,6 +7,10 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 ### Added
 
+- Activity swimlanes: `|lane|`, `|#color|lane|label|` and `swimlane name as label`, which were syntax errors.
+  Each lane is measured and drawn in its own pass, with its title, background colour and dividers; the arrows that
+  leave a lane are redrawn between the lanes, for `if`, `elseif`, `switch`, `while`, `repeat` (with `backward` and
+  `break`) and `fork`, as Java does. `swimlaneWidth`, `swimlaneWrapTitleWidth` and the `swimlane` style apply.
 - Playground: an opt-in "all fixtures" checkbox opens a browser over every repository fixture and every file of the
   PlantUML test corpus (filter box, previous/next). The default view stays one example per diagram type.
   `scripts/build-examples.py` writes `site/examples.json`; the Pages workflow fetches the pinned corpus for it.
@@ -19,6 +23,9 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 ### Fixed
 
+- Activity `repeat` with a `break`: the diamond the breaks lead to is joined to the loop with the 35 px arrow
+  `assembly` draws, as in Java (it sat 20 px too high). The condition diamonds close their outline like Java's, and
+  `switch` ends in the empty hexagon Java draws.
 - Activity `repeat`: laid out with Java's `FtileRepeat` (start diamond or `repeat :label;` box, condition below with
   its `is (yes) not (no)` labels, loop-back on the right, `backward` box, and a diamond for `break`). The repeat
   fixtures reach layout 1.0 (`repeat_stereo` was 0.0).
