@@ -6,7 +6,6 @@ use super::if_long::DiamondInside2;
 use super::leaf::FtileEmpty;
 use super::snake::{Arrows, Snake};
 use super::while_::Diamond;
-use super::wrap::FtileAssemblySimple;
 use super::{FnConnection, Ftile, FtileGeometry, FtileGraphic, WeldingPoint};
 use crate::activitydiagram3::rainbow::LinkRendering;
 use crate::activitydiagram3::swimlanes::Swimlane;
@@ -543,7 +542,7 @@ impl Ftile for FtileRepeat {
 
 /// The loop followed by the diamond its `break`s lead to (`FtileFactoryDelegatorRepeat`).
 pub struct RepeatBreaks {
-    assembly: Rc<FtileAssemblySimple>,
+    assembly: FtileRef,
     inner: FtileRef,
     diamond_break: FtileRef,
     points: Vec<WeldingPoint>,
@@ -557,6 +556,7 @@ impl RepeatBreaks {
         color: Option<HColor>,
         skin: Rc<SkinParam>,
         swimlane: Option<Rc<Swimlane>>,
+        factory: &dyn super::factory::FtileFactory,
     ) -> FtileRef {
         if points.is_empty() {
             return repeat;
@@ -565,7 +565,7 @@ impl RepeatBreaks {
         let diamond_break: FtileRef =
             Rc::new(Merge::new(None, None, None, back, skin.clone(), swimlane));
         let assembly =
-            FtileAssemblySimple::new(Marged::horizontal(repeat, 10.0, 0.0), diamond_break.clone());
+            factory.assembly(Marged::horizontal(repeat, 10.0, 0.0), diamond_break.clone());
         Rc::new(Self {
             inner: assembly.clone(),
             assembly,
@@ -600,27 +600,36 @@ impl Ftile for RepeatBreaks {
                 continue;
             };
             let mid = to.dy + diamond.height / 2.0;
-            if i == 0 {
-                let mut s = Snake::create(
-                    &self.skin,
-                    color.clone(),
-                    Some(arrows.as_to(Direction::Right)),
-                );
-                s.add_point(from.dx, from.dy);
-                s.add_point(0.0, from.dy);
-                s.add_point(0.0, mid);
-                s.add_point(to.dx, mid);
-                g.draw_snake(s);
-            } else {
-                let mut s = Snake::create(
-                    &self.skin,
-                    color.clone(),
-                    Some(arrows.as_to(Direction::Left)),
-                );
-                s.add_point(from.dx, from.dy);
-                s.add_point(0.0, from.dy);
-                g.draw_snake(s);
-            }
+            let first = i == 0;
+            let (skin, color, arrows) = (self.skin.clone(), color.clone(), arrows);
+            let conn = FnConnection::new(
+                Some(point.tile.clone()),
+                Some(self.diamond_break.clone()),
+                move |g| {
+                    if first {
+                        let mut s = Snake::create(
+                            &skin,
+                            color.clone(),
+                            Some(arrows.as_to(Direction::Right)),
+                        );
+                        s.add_point(from.dx, from.dy);
+                        s.add_point(0.0, from.dy);
+                        s.add_point(0.0, mid);
+                        s.add_point(to.dx, mid);
+                        g.draw_snake(s);
+                    } else {
+                        let mut s = Snake::create(
+                            &skin,
+                            color.clone(),
+                            Some(arrows.as_to(Direction::Left)),
+                        );
+                        s.add_point(from.dx, from.dy);
+                        s.add_point(0.0, from.dy);
+                        g.draw_snake(s);
+                    }
+                },
+            );
+            g.draw_connection(&conn);
         }
     }
 }

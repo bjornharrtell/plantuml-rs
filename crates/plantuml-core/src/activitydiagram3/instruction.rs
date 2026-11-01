@@ -466,6 +466,8 @@ pub struct InstructionFork {
     branches: Vec<InstructionList>,
     colors: Colors,
     swimlane: Option<Rc<Swimlane>>,
+    /// The lane of the last `fork again` or of `end fork`.
+    swimlane_out: Option<Rc<Swimlane>>,
     in_link_rendering: LinkRendering,
 }
 
@@ -478,17 +480,23 @@ impl InstructionFork {
         Self {
             finished: false,
             notes: Vec::new(),
-            branches: vec![InstructionList::new(swimlane.clone())],
+            branches: vec![InstructionList::new(None)],
             colors,
+            swimlane_out: swimlane.clone(),
             swimlane,
             in_link_rendering,
         }
     }
 
     /// Ends the current branch and starts a new one (`forkAgain`).
-    pub fn fork_again(&mut self) {
-        self.branches
-            .push(InstructionList::new(self.swimlane.clone()));
+    pub fn fork_again(&mut self, swimlane: Option<Rc<Swimlane>>) {
+        self.swimlane_out = swimlane;
+        self.branches.push(InstructionList::new(None));
+    }
+
+    /// The lane `end fork` is in (`setStyle`).
+    pub fn set_swimlane_out(&mut self, swimlane: Option<Rc<Swimlane>>) {
+        self.swimlane_out = swimlane;
     }
 
     /// Remembers the arrow leaving the current branch (`manageOutRendering`).
@@ -523,6 +531,8 @@ impl Instruction for InstructionFork {
             self.colors.clone(),
             factory.skin(),
             self.in_link_rendering.clone(),
+            self.swimlane.clone(),
+            self.swimlane_out.clone(),
         );
         noted(
             tile,
@@ -553,11 +563,14 @@ impl Instruction for InstructionFork {
 
     fn swimlanes(&self) -> Vec<Rc<Swimlane>> {
         let mut result = Vec::new();
-        for branch in &self.branches {
-            for lane in branch.swimlanes() {
-                if !result.iter().any(|l| Rc::ptr_eq(l, &lane)) {
-                    result.push(lane);
-                }
+        let ends = self
+            .swimlane
+            .iter()
+            .chain(self.swimlane_out.iter())
+            .cloned();
+        for lane in self.branches.iter().flat_map(|b| b.swimlanes()).chain(ends) {
+            if !result.iter().any(|l| Rc::ptr_eq(l, &lane)) {
+                result.push(lane);
             }
         }
         result
@@ -568,7 +581,7 @@ impl Instruction for InstructionFork {
     }
 
     fn swimlane_out(&self) -> Option<Rc<Swimlane>> {
-        self.branches.last().and_then(|b| b.swimlane_out())
+        self.swimlane_out.clone()
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -1165,6 +1178,7 @@ impl Instruction for InstructionRepeat {
             self.test_color.clone().or_else(|| self.back_color.clone()),
             skin,
             self.swimlane.clone(),
+            factory,
         );
         super::ftile::wrap::FtileWithSwimlanes::with_swimlane_in(wrapped, self.swimlane.clone())
     }
@@ -1299,7 +1313,7 @@ impl Instruction for InstructionWhile {
                 b.incoming2.display().clone(),
                 Some(factory.activity(
                     &b.label,
-                    b.swimlane.clone(),
+                    self.swimlane.clone(),
                     b.box_style,
                     &Colors::empty(),
                     b.stereotype.clone(),

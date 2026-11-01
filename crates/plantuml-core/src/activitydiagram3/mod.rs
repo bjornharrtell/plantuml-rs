@@ -538,7 +538,7 @@ impl ActivityDiagram3 {
             return CommandExecutionResult::error("Cannot find fork");
         };
         fork.set_out_rendering(self.next_link_renderer());
-        fork.fork_again();
+        fork.fork_again(self.swimlanes.current_swimlane());
         self.reset_next_link();
         CommandExecutionResult::ok()
     }
@@ -554,6 +554,7 @@ impl ActivityDiagram3 {
             return CommandExecutionResult::error("Cannot find fork");
         };
         fork.set_out_rendering(self.next_link_renderer());
+        fork.set_swimlane_out(self.swimlanes.current_swimlane());
         drop(current);
         self.reset_next_link();
         match self.fork_stack.pop() {

@@ -196,6 +196,9 @@ impl SlotRecorder {
                 }
             }
             UShape::Polygon(p) => {
+                if p.compression_mode == Some(self.mode) {
+                    return;
+                }
                 if let Some((x1, y1, x2, y2)) = p.min_max() {
                     self.add(x + x1, x + x2, y + y1, y + y2);
                 }

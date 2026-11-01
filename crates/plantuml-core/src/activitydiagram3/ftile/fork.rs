@@ -1,12 +1,14 @@
 //! Parallel branches of a fork (`FtileForkInner`, `ParallelBuilderFork`, `FtileBlackBlock`).
 
 use super::factory::{arrow_text_block, in_link_rendering_color, FtileRef};
-use super::wrap::ConnectionVerticalDown;
-use super::{Ftile, FtileGeometry, FtileGraphic};
+use super::leaf::FtileEmpty;
+use super::snake::{Arrows, Snake};
+use super::{FnConnection, Ftile, FtileGeometry, FtileGraphic};
 use crate::activitydiagram3::swimlanes::Swimlane;
 use crate::klimt::color::colors::Colors;
 use crate::klimt::drawing::ugraphic::{URectangle, UTranslate};
 use crate::klimt::font::StringBounder;
+use crate::klimt::geom::Direction;
 use crate::skin::SkinParam;
 use crate::style::{queries, PName};
 use std::rc::Rc;
@@ -21,6 +23,9 @@ pub struct FtileParallel {
     colors: Colors,
     skin: Rc<SkinParam>,
     in_link_rendering: crate::activitydiagram3::rainbow::LinkRendering,
+    /// The lanes of the bars above and under the branches.
+    swimlane_in: Option<Rc<Swimlane>>,
+    swimlane_out: Option<Rc<Swimlane>>,
 }
 
 impl FtileParallel {
@@ -29,6 +34,8 @@ impl FtileParallel {
         colors: Colors,
         skin: Rc<SkinParam>,
         in_link_rendering: crate::activitydiagram3::rainbow::LinkRendering,
+        swimlane_in: Option<Rc<Swimlane>>,
+        swimlane_out: Option<Rc<Swimlane>>,
     ) -> Rc<Self> {
         assert!(!branches.is_empty());
         Rc::new(Self {
@@ -36,6 +43,8 @@ impl FtileParallel {
             colors,
             skin,
             in_link_rendering,
+            swimlane_in,
+            swimlane_out,
         })
     }
 
@@ -153,20 +162,23 @@ impl Ftile for FtileParallel {
     }
 
     fn swimlane_in(&self) -> Option<Rc<Swimlane>> {
-        self.branches.first().and_then(|b| b.swimlane_in())
+        self.swimlane_in.clone()
     }
 
     fn swimlane_out(&self) -> Option<Rc<Swimlane>> {
-        self.branches.last().and_then(|b| b.swimlane_out())
+        self.swimlane_out.clone()
     }
 
     fn swimlanes(&self) -> Vec<Rc<Swimlane>> {
         let mut result = Vec::new();
-        for branch in &self.branches {
-            for lane in branch.swimlanes() {
-                if !result.iter().any(|l| Rc::ptr_eq(l, &lane)) {
-                    result.push(lane);
-                }
+        let ends = self
+            .swimlane_in
+            .iter()
+            .chain(self.swimlane_out.iter())
+            .cloned();
+        for lane in self.branches.iter().flat_map(|b| b.swimlanes()).chain(ends) {
+            if !result.iter().any(|l| Rc::ptr_eq(l, &lane)) {
+                result.push(lane);
             }
         }
         result
@@ -188,43 +200,112 @@ impl Ftile for FtileParallel {
         let sb = g.string_bounder();
         let width = self.bar_width(sb);
         let branch_height = self.branch_height(sb);
+        // the bars stand in for their tiles in the arrows (`FtileBlackBlock`)
+        let bar_in: FtileRef = FtileEmpty::new(&self.skin, 0.0, 0.0, self.swimlane_in.clone());
+        let bar_out: FtileRef = FtileEmpty::new(&self.skin, 0.0, 0.0, self.swimlane_out.clone());
+        let arrows = Arrows::from_skin(&self.skin);
+        let down = arrows.as_to(Direction::Down);
+        let bar_color = self.bar_color();
+        let draw_bar = |y: f64, lane: &Option<Rc<Swimlane>>| {
+            if !g.accepts(lane) {
+                return;
+            }
+            let mut rect = URectangle::build(width, BAR_HEIGHT)
+                .rounded(5.0)
+                .ignore_for_compression_on_x();
+            rect.delta_shadow = 0.0;
+            g.ug()
+                .apply_translate(UTranslate::new(0.0, y))
+                .apply_color(bar_color.clone())
+                .apply_back_color(bar_color.clone())
+                .draw(rect);
+        };
+        draw_bar(0.0, &self.swimlane_in);
+        let mut outs: Vec<FnConnection> = Vec::new();
         for (i, branch) in self.branches.iter().enumerate() {
             let (dx, dy) = self.branch_content_offset(i, sb);
             let dim = branch.calculate_dimension(sb);
             let color = in_link_rendering_color(&self.skin, branch.as_ref());
             let x = dx + dim.left();
+            let (y_in, y_out_a, y_out_b) = (
+                BAR_HEIGHT + dy,
+                BAR_HEIGHT + dy + dim.height,
+                BAR_HEIGHT + branch_height,
+            );
+            // ConnectionIn
             let top_label = arrow_text_block(&self.skin, branch.in_link_rendering().display());
-            let top = ConnectionVerticalDown::new(
-                branch.clone(),
-                branch.clone(),
-                (x, 0.0),
-                (x, BAR_HEIGHT + dy),
+            let align = self.arrow_horizontal_alignment();
+            let (skin, c, d, l) = (
+                self.skin.clone(),
                 color.clone(),
-                top_label,
+                down.clone(),
+                top_label.clone(),
             );
+            let top = FnConnection::new(Some(bar_in.clone()), Some(branch.clone()), move |g| {
+                let mut s =
+                    Snake::create(&skin, c.clone(), Some(d.clone())).with_label(l.clone(), align);
+                s.add_point(x, BAR_HEIGHT);
+                s.add_point(x, y_in);
+                g.draw_snake(s);
+            })
+            .translatable({
+                let (skin, c, d) = (self.skin.clone(), color.clone(), down.clone());
+                move |g, t1, t2| {
+                    let (mp1, mp2) = ((x + t1.dx, BAR_HEIGHT + t1.dy), (x + t2.dx, y_in + t2.dy));
+                    let middle = mp1.1 + 4.0;
+                    let mut s = Snake::create(&skin, c.clone(), Some(d.clone()))
+                        .ignore_for_compression()
+                        .with_label(top_label.clone(), align);
+                    s.add_point(mp1.0, mp1.1);
+                    s.add_point(mp1.0, middle);
+                    s.add_point(mp2.0, middle);
+                    s.add_point(mp2.0, mp2.1);
+                    g.draw_snake(s);
+                }
+            });
             g.draw_connection(&top);
-            let bottom_label = arrow_text_block(&self.skin, branch.out_link_rendering().display());
-            let bottom = ConnectionVerticalDown::new(
-                branch.clone(),
-                branch.clone(),
-                (x, BAR_HEIGHT + dy + dim.height),
-                (x, BAR_HEIGHT + branch_height),
-                color,
-                bottom_label,
-            );
-            g.draw_connection(&bottom);
+            // ConnectionOut
+            if dim.has_point_out() {
+                let bottom_label =
+                    arrow_text_block(&self.skin, branch.out_link_rendering().display());
+                let (skin, c, d, l) = (
+                    self.skin.clone(),
+                    color.clone(),
+                    down.clone(),
+                    bottom_label.clone(),
+                );
+                let bottom =
+                    FnConnection::new(Some(branch.clone()), Some(bar_out.clone()), move |g| {
+                        let mut s = Snake::create(&skin, c.clone(), Some(d.clone()))
+                            .with_label(l.clone(), align);
+                        s.add_point(x, y_out_a);
+                        s.add_point(x, y_out_b);
+                        g.draw_snake(s);
+                    })
+                    .translatable({
+                        let (skin, c, d) = (self.skin.clone(), color.clone(), down.clone());
+                        move |g, t1, t2| {
+                            let (mp1, mp2) =
+                                ((x + t1.dx, y_out_a + t1.dy), (x + t2.dx, y_out_b + t2.dy));
+                            let middle = mp2.1 - 14.0;
+                            let mut s = Snake::create(&skin, c.clone(), Some(d.clone()))
+                                .ignore_for_compression()
+                                .with_label(bottom_label.clone(), align);
+                            s.add_point(mp1.0, mp1.1);
+                            s.add_point(mp1.0, middle);
+                            s.add_point(mp2.0, middle);
+                            s.add_point(mp2.0, mp2.1);
+                            g.draw_snake(s);
+                        }
+                    });
+                outs.push(bottom);
+            }
             g.apply_translate(UTranslate::new(dx, BAR_HEIGHT + dy))
                 .draw_ftile(branch.as_ref());
         }
-        let color = self.bar_color();
-        for y in [0.0, BAR_HEIGHT + branch_height] {
-            let mut rect = URectangle::build(width, BAR_HEIGHT).rounded(2.5);
-            rect.delta_shadow = 0.0;
-            g.ug()
-                .apply_translate(UTranslate::new(0.0, y))
-                .apply_color(color.clone())
-                .apply_back_color(color.clone())
-                .draw(rect);
+        draw_bar(BAR_HEIGHT + branch_height, &self.swimlane_out);
+        for bottom in &outs {
+            g.draw_connection(bottom);
         }
     }
 }

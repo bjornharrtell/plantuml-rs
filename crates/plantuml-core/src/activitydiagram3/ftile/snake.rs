@@ -702,6 +702,17 @@ impl Snake {
         self
     }
 
+    /// The arrow heads do not take room when compressing along x (`ignoreForCompression`).
+    pub fn ignore_for_compression(mut self) -> Snake {
+        for d in [&mut self.start_decoration, &mut self.end_decoration]
+            .into_iter()
+            .flatten()
+        {
+            d.compression_mode = Some(crate::klimt::compress::CompressionMode::OnX);
+        }
+        self
+    }
+
     pub fn without_end_decoration(mut self) -> Snake {
         self.end_decoration = None;
         self

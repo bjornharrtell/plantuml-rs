@@ -280,6 +280,8 @@ impl UEllipse {
 pub struct UPolygon {
     pub points: Vec<(f64, f64)>,
     pub delta_shadow: f64,
+    /// The axis along which the shape is not looked at when compressing (`setCompressionMode`).
+    pub compression_mode: Option<CompressionMode>,
 }
 
 impl UPolygon {
@@ -287,6 +289,7 @@ impl UPolygon {
         Self {
             points,
             delta_shadow: 0.0,
+            compression_mode: None,
         }
     }
     pub fn add_point(&mut self, x: f64, y: f64) {
@@ -307,6 +310,7 @@ impl UPolygon {
         Self {
             points: self.points.iter().map(|&(x, y)| (x + dx, y + dy)).collect(),
             delta_shadow: self.delta_shadow,
+            compression_mode: self.compression_mode,
         }
     }
     pub fn min_max(&self) -> Option<(f64, f64, f64, f64)> {
