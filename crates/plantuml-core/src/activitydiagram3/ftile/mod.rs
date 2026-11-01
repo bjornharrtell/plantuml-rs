@@ -385,8 +385,11 @@ impl PendingSnake {
 enum LaneFilter {
     /// Everything (a single lane).
     All,
-    /// Only what belongs to one lane (`UGraphicInterceptorOneSwimlane`).
-    One(Rc<Swimlane>),
+    /// Only what belongs to one lane (`UGraphicInterceptorOneSwimlane`), with all the lanes in order.
+    One(Rc<Swimlane>, Rc<Vec<Rc<Swimlane>>>),
+    /// The same, when measuring the lanes: arrows do not see which lane is drawn
+    /// (`UGraphicInterceptorAllSwimlanes` is not a `UGraphicInterceptorOneSwimlane`).
+    Measuring(Rc<Swimlane>),
     /// Only the arrows going from a lane to another (`Swimlanes.Cross`).
     Cross,
 }
@@ -417,9 +420,17 @@ impl FtileGraphic {
     }
 
     /// The pass that draws what belongs to `lane`.
-    pub fn for_swimlane(&self, lane: Rc<Swimlane>) -> Self {
+    pub fn for_swimlane(&self, lane: Rc<Swimlane>, all: Rc<Vec<Rc<Swimlane>>>) -> Self {
         Self {
-            filter: LaneFilter::One(lane),
+            filter: LaneFilter::One(lane, all),
+            ..self.clone()
+        }
+    }
+
+    /// The pass that measures `lane`.
+    pub fn for_measuring(&self, lane: Rc<Swimlane>) -> Self {
+        Self {
+            filter: LaneFilter::Measuring(lane),
             ..self.clone()
         }
     }
@@ -460,13 +471,21 @@ impl FtileGraphic {
     /// Whether shapes of the lane are drawn by this pass (for tiles that draw their own shapes).
     pub fn accepts(&self, lane: &Option<Rc<Swimlane>>) -> bool {
         match &self.filter {
-            LaneFilter::One(one) => lane.as_ref().is_some_and(|l| Rc::ptr_eq(l, one)),
+            LaneFilter::One(one, _) | LaneFilter::Measuring(one) => lane.as_ref().is_some_and(|l| Rc::ptr_eq(l, one)),
             _ => true,
         }
     }
 
+    /// The lane being drawn and the list of all lanes, for the arrows that depend on them.
+    pub fn one_lane(&self) -> Option<(Rc<Swimlane>, Rc<Vec<Rc<Swimlane>>>)> {
+        match &self.filter {
+            LaneFilter::One(lane, all) => Some((lane.clone(), all.clone())),
+            _ => None,
+        }
+    }
+
     pub fn draw_ftile(&self, ftile: &dyn Ftile) {
-        if let LaneFilter::One(lane) = &self.filter {
+        if let LaneFilter::One(lane, _) | LaneFilter::Measuring(lane) = &self.filter {
             if !ftile.swimlanes().iter().any(|s| Rc::ptr_eq(s, lane)) {
                 return;
             }
@@ -477,7 +496,7 @@ impl FtileGraphic {
     pub fn draw_connection(&self, connection: &dyn Connection) {
         match &self.filter {
             LaneFilter::All => connection.draw(self),
-            LaneFilter::One(lane) => {
+            LaneFilter::One(lane, _) | LaneFilter::Measuring(lane) => {
                 let in_lane = |s: Option<Rc<Swimlane>>| s.is_none_or(|s| Rc::ptr_eq(&s, lane));
                 let ok1 = connection
                     .ftile1()

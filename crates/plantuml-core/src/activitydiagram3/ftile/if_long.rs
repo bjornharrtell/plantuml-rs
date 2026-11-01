@@ -4,7 +4,7 @@ use super::factory::{arrow_text_block, in_link_rendering_color, FtileRef};
 use super::snake::{Arrows, MergeStrategy, Snake};
 use super::while_::Diamond;
 use super::wrap::{FtileAssemblySimple, FtileMargedVertically};
-use super::{same_ftile, Ftile, FtileGeometry, FtileGraphic};
+use super::{same_ftile, FnConnection, Ftile, FtileGeometry, FtileGraphic};
 use crate::activitydiagram3::rainbow::LinkRendering;
 use crate::activitydiagram3::swimlanes::Swimlane;
 use crate::klimt::color::HColor;
@@ -408,7 +408,7 @@ impl Ftile for FtileIfLongHorizontal {
     }
 
     fn swimlane_in(&self) -> Option<Rc<Swimlane>> {
-        self.couples[0].tile.swimlane_in()
+        self.couples[0].assembly.swimlane_in()
     }
 
     fn swimlane_out(&self) -> Option<Rc<Swimlane>> {
@@ -416,7 +416,7 @@ impl Ftile for FtileIfLongHorizontal {
     }
 
     fn swimlanes(&self) -> Vec<Rc<Swimlane>> {
-        let mut result: Vec<Rc<Swimlane>> = Vec::new();
+        let mut result: Vec<Rc<Swimlane>> = self.swimlane_in().into_iter().collect();
         for t in self.all_tiles() {
             for lane in t.swimlanes() {
                 if !result.iter().any(|l| Rc::ptr_eq(l, &lane)) {
@@ -451,8 +451,11 @@ impl Ftile for FtileIfLongHorizontal {
         let total_left = total_w / 2.0;
         let arrows = Arrows::from_skin(&self.skin);
         let color = in_link_rendering_color(&self.skin, self.couples[0].tile.as_ref());
-        let snake =
-            |dir: Direction| Snake::create(&self.skin, color.clone(), Some(arrows.as_to(dir)));
+        let skin = self.skin.clone();
+        let snake = {
+            let (skin, color, arrows) = (skin.clone(), color.clone(), arrows.clone());
+            move |dir: Direction| Snake::create(&skin, color.clone(), Some(arrows.as_to(dir)))
+        };
         let n = self.couples.len();
         let mut nb_out = 0;
 
@@ -466,17 +469,44 @@ impl Ftile for FtileIfLongHorizontal {
                 nb_out += 1;
             }
             // ConnectionVerticalIn
-            let mut s = snake(Direction::Down);
-            s.add_point(dt.dx + dg.left(), dt.dy + dg.out_y);
-            s.add_point(tt.dx + tg.left(), tt.dy + tg.in_y);
-            g.draw_snake(s);
+            let (p1, p2) = (
+                (dt.dx + dg.left(), dt.dy + dg.out_y),
+                (tt.dx + tg.left(), tt.dy + tg.in_y),
+            );
+            let ns = snake.clone();
+            let conn = FnConnection::new(Some(c.diamond.clone()), Some(c.tile.clone()), {
+                let ns = ns.clone();
+                move |g| {
+                    let mut s = ns(Direction::Down);
+                    s.add_point(p1.0, p1.1);
+                    s.add_point(p2.0, p2.1);
+                    g.draw_snake(s);
+                }
+            })
+            .translatable(move |g, t1, t2| {
+                let mp1 = (p1.0 + t1.dx, p1.1 + t1.dy);
+                let mp2 = (p2.0 + t2.dx, p2.1 + t2.dy);
+                let middle = mp1.1 + 4.0;
+                let mut s = ns(Direction::Down);
+                s.add_point(mp1.0, mp1.1);
+                s.add_point(mp1.0, middle);
+                s.add_point(mp2.0, middle);
+                s.add_point(mp2.0, mp2.1);
+                g.draw_snake(s);
+            });
+            g.draw_connection(&conn);
             // ConnectionVerticalOut
             if tg.has_point_out() {
                 let x = tt.dx + tg.left();
-                let mut s = snake(Direction::Down);
-                s.add_point(x, tt.dy + tg.out_y);
-                s.add_point(x, total_h);
-                g.draw_snake(s);
+                let y = tt.dy + tg.out_y;
+                let ns = snake.clone();
+                let conn = FnConnection::new(Some(c.tile.clone()), None, move |g| {
+                    let mut s = ns(Direction::Down);
+                    s.add_point(x, y);
+                    s.add_point(x, total_h);
+                    g.draw_snake(s);
+                });
+                g.draw_connection(&conn);
             }
         }
         // ConnectionHorizontal between the conditions
@@ -485,21 +515,35 @@ impl Ftile for FtileIfLongHorizontal {
             let g2 = self.couples[i + 1].diamond.calculate_dimension(sb);
             let t1 = self.diamond_translate(i, sb);
             let t2 = self.diamond_translate(i + 1, sb);
-            let mut s = snake(Direction::Right);
-            s.add_point(t1.dx + g1.left() * 2.0, t1.dy + (g1.in_y + g1.out_y) / 2.0);
-            s.add_point(t2.dx, t2.dy + (g2.in_y + g2.out_y) / 2.0);
-            g.draw_snake(s);
+            let a = (t1.dx + g1.left() * 2.0, t1.dy + (g1.in_y + g1.out_y) / 2.0);
+            let b = (t2.dx, t2.dy + (g2.in_y + g2.out_y) / 2.0);
+            let ns = snake.clone();
+            let conn = FnConnection::new(
+                Some(self.couples[i].diamond.clone()),
+                Some(self.couples[i + 1].diamond.clone()),
+                move |g| {
+                    let mut s = ns(Direction::Right);
+                    s.add_point(a.0, a.1);
+                    s.add_point(b.0, b.1);
+                    g.draw_snake(s);
+                },
+            );
+            g.draw_connection(&conn);
         }
         // ConnectionIn
         {
             let dg = self.couples[0].diamond.calculate_dimension(sb);
             let dt = self.diamond_translate(0, sb);
             let (px, py) = (dt.dx + dg.left(), dt.dy + dg.in_y);
-            let mut s = snake(Direction::Down);
-            s.add_point(total_left, 0.0);
-            s.add_point(px, 0.0);
-            s.add_point(px, py);
-            g.draw_snake(s);
+            let ns = snake.clone();
+            let conn = FnConnection::new(None, Some(self.couples[0].diamond.clone()), move |g| {
+                let mut s = ns(Direction::Down);
+                s.add_point(total_left, 0.0);
+                s.add_point(px, 0.0);
+                s.add_point(px, py);
+                g.draw_snake(s);
+            });
+            g.draw_connection(&conn);
         }
         // ConnectionLastElseIn
         let t2 = self.tile2_translate(sb);
@@ -509,46 +553,104 @@ impl Ftile for FtileIfLongHorizontal {
             let dt = self.diamond_translate(n - 1, sb);
             let (x1, y1) = (dt.dx + dg.left() * 2.0, dt.dy + (dg.in_y + dg.out_y) / 2.0);
             let x2 = t2.dx + g2.left();
-            let mut s = snake(Direction::Down);
-            s.add_point(x1, y1);
-            s.add_point(x2, y1);
-            s.add_point(x2, t2.dy + g2.in_y);
-            g.draw_snake(s);
+            let y2 = t2.dy + g2.in_y;
+            let ns = snake.clone();
+            let conn = FnConnection::new(
+                Some(self.couples[n - 1].diamond.clone()),
+                Some(self.tile2.clone()),
+                move |g| {
+                    let mut s = ns(Direction::Down);
+                    s.add_point(x1, y1);
+                    s.add_point(x2, y1);
+                    s.add_point(x2, y2);
+                    g.draw_snake(s);
+                },
+            );
+            g.draw_connection(&conn);
         }
         // ConnectionLastElseOut
         if g2.has_point_out() {
             let x = t2.dx + g2.left();
-            let mut s = snake(Direction::Down);
-            s.add_point(x, t2.dy + g2.out_y);
-            s.add_point(x, total_h);
-            if nb_out == 0 {
-                s.add_point(total_left, total_h);
-            }
-            g.draw_snake(s);
+            let y = t2.dy + g2.out_y;
+            let ns = snake.clone();
+            let conn = FnConnection::new(Some(self.tile2.clone()), None, move |g| {
+                let mut s = ns(Direction::Down);
+                s.add_point(x, y);
+                s.add_point(x, total_h);
+                if nb_out == 0 {
+                    s.add_point(total_left, total_h);
+                }
+                g.draw_snake(s);
+            });
+            g.draw_connection(&conn);
         }
         // ConnectionHline: joins the exits of the branches
         if nb_out > 0 && self.calculate_dimension(sb).has_point_out() {
-            let (mut min_x, mut max_x) = (total_w / 2.0, total_w / 2.0);
-            min_x = min_x.min(total_left);
-            max_x = max_x.max(total_left);
+            // every branch with its exit (the tile, where it leaves, and its lane)
+            let mut exits: Vec<(FtileRef, f64)> = Vec::new();
             for (i, c) in self.couples.iter().enumerate() {
                 let tg = c.tile.calculate_dimension(sb);
                 if tg.has_point_out() {
-                    let x = self.tile_translate(i, sb).dx + tg.left();
-                    min_x = min_x.min(x);
-                    max_x = max_x.max(x);
+                    exits.push((c.tile.clone(), self.tile_translate(i, sb).dx + tg.left()));
                 }
             }
             if g2.has_point_out() {
-                let x = t2.dx + g2.left();
-                min_x = min_x.min(x);
-                max_x = max_x.max(x);
+                exits.push((self.tile2.clone(), t2.dx + g2.left()));
             }
-            let mut s =
-                Snake::create(&self.skin, color.clone(), None).with_merge(MergeStrategy::None);
-            s.add_point(min_x, total_h);
-            s.add_point(max_x, total_h);
-            g.draw_snake(s);
+            let skin = skin.clone();
+            let color = color.clone();
+            let conn = FnConnection::new(None, None, move |g| {
+                let minmax = match g.one_lane() {
+                    Some((lane, all)) => hline_minmax(total_w, &exits, &lane, &all),
+                    None => {
+                        let (mut min_x, mut max_x) = (total_w / 2.0, total_w / 2.0);
+                        for (_, x) in &exits {
+                            min_x = min_x.min(*x);
+                            max_x = max_x.max(*x);
+                        }
+                        Some((min_x.min(total_left), max_x.max(total_left)))
+                    }
+                };
+                let Some((min_x, max_x)) = minmax else {
+                    return;
+                };
+                let mut s =
+                    Snake::create(&skin, color.clone(), None).with_merge(MergeStrategy::None);
+                s.add_point(min_x, total_h);
+                s.add_point(max_x, total_h);
+                g.draw_snake(s);
+            });
+            g.draw_connection(&conn);
         }
     }
+}
+
+/// Extent of the line joining the exits of the branches, within one lane
+/// (`ConnectionHline.getMinmax`); `None` when the lane has no part of it.
+pub(crate) fn hline_minmax(
+    width: f64,
+    exits: &[(FtileRef, f64)],
+    lane: &Rc<Swimlane>,
+    all: &[Rc<Swimlane>],
+) -> Option<(f64, f64)> {
+    let leaves_in = |t: &FtileRef, l: &Rc<Swimlane>| {
+        t.swimlane_out().is_some_and(|o| Rc::ptr_eq(&o, l))
+            && t.swimlanes().iter().any(|s| Rc::ptr_eq(s, l))
+    };
+    let at_least_one = |l: &Rc<Swimlane>| exits.iter().any(|(t, _)| leaves_in(t, l));
+    let current = all.iter().position(|l| Rc::ptr_eq(l, lane))?;
+    let first = all.iter().position(at_least_one)?;
+    let last = all.iter().rposition(at_least_one)?;
+    if current < first || current > last {
+        return None;
+    }
+    let mut min_x = if current != first { 0.0 } else { width };
+    let mut max_x = if current != last { width } else { 0.0 };
+    for (t, x) in exits {
+        if leaves_in(t, lane) {
+            min_x = min_x.min(*x);
+            max_x = max_x.max(*x);
+        }
+    }
+    Some((min_x, max_x))
 }

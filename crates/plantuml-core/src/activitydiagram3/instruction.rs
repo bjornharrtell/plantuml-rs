@@ -950,6 +950,7 @@ impl Instruction for InstructionIf {
                 self.in_link_rendering.clone(),
                 self.out_link_rendering.clone(),
                 self.swimlane.clone(),
+                sb.as_ref(),
             );
             return weld(result, welding);
         }

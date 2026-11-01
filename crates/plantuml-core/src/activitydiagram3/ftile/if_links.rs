@@ -113,6 +113,8 @@ pub(crate) struct Merge {
     back: HColor,
     skin: Rc<SkinParam>,
     swimlane: Option<Rc<Swimlane>>,
+    /// Drawn as an empty `FtileDiamondInside` (the end of a `switch`).
+    hexagon: bool,
 }
 
 impl Merge {
@@ -131,7 +133,13 @@ impl Merge {
             back,
             skin,
             swimlane,
+            hexagon: false,
         }
+    }
+
+    pub(crate) fn hexagon(mut self) -> Self {
+        self.hexagon = true;
+        self
     }
 
     pub(crate) fn label_height(&self, sb: &dyn StringBounder) -> f64 {
@@ -175,13 +183,26 @@ impl Ftile for Merge {
             .merged_style(&queries::ACTIVITYDIAG_ACTIVITY_DIAMOND)
             .expect("diamond style");
         let side = 2.0 * HEXAGON_HALF_SIZE;
-        let mut polygon = UPolygon::new(vec![
-            (side / 2.0, 0.0),
-            (side, side / 2.0),
-            (side / 2.0, side),
-            (0.0, side / 2.0),
-            (side / 2.0, 0.0),
-        ]);
+        let mut polygon = if self.hexagon {
+            // `FtileDiamondInside` without a label: a hexagon whose flat sides have no length
+            UPolygon::new(vec![
+                (side / 2.0, 0.0),
+                (side / 2.0, 0.0),
+                (side, side / 2.0),
+                (side / 2.0, side),
+                (side / 2.0, side),
+                (0.0, side / 2.0),
+                (side / 2.0, 0.0),
+            ])
+        } else {
+            UPolygon::new(vec![
+                (side / 2.0, 0.0),
+                (side, side / 2.0),
+                (side / 2.0, side),
+                (0.0, side / 2.0),
+                (side / 2.0, 0.0),
+            ])
+        };
         polygon.delta_shadow = 0.0;
         let sb = g.string_bounder();
         let north_height = self
@@ -290,6 +311,7 @@ impl FtileIfLinks {
                     .unwrap_or_else(|| Diamond::new(Display::null(), &skin, None).back()),
                 skin: skin.clone(),
                 swimlane: swimlane.clone(),
+                hexagon: false,
             };
             let h = merge.label_height(sb);
             (Rc::new(merge), h)

@@ -323,7 +323,7 @@ impl SwimlanesBlock {
         let full = self.full(sb);
         for lane in &self.lanes {
             let m = find_limits(sb.to_rc(), false, |ug| {
-                let g = FtileGraphic::new(ug.clone()).for_swimlane(lane.clone());
+                let g = FtileGraphic::new(ug.clone()).for_measuring(lane.clone());
                 g.draw_ftile(full.as_ref());
                 g.flush();
             });
@@ -385,6 +385,7 @@ impl SwimlanesBlock {
 
         let full_height = full.calculate_dimension(sb).height;
         let base = FtileGraphic::new(ug.clone());
+        let all = Rc::new(self.lanes.clone());
         for (i, lane) in special.iter().enumerate() {
             let divider1 = &dividers[i];
             let xpos = lane.translate().dx + lane.min_max().min_x;
@@ -404,7 +405,7 @@ impl SwimlanesBlock {
                     );
                 }
             }
-            base.for_swimlane(lane.clone())
+            base.for_swimlane(lane.clone(), all.clone())
                 .apply_translate(lane.translate())
                 .apply_translate(title_dy)
                 .draw_ftile(full.as_ref());

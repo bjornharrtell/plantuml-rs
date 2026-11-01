@@ -6,7 +6,7 @@ use super::if_links::Merge;
 use super::if_long::DiamondInside2;
 use super::snake::{Arrows, Snake};
 use super::while_::Diamond;
-use super::{same_ftile, Ftile, FtileGeometry, FtileGraphic};
+use super::{same_ftile, FnConnection, Ftile, FtileGeometry, FtileGraphic};
 use crate::activitydiagram3::rainbow::{LinkRendering, Rainbow};
 use crate::activitydiagram3::swimlanes::Swimlane;
 use crate::klimt::color::HColor;
@@ -97,6 +97,7 @@ pub struct FtileSwitch {
     arrow_color: Rainbow,
     in_link_rendering: LinkRendering,
     out_link_rendering: LinkRendering,
+    swimlane: Option<Rc<Swimlane>>,
 }
 
 fn size(block: &Option<Rc<dyn TextBlock>>, sb: &dyn StringBounder) -> (f64, f64) {
@@ -131,7 +132,9 @@ impl FtileSwitch {
         let diamond2_back = color
             .clone()
             .unwrap_or_else(|| Diamond::new(Display::null(), &skin, None).back());
-        let diamond2 = Rc::new(Merge::new(None, None, None, diamond2_back, skin.clone(), swimlane.clone()));
+        let diamond2 = Rc::new(
+            Merge::new(None, None, None, diamond2_back, skin.clone(), swimlane.clone()).hexagon(),
+        );
         let mut tiles: Vec<FtileRef> = Vec::new();
         let mut positive = Vec::new();
         let mut special = Vec::new();
@@ -175,6 +178,7 @@ impl FtileSwitch {
             arrow_color,
             in_link_rendering,
             out_link_rendering,
+            swimlane,
         })
     }
 
@@ -327,7 +331,7 @@ impl Ftile for FtileSwitch {
     }
 
     fn swimlane_in(&self) -> Option<Rc<Swimlane>> {
-        self.tiles[0].swimlane_in()
+        self.swimlane.clone()
     }
 
     fn swimlane_out(&self) -> Option<Rc<Swimlane>> {
@@ -335,7 +339,7 @@ impl Ftile for FtileSwitch {
     }
 
     fn swimlanes(&self) -> Vec<Rc<Swimlane>> {
-        let mut lanes: Vec<Rc<Swimlane>> = Vec::new();
+        let mut lanes: Vec<Rc<Swimlane>> = self.swimlane.iter().cloned().collect();
         for t in &self.tiles {
             for lane in t.swimlanes() {
                 if !lanes.iter().any(|l| Rc::ptr_eq(l, &lane)) {
@@ -371,9 +375,12 @@ impl Ftile for FtileSwitch {
         let arrows = Arrows::from_skin(&self.skin);
         let d1 = self.diamond1.calculate_dimension(sb);
         let d2 = self.diamond2.calculate_dimension(sb);
+        let skin = self.skin.clone();
         let color = self.arrow_color.clone();
-        let snake =
-            |dir: Direction| Snake::create(&self.skin, color.clone(), Some(arrows.as_to(dir)));
+        let snake = {
+            let (skin, color, arrows) = (skin.clone(), color.clone(), arrows.clone());
+            move |dir: Direction| Snake::create(&skin, color.clone(), Some(arrows.as_to(dir)))
+        };
         let mid1 = (d1.in_y + d1.out_y) / 2.0;
         let mid2 = (d2.in_y + d2.out_y) / 2.0;
         let in_point = |i: usize| {
@@ -386,25 +393,54 @@ impl Ftile for FtileSwitch {
             let g = self.tiles[i].calculate_dimension(sb);
             (t.dx + g.left(), t.dy + g.out_y)
         };
+        let diamond1: FtileRef = self.diamond1.clone();
+        let diamond2: FtileRef = self.diamond2.clone();
 
         if !self.many() {
             // FtileSwitchWithOneLink
             let (x2, y2) = in_point(0);
             let y1 = d1t.dy + d1.out_y;
-            let mut top = snake(Direction::Down)
-                .with_label(self.positive[0].clone(), self.arrow_horizontal_alignment());
-            top.add_point(x2, y1);
-            top.add_point(x2, y2);
-            g.draw_snake(top);
+            let (ns, label, align) = (
+                snake.clone(),
+                self.positive[0].clone(),
+                self.arrow_horizontal_alignment(),
+            );
+            let conn = FnConnection::new(
+                Some(diamond1.clone()),
+                Some(self.tiles[0].clone()),
+                move |g| {
+                    let mut top = ns(Direction::Down).with_label(label.clone(), align);
+                    top.add_point(x2, y1);
+                    top.add_point(x2, y2);
+                    g.draw_snake(top);
+                },
+            );
+            g.draw_connection(&conn);
             if self.has_out(0, sb) {
                 let (x1, y1) = out_point(0);
-                let mut bottom = snake(Direction::Down);
-                bottom.add_point(x1, y1);
-                bottom.add_point(x1, d2t.dy + d2.in_y);
-                g.draw_snake(bottom);
+                let y2 = d2t.dy + d2.in_y;
+                let ns = snake.clone();
+                let conn = FnConnection::new(
+                    Some(self.tiles[0].clone()),
+                    Some(diamond2.clone()),
+                    move |g| {
+                        let mut bottom = ns(Direction::Down);
+                        bottom.add_point(x1, y1);
+                        bottom.add_point(x1, y2);
+                        g.draw_snake(bottom);
+                    },
+                );
+                g.draw_connection(&conn);
             }
             return;
         }
+
+        // `differentSwimlane(this, tile)`
+        let different = |from: Option<Rc<Swimlane>>, to: Option<Rc<Swimlane>>| match (from, to) {
+            (Some(a), Some(b)) => !Rc::ptr_eq(&a, &b),
+            _ => false,
+        };
+        let other_lane = |i: usize| different(self.swimlane.clone(), self.tiles[i].swimlane_in());
 
         // ingoing arrows
         let p1b = (d1t.dx + d1.width, d1t.dy + mid1);
@@ -414,42 +450,101 @@ impl Ftile for FtileSwitch {
             let is_last = i == n - 1 && n > 1;
             let (x1, y1) = if is_last { p1b } else { p1d };
             let (x2, y2) = in_point(i);
-            let mut s = snake(Direction::Down)
-                .with_label(self.positive[i].clone(), self.arrow_horizontal_alignment());
-            s.add_point(x1, y1);
-            if is_last && x1 > x2 {
-                s.add_point(x1 + HEXAGON_HALF_SIZE, y1);
-                s.add_point(x1 + HEXAGON_HALF_SIZE, y1 + d1.height);
-                s.add_point(x2, y1 + d1.height);
-            } else {
-                s.add_point(x2, y1);
-            }
-            s.add_point(x2, y2);
-            g.draw_snake(s);
+            let (ns, label, align) = (
+                snake.clone(),
+                self.positive[i].clone(),
+                self.arrow_horizontal_alignment(),
+            );
+            let dh = d1.height;
+            let conn = FnConnection::new(
+                Some(diamond1.clone()),
+                Some(self.tiles[i].clone()),
+                move |g| {
+                    let mut s = ns(Direction::Down).with_label(label.clone(), align);
+                    s.add_point(x1, y1);
+                    if is_last && x1 > x2 {
+                        s.add_point(x1 + HEXAGON_HALF_SIZE, y1);
+                        s.add_point(x1 + HEXAGON_HALF_SIZE, y1 + dh);
+                        s.add_point(x2, y1 + dh);
+                    } else {
+                        s.add_point(x2, y1);
+                    }
+                    s.add_point(x2, y2);
+                    g.draw_snake(s);
+                },
+            );
+            g.draw_connection(&conn);
         }
-        for i in 1..n - 1 {
+        for i in 0..n {
             let (x2, y2) = in_point(i);
-            let mut s = snake(Direction::Down)
-                .with_vertical_label(self.positive[i].clone(), VerticalAlignment::Center);
-            if x2 < p1d.0 - MARGIN || x2 > p1b.0 + MARGIN {
-                s.add_point(x2, p1d.1);
-                s.add_point(x2, y2);
-            } else {
-                let (x1, y1) = p1c;
-                let ym = (y1 * 2.0 + y2) / 3.0;
-                s.add_point(x1, y1);
-                s.add_point(x1, ym);
-                s.add_point(x2, ym);
-                s.add_point(x2, y2);
+            if i > 0 && i + 1 < n {
+                let (ns, label) = (snake.clone(), self.positive[i].clone());
+                let conn = FnConnection::new(
+                    Some(diamond1.clone()),
+                    Some(self.tiles[i].clone()),
+                    move |g| {
+                        let mut s = ns(Direction::Down)
+                            .with_vertical_label(label.clone(), VerticalAlignment::Center);
+                        if x2 < p1d.0 - MARGIN || x2 > p1b.0 + MARGIN {
+                            s.add_point(x2, p1d.1);
+                            s.add_point(x2, y2);
+                        } else {
+                            let (x1, y1) = p1c;
+                            let ym = (y1 * 2.0 + y2) / 3.0;
+                            s.add_point(x1, y1);
+                            s.add_point(x1, ym);
+                            s.add_point(x2, ym);
+                            s.add_point(x2, y2);
+                        }
+                        g.draw_snake(s);
+                    },
+                );
+                g.draw_connection(&conn);
             }
-            g.draw_snake(s);
+            if other_lane(i) {
+                // ConnectionHorizontalThenVerticalCrossSwimlane
+                let p1 = (d1t.dx + d1.left(), d1t.dy + d1.out_y);
+                let (ns, label, align) = (
+                    snake.clone(),
+                    self.positive[i].clone(),
+                    self.arrow_horizontal_alignment(),
+                );
+                let (half_w, half_h) = (d1.width / 2.0, d1.height / 2.0);
+                let ns_plain = ns.clone();
+                let conn = FnConnection::new(
+                    Some(diamond1.clone()),
+                    Some(self.tiles[i].clone()),
+                    move |g| {
+                        let mut s = ns_plain(Direction::Down);
+                        s.add_point(p1.0, p1.1);
+                        s.add_point(x2, y2);
+                        g.draw_snake(s);
+                    },
+                )
+                .translatable(move |g, t1, t2| {
+                    let mp1 = (p1.0 + t1.dx, p1.1 + t1.dy);
+                    let mp2 = (x2 + t2.dx, y2 + t2.dy);
+                    let mut s = ns(Direction::Down).with_label(label.clone(), align);
+                    let start_x = if mp1.0 > mp2.0 {
+                        mp1.0 - half_w
+                    } else {
+                        mp1.0 + half_w
+                    };
+                    s.add_point(start_x, p1.1 - half_h);
+                    s.add_point(mp2.0, p1.1 - half_h);
+                    s.add_point(mp2.0, mp2.1);
+                    g.draw_snake(s);
+                });
+                g.draw_connection(&conn);
+            }
         }
 
         // outgoing arrows
-        let Some(last_out) = (0..n).rev().find(|i| self.has_out(*i, sb)) else {
+        let ok = |i: usize| self.has_out(i, sb) && !other_lane(i);
+        let Some(last_out) = (0..n).rev().find(|i| ok(*i)) else {
             return;
         };
-        let first_out = (0..n - 1).find(|i| self.has_out(*i, sb)).unwrap_or(n);
+        let first_out = (0..n - 1).find(|i| ok(*i)).unwrap_or(n);
         let a = (d2t.dx + d2.left(), d2t.dy + d2.in_y);
         let b = (d2t.dx + d2.width, d2t.dy + mid2);
         let d = (d2t.dx, d2t.dy + mid2);
@@ -462,18 +557,26 @@ impl Ftile for FtileSwitch {
             } else {
                 (a, Direction::Down)
             };
-            let mut s =
-                snake(dir).with_vertical_label(self.special[i].clone(), VerticalAlignment::Center);
-            s.add_point(x1, y1);
-            if dir == Direction::Left && p2.0 > x1 - 10.0 {
-                s.add_point(x1, p2.1 - 8.0);
-                s.add_point(x1 + 12.0, p2.1 - 8.0);
-                s.add_point(x1 + 12.0, p2.1);
-            } else {
-                s.add_point(x1, p2.1);
-            }
-            s.add_point(p2.0, p2.1);
-            g.draw_snake(s);
+            let (ns, label) = (snake.clone(), self.special[i].clone());
+            let conn = FnConnection::new(
+                Some(self.tiles[i].clone()),
+                Some(diamond2.clone()),
+                move |g| {
+                    let mut s =
+                        ns(dir).with_vertical_label(label.clone(), VerticalAlignment::Center);
+                    s.add_point(x1, y1);
+                    if dir == Direction::Left && p2.0 > x1 - 10.0 {
+                        s.add_point(x1, p2.1 - 8.0);
+                        s.add_point(x1 + 12.0, p2.1 - 8.0);
+                        s.add_point(x1 + 12.0, p2.1);
+                    } else {
+                        s.add_point(x1, p2.1);
+                    }
+                    s.add_point(p2.0, p2.1);
+                    g.draw_snake(s);
+                },
+            );
+            g.draw_connection(&conn);
         };
         if first_out < n {
             vertical_then_horizontal(first_out);
@@ -487,18 +590,70 @@ impl Ftile for FtileSwitch {
             }
             let (x1, y1) = out_point(i);
             let ym = (y1 + a.1) / 2.0;
-            let mut s = snake(Direction::Down)
-                .with_vertical_label(self.special[i].clone(), VerticalAlignment::Center);
-            if x1 < p1d.0 - MARGIN || x1 > p1b.0 + MARGIN {
-                s.add_point(x1, y1);
-                s.add_point(x1, d.1);
-            } else {
-                s.add_point(x1, y1);
-                s.add_point(x1, ym);
-                s.add_point(a.0, ym);
-                s.add_point(a.0, a.1);
+            let (ns, label) = (snake.clone(), self.special[i].clone());
+            let conn = FnConnection::new(
+                Some(self.tiles[i].clone()),
+                Some(diamond2.clone()),
+                move |g| {
+                    let mut s = ns(Direction::Down)
+                        .with_vertical_label(label.clone(), VerticalAlignment::Center);
+                    if x1 < p1d.0 - MARGIN || x1 > p1b.0 + MARGIN {
+                        s.add_point(x1, y1);
+                        s.add_point(x1, d.1);
+                    } else {
+                        s.add_point(x1, y1);
+                        s.add_point(x1, ym);
+                        s.add_point(a.0, ym);
+                        s.add_point(a.0, a.1);
+                    }
+                    g.draw_snake(s);
+                },
+            );
+            g.draw_connection(&conn);
+        }
+
+        // ConnectionVerticalThenHorizontalCrossSwimlane
+        for tile in &self.tiles {
+            let Some(origin) = find_last_with_point_out(tile, sb) else {
+                continue;
+            };
+            if !different(origin.swimlane_out(), diamond2.swimlane_in()) {
+                continue;
             }
-            g.draw_snake(s);
+            let Some(t) = self.translate_for(origin.as_ref(), sb) else {
+                continue;
+            };
+            let og = origin.calculate_dimension(sb);
+            let p1 = (t.dx + og.left(), t.dy + og.out_y);
+            let p2 = (d2t.dx + d2.left(), d2t.dy + d2.in_y);
+            let (skin, color, arrows) = (skin.clone(), color.clone(), arrows.clone());
+            let (half_w, half_h) = (d2.width / 2.0, d2.height / 2.0);
+            let conn = FnConnection::new(Some(origin.clone()), Some(diamond2.clone()), |_| {})
+                .translatable(move |g, t1, t2| {
+                    let mp1 = (p1.0 + t1.dx, p1.1 + t1.dy);
+                    let mp2 = (p2.0 + t2.dx, p2.1 + t2.dy);
+                    let left = mp1.0 > mp2.0;
+                    let arrow = arrows.as_to(if left { Direction::Left } else { Direction::Right });
+                    let mut s = Snake::create(&skin, color.clone(), Some(arrow));
+                    s.add_point(mp1.0, mp1.1);
+                    s.add_point(mp1.0, mp2.1 + half_h);
+                    s.add_point(
+                        if left { mp2.0 + half_w } else { mp2.0 - half_w },
+                        mp2.1 + half_h,
+                    );
+                    g.draw_snake(s);
+                });
+            g.draw_connection(&conn);
         }
     }
+}
+
+/// The first tile at or under `tile` that has an exit point (`findLastWithPointOut`).
+fn find_last_with_point_out(tile: &FtileRef, sb: &dyn StringBounder) -> Option<FtileRef> {
+    if tile.calculate_dimension(sb).has_point_out() {
+        return Some(tile.clone());
+    }
+    tile.my_children()
+        .iter()
+        .find_map(|child| find_last_with_point_out(child, sb))
 }
