@@ -1019,19 +1019,37 @@ impl Drawing {
             }
             let _ = UStroke::simple();
             // Labels
-            let at = |p: Option<Point>, b: &Option<Rc<dyn TextBlock>>| {
+            let all_areas: Vec<RectangleArea> = self
+                .layout
+                .bib
+                .all_nodes()
+                .iter()
+                .map(|n| n.rectangle_area())
+                .collect();
+            let at = |p: Option<Point>, b: &Option<Rc<dyn TextBlock>>, collide: bool| {
                 if let (Some(p), Some(b)) = (p, b) {
                     let d = b.calculate_dimension(ug.string_bounder());
-                    let tl = (p.0 - d.width / 2.0, max - (p.1 + d.height / 2.0));
+                    let mut tl = (p.0 - d.width / 2.0, max - (p.1 + d.height / 2.0));
+                    if collide {
+                        for a in &all_areas {
+                            let cl = RectangleArea::new(
+                                a.min_x - 8.0,
+                                a.min_y - 8.0,
+                                a.max_x + 8.0,
+                                a.max_y + 8.0,
+                            );
+                            tl = crate::svek::edge::move_label_away(cl, tl, d);
+                        }
+                    }
                     b.draw(&ug.apply_translate(UTranslate::new(tl.0, tl.1)));
                     Some(tl)
                 } else {
                     None
                 }
             };
-            at(edge.label_pos, &edge.texts.label);
-            let head = at(edge.head_label_pos, &edge.texts.head_label);
-            let tail = at(edge.tail_label_pos, &edge.texts.tail_label);
+            at(edge.label_pos, &edge.texts.label, false);
+            let head = at(edge.head_label_pos, &edge.texts.head_label, true);
+            let tail = at(edge.tail_label_pos, &edge.texts.tail_label, true);
             let samples = mirrored_path(path, max).sample();
             let areas: Vec<RectangleArea> = [link.entity1(), link.entity2()]
                 .iter()

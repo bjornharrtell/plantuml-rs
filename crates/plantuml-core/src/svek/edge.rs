@@ -832,35 +832,47 @@ impl SvekEdge {
     }
 }
 
+/// Moves a quantifier label out of `cl` (a node grown by the 8 px margin), as `manageCollision` does.
+pub(crate) fn move_label_away(cl: RectangleArea, pos: Point, dim: Dimension) -> Point {
+    move_away_from(cl, Placed { pos, dim }).pos
+}
+
 fn move_away_from(cl: RectangleArea, p: Placed) -> Placed {
-    let r = RectangleArea::new(
-        p.pos.0,
-        p.pos.1,
-        p.pos.0 + p.dim.width,
-        p.pos.1 + p.dim.height,
-    );
-    let intersects =
-        cl.min_x < r.max_x && cl.max_x > r.min_x && cl.min_y < r.max_y && cl.max_y > r.min_y;
-    if !intersects {
+    let rect = |dx: f64, dy: f64| {
+        RectangleArea::new(
+            p.pos.0 + dx,
+            p.pos.1 + dy,
+            p.pos.0 + dx + p.dim.width,
+            p.pos.1 + dy + p.dim.height,
+        )
+    };
+    let hits = |r: RectangleArea| {
+        cl.min_x < r.max_x && cl.max_x > r.min_x && cl.min_y < r.max_y && cl.max_y > r.min_y
+    };
+    if !hits(rect(0.0, 0.0)) {
         return p;
     }
-    // Move along the shortest axis out of the rectangle (`PositionableUtils.moveAwayFrom`).
-    let left = r.max_x - cl.min_x;
-    let right = cl.max_x - r.min_x;
-    let up = r.max_y - cl.min_y;
-    let down = cl.max_y - r.min_y;
-    let m = left.min(right).min(up).min(down);
-    let (dx, dy) = if m == left {
-        (-left, 0.0)
-    } else if m == right {
-        (right, 0.0)
-    } else if m == up {
-        (0.0, -up)
-    } else {
-        (0.0, down)
-    };
+    // Slide along the centre-to-centre direction, bisecting for the exit point
+    // (`PositionableUtils.moveAwayFrom`).
+    let delta_x = p.pos.0 + p.dim.width / 2.0 - (cl.min_x + cl.max_x) / 2.0;
+    let delta_y = p.pos.1 + p.dim.height / 2.0 - (cl.min_y + cl.max_y) / 2.0;
+    let intersects = |c: f64| hits(rect(delta_x * c, delta_y * c));
+    let mut min = 0.0;
+    let mut max = 0.1;
+    while intersects(max) {
+        max *= 2.0;
+    }
+    for _ in 0..5 {
+        let candidate = (min + max) / 2.0;
+        if intersects(candidate) {
+            min = candidate;
+        } else {
+            max = candidate;
+        }
+    }
+    let candidate = (min + max) / 2.0;
     Placed {
-        pos: (p.pos.0 + dx, p.pos.1 + dy),
+        pos: (p.pos.0 + delta_x * candidate, p.pos.1 + delta_y * candidate),
         dim: p.dim,
     }
 }
@@ -955,3 +967,23 @@ pub fn append_table(sb: &mut String, dim: Dimension, color: i32) {
 
 #[allow(dead_code)]
 fn _unused(_: LinkArrow) {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn label_inside_node_margin_is_pushed_out_along_centre_line() {
+        let cl = RectangleArea::new(0.0, 0.0, 100.0, 100.0);
+        let dim = Dimension::new(10.0, 10.0);
+        let p = move_label_away(cl, (85.0, 45.0), dim);
+        assert!(p.0 > 95.0 && (p.1 - 45.0).abs() < 1e-9, "{p:?}");
+    }
+
+    #[test]
+    fn label_outside_node_margin_stays() {
+        let cl = RectangleArea::new(0.0, 0.0, 100.0, 100.0);
+        let dim = Dimension::new(10.0, 10.0);
+        assert_eq!(move_label_away(cl, (120.0, 45.0), dim), (120.0, 45.0));
+    }
+}
