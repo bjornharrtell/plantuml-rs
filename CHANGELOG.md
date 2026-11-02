@@ -5,6 +5,15 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-11-02
+
+### Fixed
+
+- Class diagrams: link multiplicities and other head/tail labels no longer land inside node boxes; the Smetana
+  drawing path now moves them away from the nodes as Java does (`manageCollision`).
+- npm: 0.5.1 was published to crates.io and GitHub only; its npm release failed on a duplicate provenance entry, so
+  0.5.2 is the first 0.5 release on npm.
+
 ## [0.5.1] - 2026-11-01
 
 ### Changed
