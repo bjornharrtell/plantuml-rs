@@ -330,6 +330,35 @@ mod tests {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct TableFontBounder;
 
+/// The width table with Java's real bold widths (`FileFormat.getJavaDimension` measures a bold run with the bold face).
+///
+/// The Vega corpus was rendered by `SVG_DETERMINISTIC`, whose table ignores bold, so most diagram types keep
+/// [`TableFontBounder`]; EBNF and description (C4) diagrams have references rendered by the real jar.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct BoldAwareBounder;
+
+impl StringBounder for BoldAwareBounder {
+    fn to_rc(&self) -> std::rc::Rc<dyn StringBounder> {
+        std::rc::Rc::new(*self)
+    }
+
+    fn calculate_dimension(&self, font: &UFont, text: &str) -> Dimension {
+        let mut dim = TableFontBounder.calculate_dimension(font, text);
+        if font.face.is_bold() {
+            let regular = font.with_face(FontFace {
+                weight: 400,
+                ..font.face
+            });
+            let embedded = EmbeddedFontBounder;
+            let r = embedded.calculate_dimension(&regular, text).width;
+            if r > 0.0 {
+                dim.width *= embedded.calculate_dimension(font, text).width / r;
+            }
+        }
+        dim
+    }
+}
+
 static WIDTHS: std::sync::LazyLock<Vec<Vec<u8>>> = std::sync::LazyLock::new(|| {
     let bin = include_bytes!("widths.bin");
     let n = usize::from(u16::from_le_bytes([bin[0], bin[1]]));

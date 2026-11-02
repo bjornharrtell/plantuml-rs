@@ -8,8 +8,6 @@ nonreg/activity-deprecated-color/if_color.puml          # warning box metrics
 nonreg/activity-deprecated-color/if_is_color.puml       # warning box metrics
 nonreg/activity-deprecated-color/switch_color.puml      # warning box metrics
 nonreg/activity-deprecated-color/while_color.puml       # warning box metrics
-nonreg/activity-color-prefix/color_multiline_activity.puml   # warning box metrics
-nonreg/activity-color-prefix/deprecated_color_ignored.puml   # warning box metrics
 nonreg/simple/A0004.puml           # legacy (pre-beta) activity syntax, out of scope
 tikz/*                              # embedded {{ ... }} diagrams with scale: not rendered, out of scope
 nonreg/warnings/partition_no_bracket.puml         # warning box metrics (three warnings)
@@ -24,8 +22,6 @@ svg/id/component_01.puml                         # description syntax under CLAS
 svg/id/state_03.puml                             # state composite 8 px narrow, initial circle placed differently
 svg/id/state_05.puml                             # same state geometry family
 nonreg/group2783/nested_styled_composite.puml    # same state geometry family
-migration/ChenMovieExtended_Test.puml            # Chen entity placement (9% of the canvas)
-migration/ChenMovieAlias_Test.puml               # same
 svg/interactive/SVG0005_Svek.puml                # description ports
 # Zero-space reference mode: the Vega references were rendered with SVG_DETERMINISTIC
 # (`StringBounderFromWidthTable`), where U+0020 and U+00A0 have zero advance. The port gives spaces the
@@ -38,22 +34,13 @@ asciiverse/selfnote_001c.puml                       # zero-space reference mode
 asciiverse/layout_002.puml                          # zero-space reference mode
 asciiverse/layout_002b.puml                         # zero-space reference mode
 asciiverse/note_003.puml                            # zero-space reference mode
-migration/HideShow004_Test.puml                     # zero-space reference mode
-nonreg/group2681/name_description_body.puml         # zero-space reference mode
 nonreg/group2730/tree_table_multiline.puml          # zero-space reference mode
 nonreg/group2788/divider.puml                       # zero-space reference mode
 nonreg/group2814/class_level_note_unaffected.puml   # zero-space reference mode
-nonreg/group2814/field_and_method_note.puml         # zero-space reference mode
-nonreg/group2814/reversed_order.puml                # zero-space reference mode
-nonreg/group2814/stereotype_colors.puml             # zero-space reference mode
-nonreg/group2883/same_participant_parallel_notes_stack.puml  # zero-space reference mode
-nonreg/json/style-highlight-with-style-tags.puml    # zero-space reference mode
 nonreg/warnings/gantt_labels.puml                   # zero-space reference mode
 nonreg/warnings/note_top_after_group.puml           # zero-space reference mode
 nonreg/warnings/wbs_old_order.puml                  # zero-space reference mode
 nonreg/yaml/theme-with-empty-style-block.puml       # zero-space reference mode
-state/node-style-transition-label.puml              # zero-space reference mode
-svg/id/commons_01.puml                              # zero-space reference mode
 svg/interactive/SVG0004_Svek.puml                   # zero-space reference mode
 # Description rank spacing: the references were laid out by the Smetana flow, which leaves Graphviz's
 # 18/36 px defaults, while the port follows the Graphviz flow Java ships (35 px between nodes, 60 px

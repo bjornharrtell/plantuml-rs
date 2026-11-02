@@ -1,16 +1,17 @@
 //! Pixel sprites (`sprite $name [WxH/depth] { ... }`) and how a label draws them.
 //!
 //! Only the grey-level form is decoded, which is what PlantUML's stdlib (and C4-PlantUML in
-//! particular) uses. A sprite is drawn as one rectangle per run of equal pixels of a row.
+//! particular) uses. A sprite is drawn as one PNG image, as Java does.
 
 use super::color::HColor;
-use super::drawing::ugraphic::{UGraphic, URectangle, UStroke, UTranslate};
+use super::drawing::ugraphic::{UGraphic, UShape};
 use super::font::Dimension;
 
 /// One pixel of a sprite: a grey level, 0 being transparent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Pixel(u8);
 
+#[cfg(test)]
 impl Pixel {
     fn is_transparent(self) -> bool {
         self.0 == 0
@@ -75,26 +76,22 @@ impl Sprite {
     }
 
     /// Draws the sprite with the current colour, one rectangle per run of opaque pixels.
+    /// Draws the sprite as one PNG bitmap in the current colour, grey levels being the opacity
+    /// (`SpriteMonochrome.toUImage`).
     pub fn draw(&self, ug: &UGraphic) {
-        let color = ug.color().clone();
-        let ug = ug
-            .apply_back_color(color)
-            .apply_stroke(UStroke::with_thickness(0.0));
+        let color = ug.color().rgba();
+        let mut rgba = Vec::with_capacity(self.width * self.height * 4);
         for y in 0..self.height {
-            let mut x = 0;
-            while x < self.width {
-                if self.level(x, y).is_transparent() {
-                    x += 1;
-                    continue;
-                }
-                let start = x;
-                while x < self.width && !self.level(x, y).is_transparent() {
-                    x += 1;
-                }
-                ug.apply_translate(UTranslate::new(start as f64, y as f64))
-                    .draw(URectangle::build((x - start) as f64, 1.0));
+            for x in 0..self.width {
+                rgba.extend([color.r, color.g, color.b, self.level(x, y).0]);
             }
         }
+        let png = super::png::encode_rgba(self.width as u32, self.height as u32, &rgba);
+        ug.draw(UShape::Image(
+            self.width as f64,
+            self.height as f64,
+            std::rc::Rc::new(png),
+        ));
     }
 }
 

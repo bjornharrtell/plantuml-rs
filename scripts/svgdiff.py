@@ -128,6 +128,29 @@ def _elements(root):
     return out
 
 
+def _pair_errors(ref, got, rw, rh, gw, gh):
+    """Errors of a one-to-one pairing of the reference positions with the nearest unused ones.
+
+    Elements sharing a key can sit on the same x (a centred stack), where sorting alone pairs them by
+    sub-pixel noise; the closest-first pairing does not depend on the order they were emitted in.
+    Very large groups (pixel sprites, grid lines) fall back to pairing in sorted order.
+    """
+    def err(r, g):
+        return (((r[0] / rw) - (g[0] / gw)) ** 2 + ((r[1] / rh) - (g[1] / gh)) ** 2) ** 0.5
+
+    if len(ref) * len(got) > 40000:
+        return [err(r, g) for r, g in zip(ref, got)]
+    pairs = sorted((err(r, g), i, j) for i, r in enumerate(ref) for j, g in enumerate(got))
+    used_ref, used_got, errors = set(), set(), []
+    for e, i, j in pairs:
+        if i in used_ref or j in used_got:
+            continue
+        used_ref.add(i)
+        used_got.add(j)
+        errors.append(e)
+    return errors
+
+
 def layout(ref_root, got_root, tol=0.03):
     """Compare where elements sit relative to the canvas, ignoring font metrics.
 
@@ -147,13 +170,7 @@ def layout(ref_root, got_root, tol=0.03):
     errors = []
     for key, positions in ref.items():
         others = got.get(key, [])
-        for i, (rx, ry) in enumerate(positions):
-            if i >= len(others):
-                break
-            gx, gy = others[i]
-            error = (
-                ((rx / rw) - (gx / gw)) ** 2 + ((ry / rh) - (gy / gh)) ** 2
-            ) ** 0.5
+        for error in _pair_errors(positions, others, rw, rh, gw, gh):
             errors.append(error)
             if error <= tol:
                 matched += 1

@@ -136,7 +136,13 @@ pub fn render_with(
     for w in &pre.artifact.warnings {
         diagram.base_mut().add_warning(w.clone());
     }
-    let sb: Rc<dyn crate::klimt::font::StringBounder> = Rc::new(TableFontBounder);
+    // EBNF and description (C4) references come from the real jar, which measures bold with the bold face
+    let sb: Rc<dyn crate::klimt::font::StringBounder> = match diagram.base().diagram_type {
+        crate::diagram::DiagramType::Ebnf | crate::diagram::DiagramType::Description => {
+            Rc::new(crate::klimt::font::BoldAwareBounder)
+        }
+        _ => Rc::new(TableFontBounder),
+    };
     let skin = Rc::new(diagram.base().skin_param.clone());
     let block = diagram.text_block(&sb, &skin);
     let base = diagram.base();
@@ -290,10 +296,12 @@ mod tests {
             !svg.contains("$box"),
             "the reference is replaced by the sprite"
         );
-        // Three rows of the sprite have opaque pixels, drawn as one run each.
+        // The sprite is one 4x4 PNG image, as Java embeds it.
+        assert_eq!(svg.matches("<image").count(), 1, "sprite drawn: {svg}");
+        assert!(svg.contains("<image height=\"4\" width=\"4\""), "{svg}");
         assert!(
-            svg.matches("height=\"1\"").count() >= 3,
-            "sprite pixels drawn"
+            svg.contains("xlink:href=\"data:image/png;base64,iVBORw0KGgo"),
+            "{svg}"
         );
         let svg = render(
             "@startuml\n!include <C4/C4_Container>\nPerson(p, \"P\", $sprite=\"person\")\n@enduml",
@@ -303,10 +311,7 @@ mod tests {
             !svg.contains("$person"),
             "the C4 sprite reference is replaced"
         );
-        assert!(
-            svg.matches("<rect").count() > 10,
-            "the person sprite is drawn"
-        );
+        assert!(svg.contains("<image"), "the person sprite is drawn");
     }
 
     #[test]

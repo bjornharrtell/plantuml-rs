@@ -8,5 +8,6 @@ pub mod drawing;
 pub mod fashion;
 pub mod font;
 pub mod geom;
+pub mod png;
 pub mod shape;
 pub mod sprite;

@@ -419,6 +419,23 @@ impl SvgGraphics {
         self.ensure_visible(x + w + 2.0 * shadow, y + h + 2.0 * shadow);
     }
 
+    /// A PNG bitmap (`<image>` with a data URI, as Java's `SvgGraphics.svgImage`).
+    pub fn image(&mut self, x: f64, y: f64, w: f64, h: f64, png: &[u8]) {
+        if !self.hidden {
+            let mut e = XmlNode::new("image");
+            e.set("width", self.format(w));
+            e.set("height", self.format(h));
+            e.set("x", self.format(x));
+            e.set("y", self.format(y));
+            e.set(
+                "xlink:href",
+                format!("data:image/png;base64,{}", crate::klimt::png::base64(png)),
+            );
+            self.current().push(e);
+        }
+        self.ensure_visible(x + w, y + h);
+    }
+
     pub fn ellipse(&mut self, cx: f64, cy: f64, rx: f64, ry: f64, shadow: f64) {
         self.manage_shadow(shadow);
         if !self.hidden {

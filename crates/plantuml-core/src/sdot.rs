@@ -847,6 +847,9 @@ fn layout_from(
 struct Drawing {
     layout: Layout,
     measured: RefCell<Option<MinMax>>,
+    /// Java's Graphviz flow moves head and tail labels out of the boxes (`manageCollision`); the Smetana flow that
+    /// `!pragma layout smetana` asks for does not.
+    avoid_collisions: bool,
 }
 
 impl Drawing {
@@ -1030,7 +1033,7 @@ impl Drawing {
                 if let (Some(p), Some(b)) = (p, b) {
                     let d = b.calculate_dimension(ug.string_bounder());
                     let mut tl = (p.0 - d.width / 2.0, max - (p.1 + d.height / 2.0));
-                    if collide {
+                    if collide && self.avoid_collisions {
                         for a in &all_areas {
                             let cl = RectangleArea::new(
                                 a.min_x - 8.0,
@@ -1136,6 +1139,14 @@ pub fn build_image(
     build_image_spaced(cuca, skin, sb, Spacing::GRAPHVIZ)
 }
 
+/// `!pragma layout smetana`: the diagram is drawn by Java's Smetana flow.
+fn uses_smetana(cuca: &CucaDiagram) -> bool {
+    cuca.base
+        .pragma
+        .get("layout")
+        .is_some_and(|v| v.eq_ignore_ascii_case("smetana"))
+}
+
 /// Lays a diagram out with explicit node and rank separation.
 pub fn build_image_spaced(
     cuca: &CucaDiagram,
@@ -1147,6 +1158,7 @@ pub fn build_image_spaced(
         Some(layout) => Rc::new(Drawing {
             layout,
             measured: RefCell::new(None),
+            avoid_collisions: !uses_smetana(cuca),
         }),
         None => Rc::new(EmptyImage),
     }
@@ -1209,6 +1221,7 @@ fn nested_state_image(
         Some(layout) => Rc::new(Drawing {
             layout,
             measured: RefCell::new(None),
+            avoid_collisions: !uses_smetana(cuca),
         }),
         None => Rc::new(EmptyImage),
     };

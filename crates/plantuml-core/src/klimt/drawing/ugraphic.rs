@@ -443,6 +443,8 @@ pub enum UShape {
     HLine(UHorizontalLine),
     /// Invisible shape only extending the bounds (`UEmpty`).
     Empty(f64, f64),
+    /// A bitmap: size and PNG bytes (`UImage`).
+    Image(f64, f64, std::rc::Rc<Vec<u8>>),
     Comment(String),
     /// A character centered on the origin, as in the spot of a class (`UCenteredCharacter`).
     CenteredChar(char),
@@ -491,6 +493,7 @@ macro_rules! svg_forward {
 
 svg_forward! {
     start_group(attrs: &[(&str, String)]);
+    image(x: f64, y: f64, w: f64, h: f64, png: &[u8]);
     close_group();
     create_gradient(c1: &str, c2: &str, policy: char) -> String;
     set_fill_color(fill: Option<&str>);
@@ -799,6 +802,7 @@ impl UGraphic {
         self.svg.set_hidden(self.param.hidden);
         match shape {
             UShape::Empty(..) => {}
+            UShape::Image(w, h, png) => self.svg.image(x, y, w, h, &png),
             UShape::Rectangle(r) => self.draw_rectangle(&r, x, y),
             UShape::Line(l) => self.draw_line(&l, x, y),
             UShape::Ellipse(e) => self.draw_ellipse(&e, x, y),
@@ -842,7 +846,7 @@ impl UGraphic {
                 add(x, y);
                 add(x + e.width, y + e.height);
             }
-            UShape::Empty(w, h) => {
+            UShape::Empty(w, h) | UShape::Image(w, h, _) => {
                 add(x, y);
                 add(x + w, y + h);
             }
@@ -898,7 +902,7 @@ impl UGraphic {
                     y + r.height - 1.0 + r.delta_shadow * 2.0,
                 );
             }
-            UShape::Empty(w, h) => {
+            UShape::Empty(w, h) | UShape::Image(w, h, _) => {
                 add(x, y);
                 add(x + w, y + h);
             }
