@@ -228,7 +228,7 @@ Not ported: notes on an `elseif` chain and on a `repeat` with `backward`, `kill`
   with a clear message. `@startproject` is a Gantt alias and works.
 - **Embedded diagrams** (`{{ … }}`): the block stays as text; rendering them needs a scale transform the SVG writer
   does not have.
-- **npm publishing from CI**: the package is built by `scripts/build-npm.sh` and published by hand.
+- **Publishing the VS Code extension from CI**: `scripts/build-vscode-ext.sh` builds it; publishing is by hand.
 
 ## Risks
 
