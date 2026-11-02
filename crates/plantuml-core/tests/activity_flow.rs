@@ -56,3 +56,11 @@ fn split_and_merge_render() {
     let m = svg("start\nfork\n:a;\nfork again\n:b;\nend merge\nstop");
     assert!(m.contains("<polygon"));
 }
+
+#[test]
+fn notes_on_elseif_and_repeat_backward_render() {
+    let s = svg("start\nif (a?) then (y)\n:x;\nelseif (b?) then (y)\n:z;\nnote right: hi\nelse (n)\n:w;\nendif\nstop");
+    assert!(s.contains(">hi<"));
+    let r = svg("start\nrepeat\n:a;\nnote right: hi\nbackward :b;\nrepeat while (c?)\nstop");
+    assert!(r.contains(">hi<") && r.contains(">b<"));
+}

@@ -206,9 +206,13 @@ Ported:
   tiles' `drawTranslate` variants; titles, backgrounds and dividers.
 - Groups and partitions, fork, arrow labels and colours, including the colour of the arrow leaving a branch.
 
-Not ported: notes on an `elseif` chain and on a `repeat` with `backward`, `kill`/`detach`, `label`/`goto`,
-`split`/`merge` parallels (including their lane variants), a `while` followed by `stop` (`specialOut`), and the extra
-7 px of Java's group frame above its content.
+Also ported: notes on an `elseif` chain and on a `repeat` with `backward`, `kill`/`detach`, `label`/`goto`,
+`split`/`merge` parallels, and a `while` followed by `stop` or `end` (`specialOut`).
+
+Known difference: the frame of a `group` or `partition` has `max(25, title + 20)` above its content and 20 below in
+Java, yet the Java output is 7 px taller when something precedes the group and 8 px shorter below it than that sum
+says, and the stored references measure the title differently from the live jar. The port keeps the constants that
+fit the stored references (title + 10, 15 below); the group fixtures are within the layout target.
 
 ## Foundations not done
 

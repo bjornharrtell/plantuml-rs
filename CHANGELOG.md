@@ -5,6 +5,10 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 ## [Unreleased]
 
+### Added
+
+- Activity diagrams: `kill`/`detach`, `label`/`goto`, `split`/`merge`, and `stop`/`end` right after `endwhile`.
+
 ## [0.5.2] - 2026-11-02
 
 ### Fixed
