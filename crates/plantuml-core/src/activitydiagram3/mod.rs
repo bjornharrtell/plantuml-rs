@@ -31,9 +31,11 @@ use crate::stereo::Stereotype;
 use crate::style::Style;
 use crate::url::Url;
 use ftile::box_style::BoxStyle;
+use ftile::fork::ParallelKind;
 use instruction::{
-    InsRef, InstructionBreak, InstructionFork, InstructionGroup, InstructionIf, InstructionNode,
-    InstructionRepeat, InstructionSimple, InstructionSwitch, InstructionWhile, NodeKind,
+    InsRef, InstructionBreak, InstructionFork, InstructionGroup, InstructionIf, InstructionJump,
+    InstructionNode, InstructionRepeat, InstructionSimple, InstructionSwitch, InstructionWhile,
+    NodeKind,
 };
 use rainbow::{LinkRendering, Rainbow};
 use std::cell::RefCell;
@@ -150,10 +152,38 @@ impl ActivityDiagram3 {
             self.next_link_renderer(),
         );
         let ins: InsRef = Rc::new(RefCell::new(ins));
+        if kind != NodeKind::Start && self.special_after_end_while(&ins) {
+            return;
+        }
         self.current().borrow_mut().add(ins);
         if kind == NodeKind::Start {
             self.reset_next_link();
         }
+    }
+
+    /// A `stop` or `end` right after an `endwhile` becomes the exit of the loop (`manageSpecialStopEndAfterEndWhile`).
+    fn special_after_end_while(&mut self, special: &InsRef) -> bool {
+        let current = self.current();
+        let last = {
+            let borrowed = current.borrow();
+            let Some(list) = borrowed
+                .as_any()
+                .downcast_ref::<instruction::InstructionList>()
+            else {
+                return false;
+            };
+            list.last()
+        };
+        let Some(last) = last else { return false };
+        if last.borrow().contains_break() {
+            return false;
+        }
+        let mut last = last.borrow_mut();
+        let Some(while_) = last.as_while_mut() else {
+            return false;
+        };
+        while_.set_special(special.clone());
+        true
     }
 
     /// `backward :label;` in a loop (`backward`).
@@ -184,6 +214,24 @@ impl ActivityDiagram3 {
             }
         }
         CommandExecutionResult::error("Cannot find repeat")
+    }
+
+    /// `label name` / `goto name` (`addLabel`, `addGoto`).
+    pub fn add_jump(&mut self, is_goto: bool) -> CommandExecutionResult {
+        let ins = InstructionJump::new(is_goto, self.swimlanes.current_swimlane());
+        let ins: InsRef = Rc::new(RefCell::new(ins));
+        self.current().borrow_mut().add(ins);
+        self.reset_next_link();
+        CommandExecutionResult::ok()
+    }
+
+    /// `kill` / `detach`: the flow stops after the latest instruction (`kill`).
+    pub fn kill(&mut self) -> CommandExecutionResult {
+        if self.current().borrow_mut().kill() {
+            CommandExecutionResult::ok()
+        } else {
+            CommandExecutionResult::error("kill cannot be used here")
+        }
     }
 
     /// `note left|right: text`: a note beside the latest instruction (`addNote`).
@@ -514,12 +562,25 @@ impl ActivityDiagram3 {
 
     /// Starts parallel branches (`fork`).
     pub fn fork(&mut self, colors: crate::klimt::color::colors::Colors) {
+        self.start_parallel(ParallelKind::Fork, colors);
+    }
+
+    /// Starts a `split`: parallel branches drawn with thin lines (`split`).
+    pub fn split(&mut self) {
+        self.start_parallel(
+            ParallelKind::Split,
+            crate::klimt::color::colors::Colors::empty(),
+        );
+    }
+
+    fn start_parallel(&mut self, kind: ParallelKind, colors: crate::klimt::color::colors::Colors) {
         self.manage_swimlane_strategy();
-        let fork = InstructionFork::new(
+        let mut fork = InstructionFork::new(
             colors,
             self.swimlanes.current_swimlane(),
             self.next_link_renderer(),
         );
+        fork.set_kind(kind);
         let fork: InsRef = Rc::new(RefCell::new(fork));
         self.current().borrow_mut().add(fork.clone());
         self.fork_stack.push(self.current());
@@ -544,7 +605,7 @@ impl ActivityDiagram3 {
     }
 
     /// Closes the parallel branches (`endFork`).
-    pub fn end_fork(&mut self) -> CommandExecutionResult {
+    pub fn end_fork(&mut self, merge: bool) -> CommandExecutionResult {
         let current = self.current();
         if !current.borrow().as_any().is::<InstructionFork>() {
             return CommandExecutionResult::error("Cannot find fork");
@@ -555,6 +616,9 @@ impl ActivityDiagram3 {
         };
         fork.set_out_rendering(self.next_link_renderer());
         fork.set_swimlane_out(self.swimlanes.current_swimlane());
+        if merge {
+            fork.set_kind(ParallelKind::Merge);
+        }
         drop(current);
         self.reset_next_link();
         match self.fork_stack.pop() {

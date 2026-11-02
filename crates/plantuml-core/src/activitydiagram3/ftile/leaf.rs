@@ -387,3 +387,67 @@ impl Ftile for FtileBreak {
 
     fn draw(&self, _g: &FtileGraphic) {}
 }
+
+/// A tile after which the flow stops: no exit point (`FtileKilled`).
+pub struct FtileKilled {
+    tile: super::factory::FtileRef,
+}
+
+impl FtileKilled {
+    pub fn new(tile: super::factory::FtileRef) -> Rc<Self> {
+        Rc::new(Self { tile })
+    }
+}
+
+impl Ftile for FtileKilled {
+    fn skin(&self) -> Rc<SkinParam> {
+        self.tile.skin()
+    }
+
+    fn decorated(&self) -> Option<super::factory::FtileRef> {
+        Some(self.tile.clone())
+    }
+
+    fn calculate_dimension(&self, sb: &dyn StringBounder) -> FtileGeometry {
+        self.tile.calculate_dimension(sb).without_point_out()
+    }
+}
+
+/// Where a `goto` jumps away: an empty tile without an exit (`FtileGoto`).
+pub struct FtileGoto {
+    skin: Rc<SkinParam>,
+    swimlane: Option<Rc<Swimlane>>,
+}
+
+impl FtileGoto {
+    pub fn new(skin: &Rc<SkinParam>, swimlane: Option<Rc<Swimlane>>) -> Rc<Self> {
+        Rc::new(Self {
+            skin: skin.clone(),
+            swimlane,
+        })
+    }
+}
+
+impl Ftile for FtileGoto {
+    fn skin(&self) -> Rc<SkinParam> {
+        self.skin.clone()
+    }
+
+    fn swimlane_in(&self) -> Option<Rc<Swimlane>> {
+        self.swimlane.clone()
+    }
+
+    fn swimlane_out(&self) -> Option<Rc<Swimlane>> {
+        self.swimlane.clone()
+    }
+
+    fn swimlanes(&self) -> Vec<Rc<Swimlane>> {
+        swimlanes_of(&self.swimlane)
+    }
+
+    fn calculate_dimension(&self, _sb: &dyn StringBounder) -> FtileGeometry {
+        FtileGeometry::new(0.0, 0.0, 0.0, 0.0)
+    }
+
+    fn draw(&self, _g: &FtileGraphic) {}
+}

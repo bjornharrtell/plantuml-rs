@@ -116,6 +116,8 @@ pub struct WhileLabels {
     pub back2: Display,
     /// The `backward :text;` box drawn on the right of the loop.
     pub backward: Option<FtileRef>,
+    /// The `stop` or `end` right after `endwhile`, which the exit leads to (`specialOut`).
+    pub special: Option<FtileRef>,
 }
 
 /// A loop whose condition is tested before the body (`FtileWhile`).
@@ -127,6 +129,7 @@ pub struct FtileWhile {
     back_label: Option<Rc<dyn TextBlock>>,
     back2_label: Option<Rc<dyn TextBlock>>,
     backward: Option<FtileRef>,
+    special: Option<FtileRef>,
     skin: Rc<SkinParam>,
     in_link_rendering: LinkRendering,
     out_link_rendering: LinkRendering,
@@ -159,6 +162,7 @@ impl FtileWhile {
             back_label,
             back2_label,
             backward: labels.backward,
+            special: labels.special,
             skin,
             in_link_rendering,
             out_link_rendering,
@@ -190,12 +194,36 @@ impl FtileWhile {
         let stacked = diamond.append_bottom(&body);
         let height =
             stacked.height + 4.0 * HEXAGON_HALF_SIZE + Self::label_height(&self.back_label, sb);
+        let delta = self.special_width(sb);
         FtileGeometry::with_out(
-            stacked.width + 2.0 * HEXAGON_HALF_SIZE + HEXAGON_HALF_SIZE + self.backward_width(sb),
+            delta
+                + stacked.width
+                + 2.0 * HEXAGON_HALF_SIZE
+                + HEXAGON_HALF_SIZE
+                + self.backward_width(sb),
             height,
-            stacked.left() + 2.0 * HEXAGON_HALF_SIZE,
+            delta + stacked.left() + 2.0 * HEXAGON_HALF_SIZE,
             diamond.in_y,
             height,
+        )
+    }
+
+    fn special_width(&self, sb: &dyn StringBounder) -> f64 {
+        self.special
+            .as_ref()
+            .map_or(0.0, |s| s.calculate_dimension(sb).width)
+    }
+
+    /// `getTranslateForSpecial`: left of the loop, below the condition.
+    fn special_translate(&self, special: &FtileRef, sb: &dyn StringBounder) -> UTranslate {
+        let diamond = self.diamond_geometry(sb);
+        let half = (diamond.out_y - diamond.in_y) / 2.0;
+        let y = (3.0 * half).max(4.0 * HEXAGON_HALF_SIZE);
+        let x_while = self.body_translate(sb).dx - HEXAGON_HALF_SIZE;
+        let x_diamond = self.diamond_translate(sb).dx;
+        UTranslate::new(
+            x_while.min(x_diamond) - special.calculate_dimension(sb).width,
+            y,
         )
     }
 
@@ -247,6 +275,15 @@ impl Ftile for FtileWhile {
                 return Some(c.compose(t));
             }
         }
+        if let Some(special) = &self.special {
+            let t = self.special_translate(special, sb);
+            if super::same_ftile(child, special.as_ref()) {
+                return Some(t);
+            }
+            if let Some(c) = special.translate_for(child, sb) {
+                return Some(c.compose(t));
+            }
+        }
         let t = self.body_translate(sb);
         if super::same_ftile(child, self.body.as_ref()) {
             return Some(t);
@@ -257,6 +294,7 @@ impl Ftile for FtileWhile {
     fn my_children(&self) -> Vec<FtileRef> {
         let mut children = vec![self.body.clone()];
         children.extend(self.backward.clone());
+        children.extend(self.special.clone());
         children
     }
 
@@ -446,27 +484,50 @@ impl Ftile for FtileWhile {
             g.draw_connection(&conn);
         }
 
-        // ConnectionOut: the exit channel on the left
-        let half = (diamond_geo.out_y - diamond_geo.in_y) / 2.0;
-        let y1 = diamond_t.dy + diamond_geo.in_y + half;
-        let (total_height, total_left) = (total.height, total.left());
-        let conn = FnConnection::new(Some(diamond_tile.clone()), None, {
-            let (skin, color) = (skin.clone(), color.clone());
-            move |g| {
-                let mut exit = Snake::create(&skin, color.clone(), None)
-                    .with_merge(MergeStrategy::Limited)
-                    .emphasize_direction(Direction::Down);
-                exit.add_point(diamond_t.dx, y1);
-                exit.add_point(HEXAGON_HALF_SIZE, y1);
-                exit.add_point(HEXAGON_HALF_SIZE, total_height);
-                g.draw_snake(exit);
-                let mut base = Snake::create(&skin, color.clone(), None);
-                base.add_point(HEXAGON_HALF_SIZE, total_height);
-                base.add_point(total_left, total_height);
-                g.draw_snake(base);
-            }
-        });
-        g.draw_connection(&conn);
+        // ConnectionOutSpecial: the exit runs left to the `stop` or `end` standing beside the loop
+        if let Some(special) = &self.special {
+            let st = self.special_translate(special, sb);
+            let geo = special.calculate_dimension(sb);
+            let half = (diamond_geo.out_y - diamond_geo.in_y) / 2.0;
+            let y1 = diamond_t.dy + diamond_geo.in_y + half;
+            let (x1, x2, y2) = (diamond_t.dx, st.dx + geo.left(), st.dy + geo.in_y);
+            let arrows = Arrows::from_skin(&self.skin);
+            let conn = FnConnection::new(Some(diamond_tile.clone()), Some(special.clone()), {
+                let (skin, color) = (skin.clone(), color.clone());
+                move |g| {
+                    let mut exit =
+                        Snake::create(&skin, color.clone(), Some(arrows.as_to(Direction::Down)));
+                    exit.add_point(x1, y1);
+                    exit.add_point(x2, y1);
+                    exit.add_point(x2, y2);
+                    g.draw_snake(exit);
+                }
+            });
+            g.draw_connection(&conn);
+        }
+        if self.special.is_none() {
+            // ConnectionOut: the exit channel on the left
+            let half = (diamond_geo.out_y - diamond_geo.in_y) / 2.0;
+            let y1 = diamond_t.dy + diamond_geo.in_y + half;
+            let (total_height, total_left) = (total.height, total.left());
+            let conn = FnConnection::new(Some(diamond_tile.clone()), None, {
+                let (skin, color) = (skin.clone(), color.clone());
+                move |g| {
+                    let mut exit = Snake::create(&skin, color.clone(), None)
+                        .with_merge(MergeStrategy::Limited)
+                        .emphasize_direction(Direction::Down);
+                    exit.add_point(diamond_t.dx, y1);
+                    exit.add_point(HEXAGON_HALF_SIZE, y1);
+                    exit.add_point(HEXAGON_HALF_SIZE, total_height);
+                    g.draw_snake(exit);
+                    let mut base = Snake::create(&skin, color.clone(), None);
+                    base.add_point(HEXAGON_HALF_SIZE, total_height);
+                    base.add_point(total_left, total_height);
+                    g.draw_snake(base);
+                }
+            });
+            g.draw_connection(&conn);
+        }
 
         // a `break` leaves through the exit channel (`FtileFactoryDelegatorWhile`)
         for point in self.body.welding_points() {
@@ -484,6 +545,10 @@ impl Ftile for FtileWhile {
         }
 
         g.apply_translate(body_t).draw_ftile(self.body.as_ref());
+        if let Some(special) = &self.special {
+            g.apply_translate(self.special_translate(special, sb))
+                .draw_ftile(special.as_ref());
+        }
         let dw = self.diamond_width(sb);
         let dh = self.diamond.height;
         let at = |x: f64, y: f64| {

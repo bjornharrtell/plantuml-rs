@@ -73,6 +73,11 @@ pub trait Instruction {
         None
     }
 
+    /// The loop, when this instruction is one (`endwhile` followed by `stop`).
+    fn as_while_mut(&mut self) -> Option<&mut InstructionWhile> {
+        None
+    }
+
     fn as_any(&self) -> &dyn Any;
 
     /// Mutable access for the commands that fill a compound instruction.
@@ -127,12 +132,16 @@ impl InstructionList {
 
     /// The list is a single `stop` (`isOnlySingleStopOrSpot`).
     pub fn is_only_single_stop(&self) -> bool {
-        self.all.len() == 1
-            && self.all[0]
-                .borrow()
-                .as_any()
-                .downcast_ref::<InstructionNode>()
-                .is_some_and(|n| n.kind() == NodeKind::Stop)
+        if self.all.len() != 1 {
+            return false;
+        }
+        let last = self.all[0].borrow();
+        if let Some(simple) = last.as_any().downcast_ref::<InstructionSimple>() {
+            return simple.is_killed();
+        }
+        last.as_any()
+            .downcast_ref::<InstructionNode>()
+            .is_some_and(|n| n.kind() == NodeKind::Stop)
     }
 
     pub fn last(&self) -> Option<InsRef> {
@@ -309,12 +318,16 @@ impl Instruction for InstructionSimple {
         if let Some(url) = &self.url {
             result = factory.add_url(result, url);
         }
-        noted(
+        let result = noted(
             result,
             &self.notes,
             true,
             crate::klimt::geom::VerticalAlignment::Center,
-        )
+        );
+        if self.killed {
+            return super::ftile::leaf::FtileKilled::new(result);
+        }
+        result
     }
 
     fn kill(&mut self) -> bool {
@@ -414,6 +427,44 @@ impl Instruction for InstructionNode {
     }
 }
 
+/// `label name` and `goto name`: empty tiles; a `goto` has no exit (`InstructionLabel`, `InstructionGoto`).
+pub struct InstructionJump {
+    is_goto: bool,
+    swimlane: Option<Rc<Swimlane>>,
+}
+
+impl InstructionJump {
+    pub fn new(is_goto: bool, swimlane: Option<Rc<Swimlane>>) -> Self {
+        Self { is_goto, swimlane }
+    }
+}
+
+impl Instruction for InstructionJump {
+    fn create_ftile(&self, factory: &dyn FtileFactory) -> FtileRef {
+        if self.is_goto {
+            super::ftile::leaf::FtileGoto::new(&factory.skin(), self.swimlane.clone())
+        } else {
+            FtileEmpty::new(&factory.skin(), 0.0, 0.0, self.swimlane.clone())
+        }
+    }
+
+    fn in_link_rendering(&self) -> LinkRendering {
+        LinkRendering::none()
+    }
+
+    fn swimlanes(&self) -> Vec<Rc<Swimlane>> {
+        single(&self.swimlane)
+    }
+
+    fn swimlane_in(&self) -> Option<Rc<Swimlane>> {
+        self.swimlane.clone()
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
 /// `break`: leaves the enclosing loop (`InstructionBreak`).
 pub struct InstructionBreak {
     swimlane: Option<Rc<Swimlane>>,
@@ -461,6 +512,7 @@ impl Instruction for InstructionBreak {
 
 /// Parallel branches of a fork (`InstructionFork`).
 pub struct InstructionFork {
+    kind: super::ftile::fork::ParallelKind,
     finished: bool,
     notes: Vec<PositionedNote>,
     branches: Vec<InstructionList>,
@@ -478,6 +530,7 @@ impl InstructionFork {
         in_link_rendering: LinkRendering,
     ) -> Self {
         Self {
+            kind: super::ftile::fork::ParallelKind::Fork,
             finished: false,
             notes: Vec::new(),
             branches: vec![InstructionList::new(None)],
@@ -486,6 +539,10 @@ impl InstructionFork {
             swimlane,
             in_link_rendering,
         }
+    }
+
+    pub fn set_kind(&mut self, kind: super::ftile::fork::ParallelKind) {
+        self.kind = kind;
     }
 
     /// Ends the current branch and starts a new one (`forkAgain`).
@@ -527,6 +584,7 @@ impl Instruction for InstructionFork {
             .map(|b| b.create_ftile(factory))
             .collect();
         let tile = super::ftile::fork::FtileParallel::new(
+            self.kind,
             branches,
             self.colors.clone(),
             factory.skin(),
@@ -956,6 +1014,7 @@ impl Instruction for InstructionIf {
                     first_is_stop: first_stop,
                     second_is_stop: second_stop,
                     two_branches,
+                    label_test: self.thens[0].label_test.clone(),
                     notes: self.notes.clone(),
                 },
                 self.thens[0].color.clone(),
@@ -986,6 +1045,20 @@ impl Instruction for InstructionIf {
     }
 
     fn kill(&mut self) -> bool {
+        if self.finished {
+            // `InstructionIf.kill` after `endif`: the last activity of the first branch and of the `else`
+            if let Some(last) = self.thens[0].list.last() {
+                if !last.borrow_mut().kill() {
+                    return false;
+                }
+            }
+            if let Some(last) = self.else_branch.as_ref().and_then(|b| b.list.last()) {
+                if !last.borrow_mut().kill() {
+                    return false;
+                }
+            }
+            return true;
+        }
         self.current().list.kill()
     }
 
@@ -1030,6 +1103,8 @@ impl Instruction for InstructionIf {
 
 /// A `repeat` loop (`InstructionRepeat`).
 pub struct InstructionRepeat {
+    killed: bool,
+    ended: bool,
     list: InstructionList,
     test: Display,
     yes: Option<Display>,
@@ -1057,6 +1132,8 @@ impl InstructionRepeat {
         in_link_rendering: LinkRendering,
     ) -> Self {
         Self {
+            killed: false,
+            ended: false,
             list: InstructionList::new(swimlane.clone()),
             test: Display::null(),
             yes: None,
@@ -1084,6 +1161,7 @@ impl InstructionRepeat {
         test_color: Option<HColor>,
         swimlane_out: Option<Rc<Swimlane>>,
     ) {
+        self.ended = true;
         self.swimlane_out = swimlane_out;
         self.test = test;
         self.yes = yes;
@@ -1180,7 +1258,14 @@ impl Instruction for InstructionRepeat {
             self.swimlane.clone(),
             factory,
         );
-        super::ftile::wrap::FtileWithSwimlanes::with_swimlane_in(wrapped, self.swimlane.clone())
+        let tile = super::ftile::wrap::FtileWithSwimlanes::with_swimlane_in(
+            wrapped,
+            self.swimlane.clone(),
+        );
+        if self.killed {
+            return super::ftile::leaf::FtileKilled::new(tile);
+        }
+        tile
     }
 
     fn add(&mut self, other: InsRef) -> CommandExecutionResult {
@@ -1188,6 +1273,10 @@ impl Instruction for InstructionRepeat {
     }
 
     fn kill(&mut self) -> bool {
+        if self.ended {
+            self.killed = true;
+            return true;
+        }
         self.list.kill()
     }
 
@@ -1232,6 +1321,9 @@ struct Backward {
 }
 
 pub struct InstructionWhile {
+    special: Option<InsRef>,
+    killed: bool,
+    ended: bool,
     notes: Vec<PositionedNote>,
     backward: Option<Backward>,
     list: InstructionList,
@@ -1253,6 +1345,9 @@ impl InstructionWhile {
         in_link_rendering: LinkRendering,
     ) -> Self {
         Self {
+            special: None,
+            killed: false,
+            ended: false,
             notes: Vec::new(),
             backward: None,
             list: InstructionList::new(swimlane.clone()),
@@ -1286,11 +1381,17 @@ impl InstructionWhile {
         });
     }
 
+    /// The `stop` or `end` that leaves the loop (`setSpecial`).
+    pub fn set_special(&mut self, special: InsRef) {
+        self.special = Some(special);
+    }
+
     pub fn set_out_display(&mut self, out: Option<Display>) {
         self.out_display = out;
     }
 
     pub fn set_out_rendering(&mut self, link: LinkRendering) {
+        self.ended = true;
         self.out_link_rendering = link;
     }
 }
@@ -1335,6 +1436,10 @@ impl Instruction for InstructionWhile {
                 back1,
                 back2,
                 backward,
+                special: self
+                    .special
+                    .as_ref()
+                    .map(|s| s.borrow().create_ftile(factory)),
             },
             self.back_color.clone(),
             factory.skin(),
@@ -1342,12 +1447,16 @@ impl Instruction for InstructionWhile {
             self.out_link_rendering.clone(),
             self.swimlane.clone(),
         );
-        noted(
+        let tile = noted(
             tile,
             &self.notes,
             false,
             crate::klimt::geom::VerticalAlignment::Center,
-        )
+        );
+        if self.killed || self.special.is_some() {
+            return super::ftile::leaf::FtileKilled::new(tile);
+        }
+        tile
     }
 
     fn add(&mut self, other: InsRef) -> CommandExecutionResult {
@@ -1355,6 +1464,10 @@ impl Instruction for InstructionWhile {
     }
 
     fn kill(&mut self) -> bool {
+        if self.ended {
+            self.killed = true;
+            return true;
+        }
         self.list.kill()
     }
 
@@ -1376,6 +1489,10 @@ impl Instruction for InstructionWhile {
 
     fn swimlane_out(&self) -> Option<Rc<Swimlane>> {
         self.list.swimlane_out()
+    }
+
+    fn as_while_mut(&mut self) -> Option<&mut InstructionWhile> {
+        Some(self)
     }
 
     fn as_any(&self) -> &dyn Any {

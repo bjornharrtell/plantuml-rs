@@ -33,6 +33,8 @@ pub struct DownParts {
     pub second_is_stop: bool,
     /// Both original branches leave, so a merge diamond is drawn.
     pub two_branches: bool,
+    /// The text in the condition: always the first branch's, whichever one is drawn below.
+    pub label_test: Display,
     /// The note beside the condition; only a single note is laid out (`FtileIfDown`).
     pub notes: Vec<PositionedNote>,
 }
@@ -68,6 +70,7 @@ impl FtileIfDown {
             second_is_stop,
             two_branches,
             notes,
+            label_test,
         } = parts;
         let block = |d: &Option<Display>| d.as_ref().and_then(|d| arrow_text_block(&skin, d));
         let (tb1, tb2) = (block(&first.label_positive), block(&second.label_positive));
@@ -119,7 +122,7 @@ impl FtileIfDown {
                 .is_some_and(|s| s.is_smaller_than_all_others(&then_block.swimlanes()));
         let tb1_south = tb1;
         let diamond1 = Rc::new(DiamondInside2 {
-            diamond: Diamond::new(first.label_test.clone(), &skin, color.clone()),
+            diamond: Diamond::new(label_test.clone(), &skin, color.clone()),
             north: None,
             south: tb1_south,
             west: if else1 { tb2.clone() } else { None },

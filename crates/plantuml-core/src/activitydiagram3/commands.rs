@@ -372,23 +372,54 @@ fn fork_again() -> Cmd {
     )
 }
 
-/// `end fork` / `fork end` / `end merge`: close the parallel branches.
+/// `end fork` / `fork end` / `end merge` / `end split` / `split end`: close the parallel branches.
 fn end_fork() -> Cmd {
     single(
         vec![
             IRegex::start(),
-            IRegex::or(vec![
-                IRegex::leaf("end[%s]*fork"),
-                IRegex::leaf("fork[%s]*end"),
-                IRegex::leaf("end[%s]*merge"),
-            ]),
+            IRegex::named(
+                "STYLE",
+                "(end[%s]*fork|fork[%s]*end|end[%s]*merge|end[%s]*split|split[%s]*end)",
+            ),
             IRegex::space_zero_or_more(),
             IRegex::named("LABEL", r"(\{.+\})?"),
             IRegex::leaf(";?"),
             IRegex::end(),
         ],
-        |d, _| d.end_fork(),
+        |d, arg| {
+            let style = arg.get("STYLE", 0).unwrap_or("").to_lowercase();
+            d.end_fork(style.contains("merge"))
+        },
     )
+}
+
+/// `split` and `split again`: thin-line parallel branches (`CommandSplit3`, `CommandSplitAgain3`).
+fn split_commands() -> Vec<Cmd> {
+    vec![
+        single(
+            vec![
+                IRegex::start(),
+                IRegex::leaf("split"),
+                IRegex::leaf(";?"),
+                IRegex::end(),
+            ],
+            |d, _| {
+                d.split();
+                CommandExecutionResult::ok()
+            },
+        ),
+        single(
+            vec![
+                IRegex::start(),
+                IRegex::leaf("split"),
+                IRegex::space_zero_or_more(),
+                IRegex::leaf("again"),
+                IRegex::leaf(";?"),
+                IRegex::end(),
+            ],
+            |d, _| d.fork_again(),
+        ),
+    ]
 }
 
 /// The legacy `(*) --> Activity` start of a flow.
@@ -1032,6 +1063,7 @@ pub fn commands() -> Vec<Cmd> {
     cmds.push(close_group_legacy());
     cmds.push(fork());
     cmds.push(fork_again());
+    cmds.extend(split_commands());
     cmds.push(end_fork());
     cmds.push(while_start());
     cmds.push(while_end());
@@ -1150,6 +1182,15 @@ pub fn commands() -> Vec<Cmd> {
     ));
     cmds.push(node_command("end", ActivityDiagram3::end));
     // CommandKill3
+    cmds.push(single(
+        vec![
+            IRegex::start(),
+            IRegex::leaf("kill|detach"),
+            IRegex::leaf(";?"),
+            IRegex::end(),
+        ],
+        |d, _| d.kill(),
+    ));
 
     // CommandLink3
     cmds.push(single(
@@ -1262,6 +1303,19 @@ pub fn commands() -> Vec<Cmd> {
         },
     ));
     // CommandLabel, CommandGoto
+    for word in ["label", "goto"] {
+        cmds.push(single(
+            vec![
+                IRegex::start(),
+                IRegex::leaf(word),
+                IRegex::space_one_or_more(),
+                IRegex::named("NAME", "([%pLN_.]+)"),
+                IRegex::leaf(";?"),
+                IRegex::end(),
+            ],
+            move |d, _| d.add_jump(word == "goto"),
+        ));
+    }
     // Legacy arrows are tried last so that the multi-line arrow commands win.
     cmds.push(legacy_start());
     cmds.push(legacy_spot());
