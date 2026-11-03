@@ -5,11 +5,19 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-11-03
+
 ### Added
 
 - Legacy activity diagrams (`(*) --> a`, `if`/`else`/`endif`, partitions, synchronisation bars) and `{{ }}` embedded
   diagrams in labels, drawn as SVG images.
 - Activity diagrams: `kill`/`detach`, `label`/`goto`, `split`/`merge`, and `stop`/`end` right after `endwhile`.
+- `plantuml-cli --deterministic` and `render_deterministic`: the metrics of Java's `SVG_DETERMINISTIC` format, for
+  comparing with its reference corpus.
+
+### Fixed
+
+- Group and partition frames are sized and squeezed as in Java; wide frame titles are drawn as `SpecialText`.
 
 ## [0.5.2] - 2026-11-02
 
