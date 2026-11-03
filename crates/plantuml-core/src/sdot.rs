@@ -7,10 +7,37 @@
 /// Runs Graphviz `dot` and logs its diagnostics, which the library no longer writes to stderr.
 pub(crate) fn render_dot(dot: &str, format: &str) -> graphviz_pure::Result<String> {
     let (out, diagnostics) = graphviz_pure::render_dot(dot, "dot", format)?.into_parts();
-    for d in &diagnostics {
-        log::warn!("graphviz: {}", d.message().trim_end());
+    let messages: Vec<&str> = diagnostics.iter().map(|d| d.message().trim_end()).collect();
+    for (level, message) in diagnostic_levels(&messages).into_iter().zip(&messages) {
+        log::log!(level, "graphviz: {message}");
     }
     Ok(out)
+}
+
+/// Log level of each Graphviz diagnostic.
+///
+/// `hack_label` and `append_table` size edge labels with fixed-size empty HTML tables, as PlantUML
+/// does. Graphviz warns when such a table is below its default minimum (12x12, e.g. for a `1` or
+/// `*` cardinality), but then uses the requested size anyway. Native Graphviz prints the same
+/// warning, which PlantUML never shows. The warning and its `in label of ...` context line, which
+/// is a separate diagnostic, are therefore logged at debug level.
+fn diagnostic_levels(messages: &[&str]) -> Vec<log::Level> {
+    let mut in_fixed_table_warning = false;
+    messages
+        .iter()
+        .map(|m| {
+            if m.contains("table size too small for content") {
+                in_fixed_table_warning = true;
+                log::Level::Debug
+            } else if in_fixed_table_warning && m.starts_with("in label of ") {
+                in_fixed_table_warning = false;
+                log::Level::Debug
+            } else {
+                in_fixed_table_warning = false;
+                log::Level::Warn
+            }
+        })
+        .collect()
 }
 
 use crate::abel::{Entity, LeafType, Link};
@@ -1274,4 +1301,32 @@ fn state_group_image(
     };
     let padded = Rc::new(PaddedEntityImage::new(stacked, 0.0, 0.0, right, bottom));
     Rc::new(InnerStateAutonom::new(group, padded, cuca, skin))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use log::Level::{Debug, Warn};
+
+    #[test]
+    fn fixed_table_warning_and_its_context_line_are_debug() {
+        let m = [
+            "Warning: table size too small for content",
+            "in label of edge a -> b",
+            "Warning: something else",
+            "in label of edge c -> d",
+        ];
+        assert_eq!(diagnostic_levels(&m), [Debug, Debug, Warn, Warn]);
+    }
+
+    #[test]
+    fn context_line_without_fixed_table_warning_stays_warn() {
+        assert_eq!(diagnostic_levels(&["in label of edge a -> b"]), [Warn]);
+    }
+
+    #[test]
+    fn render_dot_accepts_undersized_fixed_table_label() {
+        let dot = "digraph g { a -> b [headlabel=<<TABLE FIXEDSIZE=\"TRUE\" WIDTH=\"6\" HEIGHT=\"6\"><TR><TD></TD></TR></TABLE>>]; }";
+        assert!(render_dot(dot, "json").is_ok());
+    }
 }
