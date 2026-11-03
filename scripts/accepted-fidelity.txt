@@ -10,7 +10,6 @@ nonreg/activity-deprecated-color/switch_color.puml      # warning box metrics
 nonreg/activity-deprecated-color/while_color.puml       # warning box metrics
 nonreg/simple/A0004.puml           # legacy (pre-beta) activity syntax, out of scope
 tikz/*                              # embedded {{ ... }} diagrams with scale: not rendered, out of scope
-nonreg/warnings/partition_no_bracket.puml         # warning box metrics (three warnings)
 nonreg/warnings/skinparam_handwritten.puml        # handwritten mode needs a handwritten font, which is not embedded
 # Residual layout deltas: element placement differs by a few percent of the canvas where Java
 # derives the numbers from a mix of AWT text metrics and its own internal iteration order. The

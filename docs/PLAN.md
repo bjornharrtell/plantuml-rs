@@ -209,10 +209,9 @@ Ported:
 Also ported: notes on an `elseif` chain and on a `repeat` with `backward`, `kill`/`detach`, `label`/`goto`,
 `split`/`merge` parallels, and a `while` followed by `stop` or `end` (`specialOut`).
 
-Known difference: the frame of a `group` or `partition` has `max(25, title + 20)` above its content and 20 below in
-Java, yet the Java output is 7 px taller when something precedes the group and 8 px shorter below it than that sum
-says, and the stored references measure the title differently from the live jar. The port keeps the constants that
-fit the stored references (title + 10, 15 below); the group fixtures are within the layout target.
+The group frame matches Java: `max(25, title + 20)` above, 20 below, and the frame rectangle is ignored for vertical
+compression, so the empty bands inside it shrink exactly as in Java. Not ported: `SpecialText`, the title wrapper that
+only matters when compressing on X.
 
 ## Foundations not done
 

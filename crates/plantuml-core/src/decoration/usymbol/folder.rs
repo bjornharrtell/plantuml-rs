@@ -198,7 +198,10 @@ fn frame_ypos(dim_title: Dimension) -> f64 {
 }
 
 fn draw_frame(ug: &UGraphic, width: f64, height: f64, dim_title: Dimension, fashion: &Fashion) {
-    let mut rect = URectangle::build(width, height).rounded(fashion.round_corner());
+    let mut rect = URectangle::build(width, height)
+        .rounded(fashion.round_corner())
+        .ignore_for_compression_on_x()
+        .ignore_for_compression_on_y();
     rect.delta_shadow = fashion.delta_shadow();
     ug.draw(rect);
     let (text_width, corner) = if dim_title.width == 0.0 {

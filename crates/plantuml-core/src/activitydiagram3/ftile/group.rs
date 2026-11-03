@@ -17,8 +17,8 @@ use std::rc::Rc;
 
 const HORIZONTAL_MARGIN: f64 = 10.0;
 /// Extra space needed around the title, below it and under the content.
-const TITLE_MARGIN: f64 = 10.0;
-const BOTTOM_MARGIN: f64 = 15.0;
+const TITLE_MARGIN: f64 = 20.0;
+const BOTTOM_MARGIN: f64 = 20.0;
 
 pub struct FtileGroup {
     inner: FtileRef,
