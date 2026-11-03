@@ -1,6 +1,5 @@
 # Fixtures whose differences are accepted by the fidelity target (docs/PLAN.md).
 # One glob per line, relative to VEGA_DIR; text after '#' is the reason.
-nonreg/simple/A0004.puml           # legacy activity syntax: Graphviz places the end node and the second branch differently (layout 0.77)
 tikz/tikz-scale-down.puml  # `scale` applied to an embedded diagram: not ported
 tikz/tikz-scale-up.puml  # same
 nonreg/warnings/skinparam_handwritten.puml        # handwritten mode needs a handwritten font, which is not embedded
@@ -22,8 +21,6 @@ svg/interactive/SVG0005_Svek.puml                # description ports
 # Description rank spacing: the references were laid out by the Smetana flow, which leaves Graphviz's
 # 18/36 px defaults, while the port follows the Graphviz flow Java ships (35 px between nodes, 60 px
 # between ranks). Against a live Java render the spacing is closer, against these references it is not.
-nonreg/simple/ComponentExtraArrows_0001.puml                        # Smetana-spaced reference
-nonreg/stereotype/stereotype-selector-with-embedded-space.puml      # Smetana-spaced reference
 # Point-size line box: these references were laid out when the port reported the point size as the line
 # height, before it measured the face's line box as Java does. Same text and arrangement, a few percent
 # of drift; the live-Java comparison scores them, see docs/PLAN.md.

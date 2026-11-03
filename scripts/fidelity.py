@@ -54,6 +54,21 @@ def is_accepted(rules, relpath):
 
 
 ACCEPTED = load_accepted()
+
+
+def load_out_of_scope():
+    """Fixtures that are not scored at all, one `glob # reason` per line."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "out-of-scope-fixtures.txt")
+    rules = []
+    if os.path.exists(path):
+        for line in open(path, encoding="utf-8"):
+            body = line.split("#", 1)[0].strip()
+            if body:
+                rules.append(body)
+    return rules
+
+
+OUT_OF_SCOPE = load_out_of_scope()
 SMETANA = re.compile(r"!pragma\s+layout\s+smetana")
 out = []
 
@@ -75,6 +90,9 @@ def entries():
             src = open(p, encoding="utf-8").read()
             m = re.search(r"^@start", src, re.M)
             if not m:
+                continue
+            rel = prefix + os.path.relpath(p, root)
+            if is_accepted(OUT_OF_SCOPE, rel) or SMETANA.search(src):
                 continue
             found.append(dict(root=root, prefix=prefix, path=p, src=src,
                               body=src[m.start():],

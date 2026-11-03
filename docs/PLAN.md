@@ -64,8 +64,8 @@ Measured by `scripts/fidelity.py`:
 | `layout_mean` | share of reference elements with the same tag, class and text within 3% of the canvas diagonal | >= 0.90 |
 | `identical%` | full structural diff at 0.5 px | diagnostic, never a gate; no longer quoted (see below) |
 
-Fixtures using `!pragma layout smetana` cannot match in arrangement by construction and are excluded and counted
-separately.
+Fixtures using `!pragma layout smetana`, and the few whose reference was laid out by Smetana or uses the legacy
+activity syntax, are out of scope: they are not scored and not counted (`scripts/out-of-scope-fixtures.txt`).
 
 ## Measured fidelity
 
@@ -167,8 +167,6 @@ harness reports them as `accepted` instead of failures.
 |---|---|---|
 | Residual layout deltas (class, state, Chen, description) | 10 | element spacing a few percent off where Java mixes AWT text metrics with its own iteration order: two leaves in a package swapped, a state composite 8 px narrow, Chen entity placement (9% of the canvas), description ports |
 | Description rank spacing | 2 | the references were laid out by the Smetana flow (18/36 px spacing); the port follows the Graphviz flow Java ships (35/60 px) |
-| `!pragma layout smetana` | 2 of 38 | non-Graphviz layout engine; the other 36 pass |
-| Legacy activity syntax (`A0004`) | 1 | ported (links, `if`/`else`/`endif`, partitions, bars); the Smetana reference places the end node and the second branch differently (layout 0.75) |
 | `scale` on an embedded diagram (`tikz-scale-down`, `tikz-scale-up`) | 2 | the scale transform of embedded images is not ported |
 | Handwritten mode | 1 | needs a handwritten font that is not embedded |
 
@@ -223,6 +221,9 @@ compression, so the empty bands inside it shrink exactly as in Java.
 
 ## Out of scope
 
+- **Smetana-dependent layout and the legacy (pre-beta) activity syntax in the fixtures**: `!pragma layout smetana`
+  fixtures and the three listed in `scripts/out-of-scope-fixtures.txt` are not scored. The legacy activity syntax is
+  still rendered.
 - **Unported diagram types**: `@startbpm`, `@startnwdiag`, `@startchronology`, `@startregex`, `@startwire`,
   `@startboard`, `@startgit`, `@startfiles`, `@startditaa`, `@startdot`, `@startmath`, `@startlatex`, `@startjcckit`,
   `@startflow`/`@startdef`, the help/sprites pages. They return `Unsupported`

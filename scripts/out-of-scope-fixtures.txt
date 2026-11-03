@@ -1,0 +1,5 @@
+# Fixtures that are not scored at all (docs/PLAN.md, "Out of scope"). One glob per line, relative to VEGA_DIR.
+# Fixtures using `!pragma layout smetana` are skipped by content.
+nonreg/simple/A0004.puml                                        # legacy (pre-beta) activity syntax
+nonreg/simple/ComponentExtraArrows_0001.puml                    # reference laid out by Smetana
+nonreg/stereotype/stereotype-selector-with-embedded-space.puml  # reference laid out by Smetana
