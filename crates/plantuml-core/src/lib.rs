@@ -97,6 +97,50 @@ pub fn render_with(
     source: &str,
     resolver: std::rc::Rc<dyn crate::tim::resolver::Resolver>,
 ) -> Result<String, Error> {
+    render_with_metrics(source, resolver, false)
+}
+
+/// Renders with the metrics of Java's `SVG_DETERMINISTIC` format (zero-width spaces, a line as high as the point
+/// size), which the reference corpus was rendered with. For comparing with those references.
+pub fn render_deterministic(source: &str) -> Result<String, Error> {
+    render_with_metrics(
+        source,
+        std::rc::Rc::new(crate::tim::resolver::BundledResolver),
+        true,
+    )
+}
+
+thread_local! {
+    static DETERMINISTIC: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// A `{{ }}` diagram inside a label, rendered in the mode of the diagram around it.
+pub(crate) fn render_embedded(source: &str) -> Result<String, Error> {
+    let deterministic = DETERMINISTIC.with(std::cell::Cell::get);
+    render_with_metrics(
+        source,
+        std::rc::Rc::new(crate::tim::resolver::BundledResolver),
+        deterministic,
+    )
+}
+
+/// Renders with the shipped metrics or, when `deterministic`, with those of `SVG_DETERMINISTIC`.
+pub fn render_with_metrics(
+    source: &str,
+    resolver: std::rc::Rc<dyn crate::tim::resolver::Resolver>,
+    deterministic: bool,
+) -> Result<String, Error> {
+    let outer = DETERMINISTIC.with(|d| d.replace(deterministic));
+    let result = render_mode(source, resolver, deterministic);
+    DETERMINISTIC.with(|d| d.set(outer));
+    result
+}
+
+fn render_mode(
+    source: &str,
+    resolver: std::rc::Rc<dyn crate::tim::resolver::Resolver>,
+    deterministic: bool,
+) -> Result<String, Error> {
     use crate::command::UmlSource;
     use crate::export::{export_svg, ExportOptions};
     use crate::klimt::font::TableFontBounder;
@@ -139,6 +183,7 @@ pub fn render_with(
     }
     // EBNF and description (C4) references come from the real jar, which measures bold with the bold face
     let sb: Rc<dyn crate::klimt::font::StringBounder> = match diagram.base().diagram_type {
+        _ if deterministic => Rc::new(crate::klimt::font::DeterministicBounder),
         crate::diagram::DiagramType::Ebnf | crate::diagram::DiagramType::Description => {
             Rc::new(crate::klimt::font::BoldAwareBounder)
         }

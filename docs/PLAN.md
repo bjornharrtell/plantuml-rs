@@ -134,19 +134,21 @@ through its Graphviz flow while the port follows the Smetana flow the stored ref
   flow renders them (`Kal`), so the stored references lack them too;
 - the unused `svek::builder` path is not an alternative: it renders an empty canvas.
 
-### Space advance
+### Reference metrics
 
-The Vega references were rendered with `StringBounderFromWidthTable`, where U+0020 and U+00A0 have zero advance. The
-difference is exact: `textLength_port - textLength_ref = n_spaces * 0.278 * font_size`. The port uses the bundled
-face's advance instead (about 3.9 px at 14 pt) so words stay apart in a browser and `lengthAdjust="spacing"` does not
-stretch glyphs; the 21 fixtures it moves out of the target are declared. A deterministic-metrics mode chosen by the
-harness would score them without excusing them and would restore JSON and YAML scoring; it is not built.
+The Vega references were rendered with Java's `SVG_DETERMINISTIC` format (`StringBounderFromWidthTable`): ordinary and
+non-breaking spaces have zero advance, a line is as high as the point size, bold is measured like regular text, and an
+embedded `{{ }}` diagram is sized 42 by 42. The shipped output does none of this: spaces keep the bundled face's advance
+so words stay apart in a browser, and a line is the face's line box.
+
+`plantuml-cli --deterministic` and `plantuml_core::render_deterministic` reproduce the reference mode, and
+`scripts/fidelity.py` uses it for the Vega corpus (not for the repository fixtures, which come from the real jar).
+That is what scores the zero-space, point-size-line, deprecated-colour and embedded-diagram fixtures.
 
 ### Line box and bold
 
 The line box (ascent + descent + line gap, as Java's `FileFormat.getJavaDimension`) is the height of a text line for
-every bounder, so boxes keep the height of the shipped render. The stored references were laid out with the shorter
-point-size line; five fixtures are declared for that.
+every shipped bounder, so boxes keep the height of the shipped render.
 
 Bold text is measured with the same widths as regular text, as the Vega references do. Java's real bold face is about
 1.27x wider, so EBNF rule names and C4 captions come out narrow and several-production grammars stack tighter than
@@ -163,14 +165,11 @@ harness reports them as `accepted` instead of failures.
 
 | Set | n | Why |
 |---|---|---|
-| Zero-space reference mode | 21 | see [Space advance](#space-advance) |
 | Residual layout deltas (class, state, Chen, description) | 10 | element spacing a few percent off where Java mixes AWT text metrics with its own iteration order: two leaves in a package swapped, a state composite 8 px narrow, Chen entity placement (9% of the canvas), description ports |
-| Deprecated-colour warning box (activity) | 9 | the warning box above the diagram is laid out with the reference's point-size line and zero-width spaces, so everything below drifts; structure and x positions are identical |
-| Point-size line box | 5 | see [Line box and bold](#line-box-and-bold) |
-| Embedded `{{ … }}` diagrams (`tikz/*`) | 5 | drawn as SVG images; the reference sizes the block 42×42 because its deterministic string bounder is not the SVG one, so the box around it differs |
 | Description rank spacing | 2 | the references were laid out by the Smetana flow (18/36 px spacing); the port follows the Graphviz flow Java ships (35/60 px) |
 | `!pragma layout smetana` | 2 of 38 | non-Graphviz layout engine; the other 36 pass |
-| Legacy activity syntax (`A0004`) | 1 | ported (links, `if`/`else`/`endif`, partitions, bars); Graphviz places the end node and the second branch differently (layout 0.77) |
+| Legacy activity syntax (`A0004`) | 1 | ported (links, `if`/`else`/`endif`, partitions, bars); the Smetana reference places the end node and the second branch differently (layout 0.75) |
+| `scale` on an embedded diagram (`tikz-scale-down`, `tikz-scale-up`) | 2 | the scale transform of embedded images is not ported |
 | Handwritten mode | 1 | needs a handwritten font that is not embedded |
 
 ## In-scope layout gaps

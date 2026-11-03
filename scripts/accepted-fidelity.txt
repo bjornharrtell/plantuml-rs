@@ -1,15 +1,8 @@
 # Fixtures whose differences are accepted by the fidelity target (docs/PLAN.md).
 # One glob per line, relative to VEGA_DIR; text after '#' is the reason.
-# Deprecated colour syntax: the diagram starts with a warning box that the reference laid out with
-# the point-size line and zero-width spaces (docs/PLAN.md, "Space advance"), so everything below it drifts.
-nonreg/activity-deprecated-color/elseif_color.puml      # warning box metrics
-nonreg/activity-deprecated-color/elseif_is_color.puml   # warning box metrics
-nonreg/activity-deprecated-color/if_color.puml          # warning box metrics
-nonreg/activity-deprecated-color/if_is_color.puml       # warning box metrics
-nonreg/activity-deprecated-color/switch_color.puml      # warning box metrics
-nonreg/activity-deprecated-color/while_color.puml       # warning box metrics
 nonreg/simple/A0004.puml           # legacy activity syntax: Graphviz places the end node and the second branch differently (layout 0.77)
-tikz/*                              # embedded {{ ... }} diagrams: the reference sizes them 42x42 (SVG_DETERMINISTIC bounder); the port sizes them as Java does for SVG
+tikz/tikz-scale-down.puml  # `scale` applied to an embedded diagram: not ported
+tikz/tikz-scale-up.puml  # same
 nonreg/warnings/skinparam_handwritten.puml        # handwritten mode needs a handwritten font, which is not embedded
 # Residual layout deltas: element placement differs by a few percent of the canvas where Java
 # derives the numbers from a mix of AWT text metrics and its own internal iteration order. The
@@ -26,21 +19,6 @@ svg/interactive/SVG0005_Svek.puml                # description ports
 # (`StringBounderFromWidthTable`), where U+0020 and U+00A0 have zero advance. The port gives spaces the
 # bundled face's advance so words stay apart in a browser, so every space-bearing label is wider by
 # n_spaces x 0.278 em and the surrounding elements drift; see docs/PLAN.md ("Space advance").
-asciiverse/leftmsg_003.puml                         # zero-space reference mode
-asciiverse/selfnote_001.puml                        # zero-space reference mode
-asciiverse/selfnote_001b.puml                       # zero-space reference mode
-asciiverse/selfnote_001c.puml                       # zero-space reference mode
-asciiverse/layout_002.puml                          # zero-space reference mode
-asciiverse/layout_002b.puml                         # zero-space reference mode
-asciiverse/note_003.puml                            # zero-space reference mode
-nonreg/group2730/tree_table_multiline.puml          # zero-space reference mode
-nonreg/group2788/divider.puml                       # zero-space reference mode
-nonreg/group2814/class_level_note_unaffected.puml   # zero-space reference mode
-nonreg/warnings/gantt_labels.puml                   # zero-space reference mode
-nonreg/warnings/note_top_after_group.puml           # zero-space reference mode
-nonreg/warnings/wbs_old_order.puml                  # zero-space reference mode
-nonreg/yaml/theme-with-empty-style-block.puml       # zero-space reference mode
-svg/interactive/SVG0004_Svek.puml                   # zero-space reference mode
 # Description rank spacing: the references were laid out by the Smetana flow, which leaves Graphviz's
 # 18/36 px defaults, while the port follows the Graphviz flow Java ships (35 px between nodes, 60 px
 # between ranks). Against a live Java render the spacing is closer, against these references it is not.
@@ -49,8 +27,3 @@ nonreg/stereotype/stereotype-selector-with-embedded-space.puml      # Smetana-sp
 # Point-size line box: these references were laid out when the port reported the point size as the line
 # height, before it measured the face's line box as Java does. Same text and arrangement, a few percent
 # of drift; the live-Java comparison scores them, see docs/PLAN.md.
-crash/crash-not-crashing.puml                        # line-box metric drift
-migration/HideShow002_Test.puml                      # line-box metric drift
-nonreg/group2731/pipe_escape.puml                    # line-box metric drift
-nonreg/group2788/forum7710_notes_arrows.puml         # line-box metric drift
-nonreg/group2938/object_diagram.puml                 # line-box metric drift

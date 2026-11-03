@@ -124,7 +124,7 @@ impl EmbeddedDiagram {
     /// Renders `@start<kind>`, the lines and `@end<kind>`; an invalid diagram becomes its error image.
     pub fn render(kind: &str, lines: &[String]) -> Self {
         let source = format!("@start{kind}\n{}\n@end{kind}", lines.join("\n"));
-        let svg = crate::render(&source).unwrap_or_default();
+        let svg = crate::render_embedded(&source).unwrap_or_default();
         let number = |name: &str| {
             let tail = svg.split_once(&format!("{name}=\"")).map(|t| t.1)?;
             tail.split('"')
@@ -416,7 +416,14 @@ impl Atom {
             }),
             Atom::Blank(a) => a.dimension(sb),
             Atom::Sprite(s, _) => s.dimension(),
-            Atom::Embedded(e) => Dimension::new(e.width, e.height),
+            Atom::Embedded(e) => {
+                if sb.matches_property("SVG") {
+                    Dimension::new(e.width, e.height)
+                } else {
+                    // `EmbeddedDiagram.calculateDimensionSlow`: the PNG path fails, which leaves 42 by 42
+                    Dimension::new(42.0, 42.0)
+                }
+            }
         }
     }
 

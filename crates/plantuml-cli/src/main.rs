@@ -23,6 +23,7 @@ options:
   -o, --out DIR   write <name>.svg into DIR instead of stdout (files only)
       --json      print one JSON object per input, without the SVG when writing files
       --check     validate only: write no SVG, exit 1 if any input fails
+      --deterministic  measure text as PlantUML's SVG_DETERMINISTIC format does (for comparing with its test corpus)
   -tsvg           accepted for PlantUML compatibility; SVG is the only format
   -h, --help      show this help
   -V, --version   show the version
@@ -34,6 +35,7 @@ struct Options {
     out: Option<PathBuf>,
     json: bool,
     check: bool,
+    deterministic: bool,
 }
 
 fn parse_args(args: &[String]) -> Result<Options, String> {
@@ -56,6 +58,7 @@ fn parse_args(args: &[String]) -> Result<Options, String> {
             }
             "--json" => options.json = true,
             "--check" => options.check = true,
+            "--deterministic" => options.deterministic = true,
             "-tsvg" | "--svg" => {}
             "-o" | "--out" => {
                 i += 1;
@@ -95,7 +98,7 @@ fn read_input(path: Option<&str>) -> std::io::Result<String> {
 }
 
 /// Renders one input, resolving `!include` relative to its directory.
-fn render(path: Option<&str>) -> Result<String, String> {
+fn render(path: Option<&str>, deterministic: bool) -> Result<String, String> {
     let source = read_input(path).map_err(|e| e.to_string())?;
     let base = match path {
         None | Some("-") => std::env::current_dir().unwrap_or_default(),
@@ -105,7 +108,7 @@ fn render(path: Option<&str>) -> Result<String, String> {
             .unwrap_or_default(),
     };
     let resolver = Rc::new(FsResolver::new(base));
-    plantuml_core::render_with(&source, resolver).map_err(|e| e.to_string())
+    plantuml_core::render_with_metrics(&source, resolver, deterministic).map_err(|e| e.to_string())
 }
 
 #[derive(Debug, Default, PartialEq)]
@@ -230,7 +233,7 @@ fn run(options: &Options, out: &mut impl Write) -> i32 {
     };
     let mut failed = 0;
     for input in inputs {
-        let result = render(input);
+        let result = render(input, options.deterministic);
         let mut output = None;
         let mut written = result;
         if let Some(dir) = &options.out {
@@ -299,21 +302,22 @@ mod tests {
 
     #[test]
     fn missing_file_is_an_error() {
-        assert!(render(Some("/nonexistent/x.puml")).is_err());
+        assert!(render(Some("/nonexistent/x.puml"), false).is_err());
     }
 
     #[test]
     fn unsupported_diagram_is_an_error() {
         let path = temp("unsupported", "@startbpm\nAlice -> Bob\n@endbpm\n");
-        let err = render(path.to_str()).unwrap_err();
+        let err = render(path.to_str(), false).unwrap_err();
         assert!(err.contains("unsupported"), "{err}");
     }
 
     #[test]
     fn metadata_comes_from_the_svg() {
-        let svg = render(Some(
-            temp("meta", "@startuml\nA -> B\n@enduml").to_str().unwrap(),
-        ))
+        let svg = render(
+            Some(temp("meta", "@startuml\nA -> B\n@enduml").to_str().unwrap()),
+            false,
+        )
         .unwrap();
         let meta = svg_meta(&svg);
         assert_eq!(meta.diagram_type.as_deref(), Some("SEQUENCE"));
@@ -332,6 +336,7 @@ mod tests {
             check: true,
             json: true,
             out: None,
+            deterministic: false,
         };
         let mut out = Vec::new();
         assert_eq!(run(&options, &mut out), 1);
@@ -376,5 +381,16 @@ mod tests {
         assert_eq!(json_escape("a\"b\n"), "a\\\"b\\n");
         assert_eq!(error_line("bad thing (line 12)"), Some(12));
         assert_eq!(error_line("bad thing"), None);
+    }
+}
+
+#[cfg(test)]
+mod deterministic_tests {
+    use super::*;
+
+    #[test]
+    fn deterministic_flag_is_parsed() {
+        let o = parse_args(&["--deterministic".into(), "a.puml".into()]).unwrap();
+        assert!(o.deterministic);
     }
 }

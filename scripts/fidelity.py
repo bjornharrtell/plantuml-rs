@@ -125,7 +125,9 @@ for e in ENTRIES:
     t = re.search(r'data-diagram-type="([^"]+)"', ref)
     typ = t.group(1) if t else "?"
     try:
-        r = subprocess.run([PUML, "-"], input=body.encode(), capture_output=True, timeout=20,
+        # the Vega references were rendered in Java's SVG_DETERMINISTIC mode; the repository fixtures by the real jar
+        mode = ["--deterministic"] if not LIVE and not prefix else []
+        r = subprocess.run([PUML, *mode, "-"], input=body.encode(), capture_output=True, timeout=20,
                            cwd=os.path.dirname(p) or None)
         ok = r.returncode == 0 and b"<svg" in r.stdout
         got = r.stdout.decode("utf-8", "replace")

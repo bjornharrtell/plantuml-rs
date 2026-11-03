@@ -82,3 +82,21 @@ fn legacy_activity_syntax_is_laid_out() {
     assert!(s.contains(">a<") && s.contains(">b<") && s.contains(">c<"));
     assert!(s.contains("class=\"start_entity\"") && s.contains("class=\"end_entity\""));
 }
+
+#[test]
+fn deterministic_metrics_give_spaces_no_width_and_embedded_diagrams_42_by_42() {
+    let src = "@startuml\n:a b;\n@enduml";
+    let normal = render(src).unwrap();
+    let det = plantuml_core::render_deterministic(src).unwrap();
+    let width = |s: &str| -> f64 {
+        s.split_once("textLength=\"")
+            .unwrap()
+            .1
+            .split('"')
+            .next()
+            .unwrap()
+            .parse()
+            .unwrap()
+    };
+    assert!(width(&det) < width(&normal));
+}

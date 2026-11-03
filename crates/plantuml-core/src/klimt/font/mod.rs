@@ -175,6 +175,11 @@ pub trait StringBounder {
 
     /// An owned handle to this bounder.
     fn to_rc(&self) -> std::rc::Rc<dyn StringBounder>;
+
+    /// Whether the output has a property (`StringBounder.matchesProperty`); `SVG` is true for a real SVG.
+    fn matches_property(&self, name: &str) -> bool {
+        name.eq_ignore_ascii_case("SVG")
+    }
 }
 
 /// Line height of the face: ascent + descent + line gap, scaled to the font size
@@ -330,6 +335,33 @@ mod tests {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct TableFontBounder;
 
+/// The metrics of Java's `SVG_DETERMINISTIC` format (`StringBounderFromWidthTable`): the width table as it is, spaces
+/// included, a line as high as the point size, and no SVG property, so embedded diagrams are measured 42 by 42.
+///
+/// The Vega references were rendered in this mode. It is chosen explicitly (`render_deterministic`,
+/// `plantuml-cli --deterministic`); the shipped metrics stay the default.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct DeterministicBounder;
+
+impl StringBounder for DeterministicBounder {
+    fn to_rc(&self) -> std::rc::Rc<dyn StringBounder> {
+        std::rc::Rc::new(*self)
+    }
+
+    fn calculate_dimension(&self, font: &UFont, text: &str) -> Dimension {
+        let size = font.size2d();
+        let width: f64 = text
+            .chars()
+            .map(|c| TableFontBounder::table_width(c as u32))
+            .sum();
+        Dimension::new(width * size / 16.0, size)
+    }
+
+    fn matches_property(&self, _name: &str) -> bool {
+        false
+    }
+}
+
 /// The width table with Java's real bold widths (`FileFormat.getJavaDimension` measures a bold run with the bold face).
 ///
 /// The Vega corpus was rendered by `SVG_DETERMINISTIC`, whose table ignores bold, so most diagram types keep
@@ -395,15 +427,21 @@ fn decode_block(data: &[u8]) -> Vec<u8> {
 
 impl TableFontBounder {
     fn char_width(cp: u32) -> f64 {
-        // The deterministic table gives ordinary and non-breaking spaces zero advance.
-        // Split/wrapped labels then place neighbouring words directly against each other.
-        // Use the bundled face's space advance; leave zero-width Unicode separators alone.
         if cp == 0x20 || cp == 0xA0 {
-            let face = &metrics::tables().faces[0];
-            return f64::from(face.advance(0x20).expect("bundled font has a space"))
-                / f64::from(face.units_per_em)
-                * 16.0;
+            return Self::space_width();
         }
+        Self::table_width(cp)
+    }
+
+    fn space_width() -> f64 {
+        let face = &metrics::tables().faces[0];
+        f64::from(face.advance(0x20).expect("bundled font has a space"))
+            / f64::from(face.units_per_em)
+            * 16.0
+    }
+
+    /// The width table of a 16 pt font as Java has it, with zero-width spaces.
+    fn table_width(cp: u32) -> f64 {
         if cp >= 0xFFFF {
             return 16.0;
         }

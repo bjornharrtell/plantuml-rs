@@ -906,10 +906,16 @@ impl UGraphic {
                     y + r.height - 1.0 + r.delta_shadow * 2.0,
                 );
             }
-            UShape::Empty(w, h) | UShape::Image(w, h, _) | UShape::ImageSvg(w, h, _) => {
+            UShape::Empty(w, h) => {
                 add(x, y);
                 add(x + w, y + h);
             }
+            UShape::Image(w, h, _) => {
+                add(x, y);
+                add(x + w - 1.0, y + h - 1.0);
+            }
+            // an embedded diagram is only drawn by the SVG writer: the measuring passes cannot draw it
+            UShape::ImageSvg(..) => {}
             UShape::HLine(l) => self.draw_hline(l),
             UShape::Comment(_) | UShape::CenteredChar(_) => {}
             UShape::Pixel => add(x, y),
