@@ -167,10 +167,10 @@ harness reports them as `accepted` instead of failures.
 | Residual layout deltas (class, state, Chen, description) | 10 | element spacing a few percent off where Java mixes AWT text metrics with its own iteration order: two leaves in a package swapped, a state composite 8 px narrow, Chen entity placement (9% of the canvas), description ports |
 | Deprecated-colour warning box (activity) | 9 | the warning box above the diagram is laid out with the reference's point-size line and zero-width spaces, so everything below drifts; structure and x positions are identical |
 | Point-size line box | 5 | see [Line box and bold](#line-box-and-bold) |
-| Embedded `{{ … }}` diagrams (`tikz/*`) | 5 | not rendered; the block stays as text |
+| Embedded `{{ … }}` diagrams (`tikz/*`) | 5 | drawn as SVG images; the reference sizes the block 42×42 because its deterministic string bounder is not the SVG one, so the box around it differs |
 | Description rank spacing | 2 | the references were laid out by the Smetana flow (18/36 px spacing); the port follows the Graphviz flow Java ships (35/60 px) |
 | `!pragma layout smetana` | 2 of 38 | non-Graphviz layout engine; the other 36 pass |
-| Legacy (pre-beta) activity syntax | 1 | out of scope |
+| Legacy activity syntax (`A0004`) | 1 | ported (links, `if`/`else`/`endif`, partitions, bars); Graphviz places the end node and the second branch differently (layout 0.77) |
 | Handwritten mode | 1 | needs a handwritten font that is not embedded |
 
 ## In-scope layout gaps
@@ -227,10 +227,8 @@ only matters when compressing on X.
 
 - **Unported diagram types**: `@startbpm`, `@startnwdiag`, `@startchronology`, `@startregex`, `@startwire`,
   `@startboard`, `@startgit`, `@startfiles`, `@startditaa`, `@startdot`, `@startmath`, `@startlatex`, `@startjcckit`,
-  `@startflow`/`@startdef`, the help/sprites pages and legacy (non-beta) activity diagrams. They return `Unsupported`
+  `@startflow`/`@startdef`, the help/sprites pages. They return `Unsupported`
   with a clear message. `@startproject` is a Gantt alias and works.
-- **Embedded diagrams** (`{{ … }}`): the block stays as text; rendering them needs a scale transform the SVG writer
-  does not have.
 - **Publishing the VS Code extension from CI**: `scripts/build-vscode-ext.sh` builds it; publishing is by hand.
 
 ## Risks

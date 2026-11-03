@@ -25,7 +25,10 @@ pub(crate) fn create_entity_image(
     skin: &SkinParam,
 ) -> Rc<dyn IEntityImage> {
     match entity.leaf_type() {
-        Some(_) if skin.is_state_diagram() => {
+        Some(_)
+            if skin.is_state_diagram()
+                || cuca.base.diagram_type == crate::diagram::DiagramType::Activity =>
+        {
             if let Some(image) = super::image_state::state_image(entity, cuca, skin) {
                 return image;
             }

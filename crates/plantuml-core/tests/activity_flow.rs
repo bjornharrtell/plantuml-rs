@@ -71,3 +71,14 @@ fn embedded_diagram_is_drawn_as_an_svg_image() {
     assert!(s.contains("data:image/svg+xml;base64,"), "{s}");
     assert!(!s.contains(">{{<"));
 }
+
+#[test]
+fn legacy_activity_syntax_is_laid_out() {
+    let s = render(
+        "@startuml\n(*) --> a\nif \"ok?\" then\n  -->[yes] b\nelse\n  -->[no] c\nendif\nb --> (*)\nc --> (*)\n@enduml",
+    )
+    .unwrap();
+    assert!(s.contains("data-diagram-type=\"ACTIVITY\""));
+    assert!(s.contains(">a<") && s.contains(">b<") && s.contains(">c<"));
+    assert!(s.contains("class=\"start_entity\"") && s.contains("class=\"end_entity\""));
+}

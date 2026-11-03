@@ -7,6 +7,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 ### Added
 
+- Legacy activity diagrams (`(*) --> a`, `if`/`else`/`endif`, partitions, synchronisation bars) and `{{ }}` embedded
+  diagrams in labels, drawn as SVG images.
 - Activity diagrams: `kill`/`detach`, `label`/`goto`, `split`/`merge`, and `stop`/`end` right after `endwhile`.
 
 ## [0.5.2] - 2026-11-02

@@ -397,7 +397,7 @@ impl EntityImageCircleStart {
             style: state_query(
                 skin,
                 entity,
-                &queries::CIRCLE_START.add(SName::StateDiagram),
+                &queries::CIRCLE_START.add(skin.diagram_style_name()),
             ),
             hidden: cuca.is_entity_hidden(entity),
             junction: entity.leaf_type() == Some(LeafType::Junction),
@@ -457,7 +457,11 @@ impl EntityImageCircleEnd {
     pub fn new(entity: &Entity, cuca: &CucaDiagram, skin: &SkinParam) -> Self {
         Self {
             entity: entity.clone(),
-            style: state_query(skin, entity, &queries::CIRCLE_END.add(SName::StateDiagram)),
+            style: state_query(
+                skin,
+                entity,
+                &queries::CIRCLE_END.add(skin.diagram_style_name()),
+            ),
             hidden: cuca.is_entity_hidden(entity),
         }
     }
@@ -490,6 +494,73 @@ impl TextBlock for EntityImageCircleEnd {
 impl IEntityImage for EntityImageCircleEnd {
     fn shape_type(&self) -> ShapeType {
         ShapeType::Circle
+    }
+
+    fn is_hidden(&self) -> bool {
+        self.hidden
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+/// An activity of a legacy activity diagram (`EntityImageActivity`).
+pub struct EntityImageActivity {
+    entity: Entity,
+    desc: Rc<dyn TextBlock>,
+    style: Style,
+    hidden: bool,
+}
+
+impl EntityImageActivity {
+    const CORNER: f64 = 25.0;
+    const MARGIN: f64 = 10.0;
+
+    pub fn new(entity: &Entity, cuca: &CucaDiagram, skin: &SkinParam) -> Self {
+        let style = state_query(skin, entity, &queries::ACTIVITYDIAG_ACTIVITY);
+        let desc = entity.display().create_block(
+            &style.font_configuration(Some(&entity.colors())),
+            style.horizontal_alignment(),
+            &skin.skin_simple(),
+            &crate::klimt::creole::LineBreakStrategy::NONE,
+            CreoleMode::Full,
+            None,
+            None,
+            0.0,
+            0.0,
+        );
+        Self {
+            entity: entity.clone(),
+            desc,
+            style,
+            hidden: cuca.is_entity_hidden(entity),
+        }
+    }
+}
+
+impl TextBlock for EntityImageActivity {
+    fn calculate_dimension(&self, sb: &dyn StringBounder) -> Dimension {
+        self.desc
+            .calculate_dimension(sb)
+            .delta(Self::MARGIN * 2.0, Self::MARGIN * 2.0)
+    }
+
+    fn draw(&self, ug: &UGraphic) {
+        let dim = self.calculate_dimension(ug.string_bounder());
+        let (border, back) = colors_of(&self.entity, &self.style);
+        let mut rect = URectangle::build(dim.width, dim.height).rounded(Self::CORNER);
+        rect.delta_shadow = self.style.shadowing();
+        let ug = ug.apply_color(border).apply_back_color(back);
+        ug.apply_stroke(self.style.stroke()).draw(rect);
+        self.desc
+            .draw(&ug.apply_translate(UTranslate::new(Self::MARGIN, Self::MARGIN)));
+    }
+}
+
+impl IEntityImage for EntityImageActivity {
+    fn shape_type(&self) -> ShapeType {
+        ShapeType::RoundRectangle
     }
 
     fn is_hidden(&self) -> bool {
@@ -804,6 +875,7 @@ pub fn state_image(
     skin: &SkinParam,
 ) -> Option<Rc<dyn IEntityImage>> {
     let image: Rc<dyn IEntityImage> = match entity.leaf_type()? {
+        LeafType::Activity => Rc::new(EntityImageActivity::new(entity, cuca, skin)),
         LeafType::State => {
             if entity.entity_position() != EntityPosition::Normal {
                 Rc::new(EntityImageStateBorder::new(entity, cuca, skin, false))
