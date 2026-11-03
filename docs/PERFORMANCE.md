@@ -16,8 +16,7 @@ Rust is about 34% ahead. The Java figure includes one JVM start (about 130 ms) a
 caveats: Java writes its SVGs to `/dev/shm` while the Rust harness keeps them in memory, and class diagrams are not
 like-for-like (this port lays them out with `graphviz-pure`, while the Java run used Graphviz through its own DOT round
 trip). The Java side cannot be split per diagram type the same way, because a per-type run pays JVM start and JIT
-compilation on a few dozen diagrams. The ranking depends on the Java version: the older 1.2026.7 jar is about 20%
-slower than the pinned one.
+compilation on a few dozen diagrams.
 
 A laptop on battery can throttle and make the Rust figure 40% worse; measure on mains power.
 

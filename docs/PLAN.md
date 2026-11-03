@@ -62,57 +62,47 @@ Measured by `scripts/fidelity.py`:
 | `ok%` | renderer exits 0 with an `<svg` document | 100%, or a documented exception list |
 | `text_jaccard` | overlap of the text contents with Java's SVG | >= 0.95 |
 | `layout_mean` | share of reference elements with the same tag, class and text within 3% of the canvas diagonal | >= 0.90 |
-| `identical%` | full structural diff at 0.5 px | diagnostic, never a gate; no longer quoted (see below) |
+| `identical%` | full structural diff at 0.5 px | diagnostic, never a gate |
 
 Fixtures using `!pragma layout smetana`, and the few whose reference was laid out by Smetana or uses the legacy
 activity syntax, are out of scope: they are not scored and not counted (`scripts/out-of-scope-fixtures.txt`).
 
 ## Measured fidelity
 
-Scored against the stored corpus (the 472 `.puml` files of `src/test/resources/vega`, 431 with a reference SVG, plus the
-repository's own `fixtures/`). `pass` counts scored fixtures; `accepted` counts those declared under
-[Accepted differences](#accepted-differences), which are rendered and measured but not held to the target.
+Scored against the stored corpus (the `.puml` files of `src/test/resources/vega` with a reference SVG, plus the
+repository's own `fixtures/`), in the reference metrics mode below. `pass` counts scored fixtures; `accepted` counts those
+declared under [Accepted differences](#accepted-differences), which are rendered and measured but not held to the target.
 
 | type | n | ok% | text jaccard | layout | pass | accepted |
 |---|---|---|---|---|---|---|
-| SEQUENCE | 149 | 100% | 0.99 | 0.94 | 134/134 | 15 |
+| SEQUENCE | 149 | 100% | 1.00 | 0.99 | 146/146 | 3 |
 | PACKET | 57 | 100% | 1.00 | 1.00 | 57/57 | 0 |
-| CLASS | 53 | 100% | 1.00 | 0.94 | 42/42 | 11 |
-| STATE | 48 | 100% | 1.00 | 0.94 | 42/42 | 6 |
-| ACTIVITY | 36 | 100% | 0.93 | 0.86 | 24/24 | 12 |
+| CLASS | 36 | 100% | 1.00 | 0.94 | 32/32 | 4 |
+| ACTIVITY | 35 | 100% | 1.00 | 1.00 | 35/35 | 0 |
 | CHART | 35 | 100% | 1.00 | 1.00 | 35/35 | 0 |
-| GANTT | 16 | 100% | 1.00 | 0.96 | 15/15 | 1 |
-| SALT | 10 | 100% | 1.00 | 0.95 | 8/8 | 2 |
-| WBS | 7 | 100% | 1.00 | 0.95 | 6/6 | 1 |
-| DESCRIPTION | 9 | 100% | 1.00 | 0.71 | 4/6 | 3 |
-| EBNF | 8 | 100% | 1.00 | 0.95 | 6/8 | 0 |
-| MINDMAP | 4 | 100% | 1.00 | 1.00 | 4/4 | 0 |
-| CHEN_EER | 4 | 100% | 1.00 | 0.88 | 2/2 | 2 |
-| TIMING | 3 | 100% | 1.00 | 1.00 | 3/3 | 0 |
-| BPM (crash) | 1 | 100% | 1.00 | 0.88 | - | 1 |
-| JSON | 1 | 100% | 1.00 | 0.86 | - | 1 |
-| YAML | 1 | 100% | 1.00 | 0.48 | - | 1 |
+| STATE | 27 | 100% | 1.00 | 0.94 | 24/24 | 3 |
+| GANTT | 16 | 100% | 1.00 | 1.00 | 16/16 | 0 |
+| SALT | 10 | 100% | 1.00 | 1.00 | 10/10 | 0 |
+| EBNF | 8 | 100% | 1.00 | 1.00 | 8/8 | 0 |
+| WBS | 7 | 100% | 1.00 | 1.00 | 7/7 | 0 |
+| DESCRIPTION | 7 | 100% | 1.00 | 0.85 | 6/6 | 1 |
+| CHEN_EER, MINDMAP, TIMING, BPM, JSON, YAML | 14 | 100% | 1.00 | 1.00 | 14/14 | 0 |
 
-All 442 fixtures render. **382 of 386 scored fixtures pass (99%)**, 56 are accepted differences, `layout_mean` 0.94,
-text jaccard 0.99. The four misses are listed under [In-scope layout gaps](#in-scope-layout-gaps).
+All 401 scored fixtures render; **390 of 390 in-scope fixtures pass**, 11 are accepted differences, `layout_mean` 0.98.
 
 Reproduce:
 
 ```sh
 git clone https://github.com/plantuml/plantuml && git -C plantuml checkout e6c3adc
-cargo build -p plantuml-cli
+cargo build --release -p plantuml-cli
 VEGA_DIR=plantuml/src/test/resources/vega FIDELITY_JSON=fidelity.json \
-  python3 scripts/fidelity.py target/debug/plantuml-cli
+  python3 scripts/fidelity.py target/release/plantuml-cli
 ```
-
-`identical%` is not quoted: the stored references were laid out with the point-size line and zero-width spaces
-(below), so structural identity against them says nothing about the shipped output. The live-Java comparison is the
-diagnostic for that.
 
 ### Live Java as a second reference
 
-The stored corpus was produced by PlantUML's test mode (`SVG_DETERMINISTIC` and the Smetana drawing flow), which is not
-what the jar renders by default. The harness can render its own references with a jar built from the pinned commit:
+The harness can also render its own references with a jar built from the pinned commit. This is a diagnostic, not a
+gate: the stored corpus comes from Java's test mode, which is not what the jar renders by default.
 
 ```sh
 # a JRE-only default JDK needs JAVA_HOME pointing at a JDK
@@ -121,18 +111,8 @@ python3 scripts/fidelity.py target/release/plantuml-cli \
   --java="$(command -v java)" --jar=../plantuml/build/libs/plantuml-1.2026.10beta1.jar --jobs=8
 ```
 
-Each fixture goes through `java -jar … -tsvg -pipe` (with its own directory as working directory for relative
-includes) and is scored against that SVG. A jar older than the checkout is not a good reference.
-
-This is a diagnostic, not a gate. All 442 fixtures render on both sides; the port scores 298 of 375 in-scope fixtures
-(layout 0.81) against the live jar, versus 382/386 against the stored corpus. Sequence, packet, chart, salt, mindmap,
-gantt, description and the small types are close; the distance is concentrated in class and state, where the jar draws
-through its Graphviz flow while the port follows the Smetana flow the stored references use. Visible causes:
-
-- the jar draws class icons and other glyphs as paths, the port as text (the stored test-mode references do the same);
-- qualified associations (`HashMap [a1] --> [e] V1`) are not drawn at all: the port parses them but only the Graphviz
-  flow renders them (`Kal`), so the stored references lack them too;
-- the unused `svek::builder` path is not an alternative: it renders an empty canvas.
+Each fixture goes through `java -jar … -tsvg -pipe` and is scored against that SVG. A jar older than the checkout is
+not a good reference. Class and state score lowest there, because the jar draws them through its Graphviz flow.
 
 ### Reference metrics
 
@@ -148,15 +128,10 @@ That is what scores the zero-space, point-size-line, deprecated-colour and embed
 ### Line box and bold
 
 The line box (ascent + descent + line gap, as Java's `FileFormat.getJavaDimension`) is the height of a text line for
-every shipped bounder, so boxes keep the height of the shipped render.
-
-Bold text is measured with the same widths as regular text, as the Vega references do. Java's real bold face is about
-1.27x wider, so EBNF rule names and C4 captions come out narrow and several-production grammars stack tighter than
-Java's. Using the embedded bold tables fixes `ebnf/grammar` but costs five Vega fixtures (sequence and timing), so it is
-not done.
-
-The `fixtures/` references (EBNF, C4) are rendered by the matching jar with `skinparam defaultFontName "Liberation Sans"`
-(see `fixtures/README.md`), the face the port measures.
+every shipped bounder. Bold text is measured with regular widths, as the Vega references do; Java's real bold face is
+about 1.27x wider, so EBNF rule names and C4 captions come out narrow. The `fixtures/` references (EBNF, C4) are
+rendered by the matching jar with `skinparam defaultFontName "Liberation Sans"` (see `fixtures/README.md`), the face
+the port measures.
 
 ## Accepted differences
 
@@ -166,29 +141,14 @@ harness reports them as `accepted` instead of failures.
 | Set | n | Why |
 |---|---|---|
 | Residual layout deltas (class, state, Chen, description) | 10 | element spacing a few percent off where Java mixes AWT text metrics with its own iteration order: two leaves in a package swapped, a state composite 8 px narrow, Chen entity placement (9% of the canvas), description ports |
-| Description rank spacing | 2 | the references were laid out by the Smetana flow (18/36 px spacing); the port follows the Graphviz flow Java ships (35/60 px) |
 | `scale` on an embedded diagram (`tikz-scale-down`, `tikz-scale-up`) | 2 | the scale transform of embedded images is not ported |
 | Handwritten mode | 1 | needs a handwritten font that is not embedded |
 
-## In-scope layout gaps
-
-Four repository fixtures miss the layout target. They match on text and content; the cause is bold width and, for C4,
-boundary and caption layout:
-
-| Fixture | layout | Cause |
-|---|---|---|
-| `fixtures/c4/context` | 0.77 | boundary and caption layout, narrow bold |
-| `fixtures/c4/container` | 0.84 | same, with a boundary around two containers |
-| `fixtures/ebnf/grammar` | 0.86 | bold rule names are narrower than Java's, so the productions stack tighter |
-| `fixtures/ebnf/expression` | 0.74 | same |
-
-Description diagrams keep at least 35 px between nodes and 60 px between ranks, as the Graphviz flow Java ships does;
-that scores better against a live Java render than against the Smetana references.
+Description diagrams keep at least 35 px between nodes and 60 px between ranks, as the Graphviz flow Java ships does.
 
 ## Activity diagrams
 
-The activity diagram follows Java's tiles (`activitydiagram3/ftile`), connection by connection, and was checked against
-a live jar with side-by-side renders and line coordinates.
+The activity diagram follows Java's tiles (`activitydiagram3/ftile`), connection by connection.
 
 Ported:
 
@@ -203,7 +163,7 @@ Ported:
   tiles' `drawTranslate` variants; titles, backgrounds and dividers.
 - Groups and partitions, fork, arrow labels and colours, including the colour of the arrow leaving a branch.
 
-Also ported: notes on an `elseif` chain and on a `repeat` with `backward`, `kill`/`detach`, `label`/`goto`,
+Also: notes on an `elseif` chain and on a `repeat` with `backward`, `kill`/`detach`, `label`/`goto`,
 `split`/`merge` parallels, and a `while` followed by `stop` or `end` (`specialOut`).
 
 The group frame matches Java: `max(25, title + 20)` above, 20 below, and the frame rectangle is ignored for vertical
