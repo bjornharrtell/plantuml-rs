@@ -107,6 +107,60 @@ pub enum Atom {
         Rc<crate::klimt::sprite::Sprite>,
         crate::klimt::color::HColor,
     ),
+    /// A `{{ ... }}` diagram drawn as an image.
+    Embedded(Rc<EmbeddedDiagram>),
+}
+
+/// A diagram written between `{{` and `}}` in a label, rendered once into an SVG image (`EmbeddedDiagram`).
+#[derive(Debug)]
+pub struct EmbeddedDiagram {
+    /// The document without its `<svg ...>` opening tag, which is written again around it.
+    body: Rc<str>,
+    width: f64,
+    height: f64,
+}
+
+impl EmbeddedDiagram {
+    /// Renders `@start<kind>`, the lines and `@end<kind>`; an invalid diagram becomes its error image.
+    pub fn render(kind: &str, lines: &[String]) -> Self {
+        let source = format!("@start{kind}\n{}\n@end{kind}", lines.join("\n"));
+        let svg = crate::render(&source).unwrap_or_default();
+        let number = |name: &str| {
+            let tail = svg.split_once(&format!("{name}=\"")).map(|t| t.1)?;
+            tail.split('"')
+                .next()?
+                .trim_end_matches("px")
+                .parse::<f64>()
+                .ok()
+        };
+        let view_box: Vec<f64> = svg
+            .split_once("viewBox=\"")
+            .and_then(|t| t.1.split('"').next())
+            .map(|v| {
+                v.split_whitespace()
+                    .filter_map(|n| n.parse().ok())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let (width, height) = match view_box[..] {
+            [_, _, w, h] => (w, h),
+            _ => (
+                number("width").unwrap_or(42.0),
+                number("height").unwrap_or(42.0),
+            ),
+        };
+        let body = svg
+            .find("<svg")
+            .and_then(|i| svg[i..].find('>').map(|j| svg[i + j + 1..].to_string()))
+            .unwrap_or_default();
+        // the document is written on one line, as Java does
+        let body: String = body.lines().map(str::trim_start).collect();
+        Self {
+            body: body.into(),
+            width: width.ceil(),
+            height: height.ceil(),
+        }
+    }
 }
 
 impl PartialEq for Atom {
@@ -118,6 +172,7 @@ impl PartialEq for Atom {
             (Atom::Horizontal(a), Atom::Horizontal(b)) => a == b,
             (Atom::Blank(a), Atom::Blank(b)) => a == b,
             (Atom::Sprite(a, c), Atom::Sprite(b, d)) => Rc::ptr_eq(a, b) && c == d,
+            (Atom::Embedded(a), Atom::Embedded(b)) => Rc::ptr_eq(a, b),
             _ => false,
         }
     }
@@ -361,6 +416,7 @@ impl Atom {
             }),
             Atom::Blank(a) => a.dimension(sb),
             Atom::Sprite(s, _) => s.dimension(),
+            Atom::Embedded(e) => Dimension::new(e.width, e.height),
         }
     }
 
@@ -378,7 +434,7 @@ impl Atom {
             }
             Atom::Horizontal(all) => all.first().map_or(0.0, Atom::starting_altitude),
             Atom::Blank(a) => a.starting_altitude(),
-            Atom::Sprite(_, _) => 0.0,
+            Atom::Sprite(_, _) | Atom::Embedded(_) => 0.0,
         }
     }
 
@@ -397,6 +453,11 @@ impl Atom {
             }
             Atom::Space(_) | Atom::Blank(_) => {}
             Atom::Sprite(s, color) => s.draw(&ug.apply_color(color.clone())),
+            Atom::Embedded(e) => ug.draw(crate::klimt::drawing::ugraphic::UShape::ImageSvg(
+                e.width,
+                e.height,
+                e.body.clone(),
+            )),
             Atom::Bullet(fc, order) => {
                 let color = fc.color().clone();
                 let u = ug.apply_color(color.clone());

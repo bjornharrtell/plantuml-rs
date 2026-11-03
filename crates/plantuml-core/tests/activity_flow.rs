@@ -64,3 +64,10 @@ fn notes_on_elseif_and_repeat_backward_render() {
     let r = svg("start\nrepeat\n:a;\nnote right: hi\nbackward :b;\nrepeat while (c?)\nstop");
     assert!(r.contains(">hi<") && r.contains(">b<"));
 }
+
+#[test]
+fn embedded_diagram_is_drawn_as_an_svg_image() {
+    let s = svg(":Test\n{{\nnode N\n}}\n;");
+    assert!(s.contains("data:image/svg+xml;base64,"), "{s}");
+    assert!(!s.contains(">{{<"));
+}

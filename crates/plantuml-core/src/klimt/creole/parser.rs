@@ -764,6 +764,37 @@ pub enum SheetItem {
     Stereotype(Vec<String>),
 }
 
+/// The diagram type opened by a `{{` line (`EmbeddedDiagram.getEmbeddedType`).
+fn embedded_type(line: &str) -> Option<&'static str> {
+    let rest = line.trim().strip_prefix("{{")?.trim();
+    const KINDS: [&str; 20] = [
+        "board",
+        "creole",
+        "chronology",
+        "chen",
+        "chart",
+        "ditaa",
+        "ebnf",
+        "files",
+        "gantt",
+        "json",
+        "mindmap",
+        "nwdiag",
+        "packetdiag",
+        "regex",
+        "salt",
+        "uml",
+        "wbs",
+        "wire",
+        "yaml",
+        "uml",
+    ];
+    if rest.is_empty() {
+        return Some("uml");
+    }
+    KINDS.into_iter().find(|k| *k == rest)
+}
+
 /// Builds the sheet of a text (`CreoleParser.createSheet`).
 pub fn create_sheet(
     lines: &[String],
@@ -787,7 +818,41 @@ pub fn create_sheet_items(
 ) -> Sheet {
     let mut ctx = CreoleContext::default();
     let mut stripes: Vec<Stripe> = Vec::new();
-    for item in items {
+    let mut items = items.iter();
+    while let Some(item) = items.next() {
+        if let SheetItem::Text(t) = item {
+            if let Some(kind) = embedded_type(t) {
+                let mut lines = Vec::new();
+                let mut nested = 1;
+                for next in items.by_ref() {
+                    let SheetItem::Text(line) = next else {
+                        continue;
+                    };
+                    if embedded_type(line).is_some() {
+                        nested += 1;
+                    } else if line.trim() == "}}" {
+                        nested -= 1;
+                        if nested == 0 {
+                            break;
+                        }
+                    }
+                    lines.push(line.clone());
+                }
+                // `Display`: an empty last line after `}}` is dropped
+                if matches!(items.as_slice(), [SheetItem::Text(t)] if t.is_empty()) {
+                    items.next();
+                }
+                stripes.push(Stripe {
+                    atoms: vec![Atom::Embedded(Rc::new(
+                        super::atoms::EmbeddedDiagram::render(kind, &lines),
+                    ))],
+                    has_header: false,
+                    align: HorizontalAlignment::Left,
+                    fc: fc.clone(),
+                });
+                continue;
+            }
+        }
         let (raw, font, manage) = match item {
             SheetItem::Text(t) => (std::slice::from_ref(t), fc, true),
             SheetItem::Stereotype(labels) => (labels.as_slice(), stereotype_fc, false),

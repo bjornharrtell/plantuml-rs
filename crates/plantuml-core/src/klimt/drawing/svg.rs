@@ -436,6 +436,37 @@ impl SvgGraphics {
         self.ensure_visible(x + w, y + h);
     }
 
+    /// An embedded SVG document (`<image>` with a base64 data URI, `SvgGraphics.svgImage`).
+    pub fn image_svg(&mut self, x: f64, y: f64, w: f64, h: f64, body: &str) {
+        if !self.hidden {
+            let header = if body.contains("xmlns:xlink=\"http://www.w3.org/1999/xlink\"") {
+                format!(
+                    "<svg height=\"{}\" width=\"{}\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" xmlns=\"http://www.w3.org/2000/svg\" >",
+                    h as i64, w as i64
+                )
+            } else {
+                format!(
+                    "<svg height=\"{}\" width=\"{}\" xmlns=\"http://www.w3.org/2000/svg\" >",
+                    h as i64, w as i64
+                )
+            };
+            let mut e = XmlNode::new("image");
+            e.set("width", self.format(w));
+            e.set("height", self.format(h));
+            e.set("x", self.format(x));
+            e.set("y", self.format(y));
+            e.set(
+                "xlink:href",
+                format!(
+                    "data:image/svg+xml;base64,{}",
+                    crate::klimt::png::base64(format!("{header}{body}").as_bytes())
+                ),
+            );
+            self.current().push(e);
+        }
+        self.ensure_visible(x + w, y + h);
+    }
+
     pub fn ellipse(&mut self, cx: f64, cy: f64, rx: f64, ry: f64, shadow: f64) {
         self.manage_shadow(shadow);
         if !self.hidden {

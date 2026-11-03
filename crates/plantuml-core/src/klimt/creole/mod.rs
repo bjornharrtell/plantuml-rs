@@ -7,7 +7,7 @@ pub mod display;
 mod layout;
 mod parser;
 
-pub use atoms::{Atom, DelayedDouble};
+pub use atoms::{Atom, DelayedDouble, EmbeddedDiagram};
 pub use layout::{create_text_block, SheetBlock};
 pub use parser::{create_sheet, create_sheet_items, Sheet, SheetItem, Stripe};
 
