@@ -267,7 +267,16 @@ impl USymbol for Frame {
             let dim_title = label.calculate_dimension(sb);
             draw_frame(&ug, width, height, dim_title, &context);
             // `SpecialText` only differs from a plain title when compressing.
-            label.draw(&ug.apply_translate(UTranslate::new(3.0, 1.0)));
+            // "Temporary hack..." of `USymbolFrame`: a wide frame draws its title as a `SpecialText`
+            if width - dim_title.width < 25.0 {
+                label.draw(&ug.apply_translate(UTranslate::new(3.0, 1.0)));
+            } else {
+                ug.apply_translate(UTranslate::new(3.0, 1.0)).draw(
+                    crate::klimt::drawing::ugraphic::UShape::SpecialText(
+                        crate::klimt::drawing::ugraphic::SpecialText(label.clone()),
+                    ),
+                );
+            }
             let dim_stereo = stereotype.calculate_dimension(sb);
             let pos_stereo = (width - dim_stereo.width) / 2.0;
             stereotype.draw(&ug.apply_translate(UTranslate::new(

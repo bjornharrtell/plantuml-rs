@@ -209,8 +209,7 @@ Also ported: notes on an `elseif` chain and on a `repeat` with `backward`, `kill
 `split`/`merge` parallels, and a `while` followed by `stop` or `end` (`specialOut`).
 
 The group frame matches Java: `max(25, title + 20)` above, 20 below, and the frame rectangle is ignored for vertical
-compression, so the empty bands inside it shrink exactly as in Java. Not ported: `SpecialText`, the title wrapper that
-only matters when compressing on X.
+compression, so the empty bands inside it shrink exactly as in Java.
 
 ## Foundations not done
 

@@ -432,6 +432,22 @@ impl UText {
 }
 
 /// Anything `UGraphic::draw` accepts.
+/// The title block of a [`UShape::SpecialText`].
+#[derive(Clone)]
+pub struct SpecialText(pub std::rc::Rc<dyn crate::klimt::shape::TextBlock>);
+
+impl std::fmt::Debug for SpecialText {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("SpecialText")
+    }
+}
+
+impl PartialEq for SpecialText {
+    fn eq(&self, other: &Self) -> bool {
+        std::rc::Rc::ptr_eq(&self.0, &other.0)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum UShape {
     Rectangle(URectangle),
@@ -441,6 +457,8 @@ pub enum UShape {
     Path(UPath),
     Text(Box<UText>),
     HLine(UHorizontalLine),
+    /// A title that only the SVG writer draws; measuring passes ignore it (`SpecialText`).
+    SpecialText(SpecialText),
     /// Invisible shape only extending the bounds (`UEmpty`).
     Empty(f64, f64),
     /// A bitmap: size and PNG bytes (`UImage`).
@@ -814,6 +832,7 @@ impl UGraphic {
             UShape::Path(p) => self.draw_path(&p, x, y),
             UShape::Text(t) => self.draw_text(&t, x, y),
             UShape::HLine(l) => self.draw_hline(&l),
+            UShape::SpecialText(t) => t.0.draw(self),
             UShape::Comment(c) => self.svg.add_comment(&c),
             UShape::CenteredChar(c) => self.draw_centered_char(c, x, y),
             UShape::Pixel => {
@@ -917,7 +936,7 @@ impl UGraphic {
             // an embedded diagram is only drawn by the SVG writer: the measuring passes cannot draw it
             UShape::ImageSvg(..) => {}
             UShape::HLine(l) => self.draw_hline(l),
-            UShape::Comment(_) | UShape::CenteredChar(_) => {}
+            UShape::Comment(_) | UShape::CenteredChar(_) | UShape::SpecialText(_) => {}
             UShape::Pixel => add(x, y),
         }
     }
