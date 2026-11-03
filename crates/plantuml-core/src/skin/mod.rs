@@ -163,6 +163,10 @@ impl SkinParam {
         Ok(())
     }
 
+    pub fn replace_style_builder(&self, builder: StyleBuilder) {
+        *self.style_builder.borrow_mut() = Some(builder);
+    }
+
     pub fn mute_style(&self, styles: Vec<Style>) {
         let current = self.style_builder();
         *self.style_builder.borrow_mut() = Some(current.mute_style(styles));
@@ -175,12 +179,12 @@ impl SkinParam {
             let mut builder = self.style_builder();
             let mut conv = FromSkinparamToStyle::new(&key2);
             conv.convert_now(value, &mut builder);
-            self.mute_style(conv.into_styles());
+            *self.style_builder.borrow_mut() = Some(builder.mute_style(conv.into_styles()));
         }
         if key.eq_ignore_ascii_case("style") && value.eq_ignore_ascii_case("strictuml") {
             let mut builder = self.style_builder();
             match builder.parse_style_text(include_str!("../style/strictuml.skin")) {
-                Ok(styles) => self.mute_style(styles),
+                Ok(styles) => *self.style_builder.borrow_mut() = Some(builder.mute_style(styles)),
                 Err(e) => log::error!("cannot load strictuml skin: {e}"),
             }
         }

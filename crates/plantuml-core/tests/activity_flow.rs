@@ -100,3 +100,12 @@ fn deterministic_metrics_give_spaces_no_width_and_embedded_diagrams_42_by_42() {
     };
     assert!(width(&det) < width(&normal));
 }
+
+#[test]
+fn later_stereotype_skinparam_overrides_earlier() {
+    let svg = plantuml_core::render(
+        "@startuml\nskinparam rectangle<<a>> {\n BackgroundColor #111111\n}\nskinparam rectangle<<a>> {\n BackgroundColor #222222\n}\nrectangle x <<a>>\n@enduml\n",
+    )
+    .unwrap();
+    assert!(svg.contains("fill=\"#222\""), "{svg}");
+}

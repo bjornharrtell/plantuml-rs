@@ -807,7 +807,7 @@ fn apply_style_text(base: &mut DiagramBase, text: &str) -> CommandExecutionResul
     let mut builder = base.skin_param.style_builder();
     match builder.parse_style_text(text) {
         Ok(styles) => {
-            base.skin_param.mute_style(styles);
+            base.skin_param.replace_style_builder(builder.mute_style(styles));
             CommandExecutionResult::ok()
         }
         Err(e) => CommandExecutionResult::error(format!("Error in style definition: {e}")),
