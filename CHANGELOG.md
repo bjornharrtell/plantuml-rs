@@ -5,6 +5,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 ## [Unreleased]
 
+## [0.5.4] - 2026-11-04
+
 ### Changed
 
 - `graphviz-pure` 1.1.0 (was 1.0.0). Output of the Vega corpus is byte-identical and speed is unchanged.
