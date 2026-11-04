@@ -273,9 +273,9 @@ dependencies = [
 
 [[package]]
 name = "graphviz-pure"
-version = "1.0.0"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "566df7d2e76f60bcbbbe4c8cefa74dd06cb601b0a1683c775424625e11ba4695"
+checksum = "420df58c439ee673285105183b3a0c227ad29e989466522b68d722226c3b1582"
 dependencies = [
  "graphviz-pure-core",
  "graphviz-pure-geom",
@@ -286,27 +286,27 @@ dependencies = [
 
 [[package]]
 name = "graphviz-pure-core"
-version = "1.0.0"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d78f5a6a1f159d20ce687e6fb515c495bdb31c2f0099c88699aaba1ab7f43200"
+checksum = "46effdb9595304af40d421023022053540dc9b29997c9077c906ddec1a207457"
 dependencies = [
  "libm",
 ]
 
 [[package]]
 name = "graphviz-pure-geom"
-version = "1.0.0"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b929d3c4c307e9bc3c21e895651bc3203325d5d04a05271973b6a2f5bebcde3"
+checksum = "1fa65b26e8a2291ce3db8c5eab425cdc8411fee1262be55b51082119b88f50d7"
 dependencies = [
  "graphviz-pure-core",
 ]
 
 [[package]]
 name = "graphviz-pure-layout"
-version = "1.0.0"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6494dc40711f621c4c64418a88ca255c698a927dc45f8985e1ce19dbec0899e"
+checksum = "f9857ad713245241e438ab1d695f2c078b58f511b613136cf39e8e9490971c41"
 dependencies = [
  "graphviz-pure-core",
  "graphviz-pure-geom",
@@ -314,18 +314,18 @@ dependencies = [
 
 [[package]]
 name = "graphviz-pure-parser"
-version = "1.0.0"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d1bac6be31a398f1dffdc41ef2cffe6d0da11e507bed3db48980d59f7ec8241f"
+checksum = "47f6abc91548edab929901cbe02e5b1d1bde8f890f9c2f1046e7bdec833202f9"
 dependencies = [
  "graphviz-pure-core",
 ]
 
 [[package]]
 name = "graphviz-pure-render"
-version = "1.0.0"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e031fc7389656529635de1d8d9d32f9e069c3f7542fcb2b29db6a98767ab057"
+checksum = "62c22a99fd6a07b175a48f2ed1640cf10db6558a5ef12e3b1de9720ea62135c2"
 dependencies = [
  "graphviz-pure-core",
  "graphviz-pure-geom",

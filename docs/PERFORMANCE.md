@@ -18,6 +18,9 @@ like-for-like (this port lays them out with `graphviz-pure`, while the Java run 
 trip). The Java side cannot be split per diagram type the same way, because a per-type run pays JVM start and JIT
 compilation on a few dozen diagrams.
 
+Upgrading `graphviz-pure` from 1.0.0 to 1.1.0 left every one of the 458 rendered SVGs byte-identical and the in-process
+time unchanged (0.91 s against 0.93 s, best of five against best of three, same machine state).
+
 A laptop on battery can throttle and make the Rust figure 40% worse; measure on mains power.
 
 ## What the build does for speed

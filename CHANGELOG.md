@@ -5,6 +5,16 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 ## [Unreleased]
 
+## [Unreleased]
+
+### Changed
+
+- `graphviz-pure` 1.1.0 (was 1.0.0). Output of the Vega corpus is byte-identical and speed is unchanged.
+
+### Fixed
+
+- Later `skinparam` values now override earlier ones for the same stereotype, so C4 `UpdateElementStyle` and tag colours take effect.
+
 ## [0.5.3] - 2026-11-03
 
 ### Added

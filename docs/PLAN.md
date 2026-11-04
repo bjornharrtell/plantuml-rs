@@ -13,7 +13,7 @@ Base version of the port: PlantUML `1.2026.10beta1`, upstream commit `e6c3adc2be
 | Approach | Faithful port of the Java code by default, so behaviour matches the Vega fixtures. Re-implement idiomatically only where the Java is a workaround for Java or its dependencies (Graphviz process and SVG round trip, TeaVM/Smetana/Elk paths, legacy strategies, AWT/image plumbing). Judge by behaviour and the fixtures, not by the Java structure |
 | Fidelity | Same diagram, not same file (see [Fidelity target](#fidelity-target)) |
 | Output | SVG only. No PNG, PDF, EPS, AWT, GUI or servers |
-| Layout | [`graphviz-pure`](https://github.com/graphviz-pure/graphviz-pure), a pure-Rust Graphviz 16.1.0 port (EPL-2.0), pinned at `=1.0.0`. Java's Smetana is not ported |
+| Layout | [`graphviz-pure`](https://github.com/graphviz-pure/graphviz-pure), a pure-Rust Graphviz 16.1.0 port (EPL-2.0), pinned at `=1.1.0`. Java's Smetana is not ported |
 | Text metrics | Embedded font metrics only (deterministic, no browser canvas) |
 | License | MIT (PlantUML is multi-licensed and offers MIT) |
 | C4 models | Through the bundled C4-PlantUML macro library (`!include <C4/C4_Container>`), which expands to description-diagram statements; there is no diagram type of its own |
