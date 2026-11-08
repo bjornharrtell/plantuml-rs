@@ -280,5 +280,4 @@ impl IEntityImage for EntityImageObject {
     }
 }
 
-#[allow(dead_code)]
 fn _unused(_: &UShape) {}

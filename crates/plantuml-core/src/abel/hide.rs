@@ -95,7 +95,6 @@ fn matches(name: &str, pattern: &str) -> bool {
     name == pattern
 }
 
-#[allow(dead_code)]
 fn _unused(_: LeafType) {}
 
 #[cfg(test)]

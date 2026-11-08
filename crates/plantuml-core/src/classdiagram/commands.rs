@@ -1334,7 +1334,6 @@ pub fn commands() -> Vec<Cmd> {
     cmds
 }
 
-#[allow(dead_code)]
 fn _unused(_: ColorType) {}
 
 #[cfg(test)]

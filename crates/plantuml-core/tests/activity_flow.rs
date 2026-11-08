@@ -109,3 +109,10 @@ fn later_stereotype_skinparam_overrides_earlier() {
     .unwrap();
     assert!(svg.contains("fill=\"#222\""), "{svg}");
 }
+
+#[test]
+fn empty_switch_renders() {
+    let svg =
+        plantuml_core::render("@startuml\nstart\nswitch (x)\nendswitch\nstop\n@enduml\n").unwrap();
+    assert!(svg.contains("<svg"));
+}

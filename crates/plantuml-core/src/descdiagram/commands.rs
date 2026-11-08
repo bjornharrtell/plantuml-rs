@@ -652,5 +652,4 @@ pub fn commands() -> Vec<Cmd> {
 
 const CODE_NOTE: &str = r"[%pLN_.]+|\(\)[%s]*[%pLN_.]+|\(\)[%s]*[%g][^%g]+[%g]|\[[^\]]*\][^\]]*\]|\((?!\*\))[^)]+\)|:[^:]+:|[%g][^%g]+[%g]";
 
-#[allow(dead_code)]
 fn _unused(_: HColor) {}

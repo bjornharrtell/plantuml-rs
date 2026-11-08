@@ -119,6 +119,9 @@ impl FtileSwitch {
         out_link_rendering: LinkRendering,
         swimlane: Option<Rc<Swimlane>>,
     ) -> FtileRef {
+        if branches.is_empty() {
+            return super::leaf::FtileEmpty::new(&skin, 0.0, 0.0, swimlane);
+        }
         let color = back;
         let diamond1 = Rc::new(DiamondInside2 {
             diamond: Diamond::new(test, &skin, color.clone()),

@@ -99,7 +99,6 @@ impl Sprite {
 pub type SpriteRegistry = std::collections::HashMap<String, std::rc::Rc<Sprite>>;
 
 /// Colour used for a sprite pixel; kept as a helper so the grey level can be honoured later.
-#[allow(dead_code)]
 pub fn pixel_color(base: &HColor, _level: Pixel) -> HColor {
     base.clone()
 }

@@ -730,5 +730,4 @@ impl IEntityImage for EntityImageClass {
     }
 }
 
-#[allow(dead_code)]
 fn _unused(_: &UFont) {}

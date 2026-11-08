@@ -965,7 +965,6 @@ pub fn append_table(sb: &mut String, dim: Dimension, color: i32) {
     ));
 }
 
-#[allow(dead_code)]
 fn _unused(_: LinkArrow) {}
 
 #[cfg(test)]
