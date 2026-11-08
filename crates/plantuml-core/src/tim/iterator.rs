@@ -44,8 +44,9 @@ impl CodeIterator for CodeIteratorImpl {
     }
 
     fn next(&mut self, _: &mut TContext, _: &mut TMemory) -> Result<()> {
-        assert!(self.current < self.list.len(), "no more lines");
-        self.current += 1;
+        if self.current < self.list.len() {
+            self.current += 1;
+        }
         Ok(())
     }
 

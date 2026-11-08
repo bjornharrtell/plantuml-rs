@@ -99,7 +99,10 @@ impl MutingLine {
         if y2 == y1 {
             return;
         }
-        assert!(y2 > y1, "negative height");
+        if y2 < y1 {
+            log::warn!("negative height {} ignored", y2 - y1);
+            return;
+        }
         let query = ctype
             .style_query()
             .with_stereotype_obj(self.participant.stereotype());

@@ -237,7 +237,10 @@ impl Builder {
     }
 
     fn pop_node(&mut self) {
-        self.nodes.pop();
+        // The root node stays so that unbalanced input cannot empty the stack.
+        if self.nodes.len() > 1 {
+            self.nodes.pop();
+        }
     }
 
     fn add_in_list(&mut self, list: usize, element: usize) -> Res<()> {
@@ -286,6 +289,9 @@ impl Builder {
             if matches!(self.arena[*last], Mono::List(_)) {
                 self.nodes.pop();
             }
+        }
+        if self.nodes.is_empty() {
+            return Err("indentation underflow".into());
         }
         Ok(())
     }

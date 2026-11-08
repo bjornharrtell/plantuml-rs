@@ -200,7 +200,10 @@ impl Line {
                 return;
             }
             count += 1;
-            assert!(count <= 99999, "Infinite Loop?");
+            if count > 99999 {
+                log::error!("real constraints do not converge");
+                return;
+            }
         }
     }
 }

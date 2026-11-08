@@ -143,6 +143,10 @@ pub fn analyze_startsub(
     Ok(name)
 }
 
+/// Deepest nesting of function, procedure and `!includesub` bodies; anything deeper is a runaway recursion that
+/// would overflow the stack.
+const MAX_DEPTH: usize = 100;
+
 pub struct TContext {
     pub result_list: Vec<StringLocated>,
     pub debug: Vec<StringLocated>,
@@ -153,6 +157,7 @@ pub struct TContext {
     pub current_dir: Option<String>,
     /// Index in `imports` of the archive the current file came from.
     current_import: Option<usize>,
+    depth: usize,
     /// Archives made available by `!import` (`PathSystem`'s imported folders).
     imports: Vec<ImportedArchive>,
     included_current: HashSet<(String, Option<String>)>,
@@ -175,6 +180,7 @@ impl TContext {
             resolver,
             current_dir: None,
             current_import: None,
+            depth: 0,
             imports: Vec::new(),
             included_current: HashSet::new(),
             artifact: PreprocessingArtifact::default(),
@@ -219,14 +225,33 @@ impl TContext {
         ftype: Option<TFunctionType>,
         mode_special: bool,
     ) -> Result<Option<TValue>> {
-        let mut it = build_code_iterator(body.to_vec());
-        while let Some(s) = it.peek(self, mem)? {
-            if let Some(result) = self.execute_one_line(mem, &s, ftype, mode_special)? {
-                return Ok(Some(result));
+        self.nested(body, |cx| {
+            let mut it = build_code_iterator(body.to_vec());
+            while let Some(s) = it.peek(cx, mem)? {
+                if let Some(result) = cx.execute_one_line(mem, &s, ftype, mode_special)? {
+                    return Ok(Some(result));
+                }
+                it.next(cx, mem)?;
             }
-            it.next(self, mem)?;
+            Ok(None)
+        })
+    }
+
+    /// Runs `f` one level deeper, failing instead of recursing without bound.
+    fn nested<T>(
+        &mut self,
+        body: &[StringLocated],
+        f: impl FnOnce(&mut Self) -> Result<T>,
+    ) -> Result<T> {
+        if self.depth >= MAX_DEPTH {
+            if let Some(first) = body.first() {
+                return Err(EaterException::new("Too many nested calls", first));
+            }
         }
-        Ok(None)
+        self.depth += 1;
+        let r = f(self);
+        self.depth -= 1;
+        r
     }
 
     fn execute_lines_internal(
@@ -235,12 +260,14 @@ impl TContext {
         body: &[StringLocated],
         ftype: Option<TFunctionType>,
     ) -> Result<()> {
-        let mut it = build_code_iterator(body.to_vec());
-        while let Some(s) = it.peek(self, mem)? {
-            self.execute_one_line(mem, &s, ftype, false)?;
-            it.next(self, mem)?;
-        }
-        Ok(())
+        self.nested(body, |cx| {
+            let mut it = build_code_iterator(body.to_vec());
+            while let Some(s) = it.peek(cx, mem)? {
+                cx.execute_one_line(mem, &s, ftype, false)?;
+                it.next(cx, mem)?;
+            }
+            Ok(())
+        })
     }
 
     fn execute_one_line(
