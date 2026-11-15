@@ -139,7 +139,7 @@ jobs:
         include:
           - { os: ubuntu-latest, name: linux-x64, ext: '', archive: tar.gz }
           - { os: macos-15-intel, name: macos-x64, ext: '', archive: tar.gz }
-          - { os: macos-14, name: macos-arm64, ext: '', archive: tar.gz }
+          - { os: macos-15, name: macos-arm64, ext: '', archive: tar.gz }
           - { os: windows-latest, name: windows-x64, ext: '.exe', archive: zip }
     steps:
       - uses: actions/checkout@v4
