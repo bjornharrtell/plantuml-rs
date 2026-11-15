@@ -7,7 +7,7 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 ### Added
 
-- Link labels written `: label >` or `: label <` draw the direction triangle next to the label (class, object, description and state diagrams), as PlantUML does.
+- Link labels written `: label >` or `: label <` (also per line of a multi-line label) draw the direction triangle next to the label (class, object, description and state diagrams), as PlantUML does.
 
 ## [0.5.5] - 2026-11-15
 

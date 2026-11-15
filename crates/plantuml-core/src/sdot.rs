@@ -192,18 +192,27 @@ fn label_block(
                 skin.max_message_size()
             }
         };
-        let block = label.create_block(
-            &font,
-            skin.default_text_alignment(HorizontalAlignment::Center),
-            &skin.skin_simple(),
-            &wrap,
-            crate::klimt::creole::CreoleMode::SimpleLine,
-            None,
-            None,
-            0.0,
-            0.0,
-        );
-        let mut block = block;
+        let alignment = skin.default_text_alignment(HorizontalAlignment::Center);
+        let several = label.size() > 1
+            && (0..label.size()).any(|i| {
+                let t = label.text_at(i);
+                t.starts_with("< ") || t.starts_with("> ") || t.ends_with(" <") || t.ends_with(" >")
+            });
+        let mut block: Rc<dyn TextBlock> = if several {
+            several_magic_arrows(&label, &font, alignment, skin, arrow_angle)
+        } else {
+            label.create_block(
+                &font,
+                alignment,
+                &skin.skin_simple(),
+                &wrap,
+                crate::klimt::creole::CreoleMode::SimpleLine,
+                None,
+                None,
+                0.0,
+                0.0,
+            )
+        };
         if let Some(m) = link.visibility_modifier() {
             let st = skin
                 .style_builder()
@@ -1331,6 +1340,47 @@ fn state_group_image(
     };
     let padded = Rc::new(PaddedEntityImage::new(stacked, 0.0, 0.0, right, bottom));
     Rc::new(InnerStateAutonom::new(group, padded, cuca, skin))
+}
+
+/// A label of several lines, each with its own `<` or `>` marker (`StringWithArrow.addSeveralMagicArrows`).
+fn several_magic_arrows(
+    label: &crate::klimt::creole::display::Display,
+    font: &crate::klimt::font::config::FontConfiguration,
+    alignment: HorizontalAlignment,
+    skin: &SkinParam,
+    angle: &Rc<Cell<f64>>,
+) -> Rc<dyn TextBlock> {
+    use crate::classdiagram::commands::string_with_arrow;
+    use crate::klimt::creole::display::Display;
+    let mut blocks: Vec<Rc<dyn TextBlock>> = Vec::new();
+    for i in 0..label.size() {
+        let (text, arrow) = string_with_arrow(Some(&label.text_at(i)));
+        let mut block = Display::with_newlines(text.as_deref()).create_block(
+            font,
+            alignment,
+            &skin.skin_simple(),
+            &skin.max_message_size(),
+            crate::klimt::creole::CreoleMode::SimpleLine,
+            None,
+            None,
+            0.0,
+            0.0,
+        );
+        if arrow != LinkArrow::NoneOrSeveral {
+            let marker: Rc<dyn TextBlock> = Rc::new(TextBlockArrow {
+                size: font.font().size2d(),
+                angle: angle.clone(),
+                backward: arrow == LinkArrow::Backward,
+                color: font.color().clone(),
+            });
+            block = Rc::new(HorizontalBlock {
+                blocks: vec![marker, block],
+                alignment: VerticalAlignment::Center,
+            });
+        }
+        blocks.push(block);
+    }
+    Rc::new(VerticalBlock { blocks, alignment })
 }
 
 /// Direction of a path in radians (`SvekEdge.getArrowDirectionInRadianInternal`).

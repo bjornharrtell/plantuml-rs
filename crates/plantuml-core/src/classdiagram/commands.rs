@@ -952,7 +952,7 @@ fn has_several_guide_lines(s: &str) -> bool {
     })
 }
 
-fn string_with_arrow(complete: Option<&str>) -> (Option<String>, LinkArrow) {
+pub(crate) fn string_with_arrow(complete: Option<&str>) -> (Option<String>, LinkArrow) {
     let Some(c) = complete else {
         return (None, LinkArrow::NoneOrSeveral);
     };
