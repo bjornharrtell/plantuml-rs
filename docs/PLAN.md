@@ -88,7 +88,7 @@ declared under [Accepted differences](#accepted-differences), which are rendered
 | DESCRIPTION | 7 | 100% | 1.00 | 0.85 | 6/6 | 1 |
 | CHEN_EER, MINDMAP, TIMING, BPM, JSON, YAML | 14 | 100% | 1.00 | 1.00 | 14/14 | 0 |
 
-All 401 scored fixtures render; **390 of 390 in-scope fixtures pass**, 11 are accepted differences, `layout_mean` 0.98.
+All 401 scored fixtures render; **389 of 389 in-scope fixtures pass**, 12 are accepted differences, `layout_mean` 0.98.
 
 Reproduce:
 

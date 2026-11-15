@@ -24,7 +24,7 @@ are cut (publishing to crates.io runs on pushed tags).
 
 ## Status
 
-All 390 in-scope fixtures meet the fidelity target (text overlap >= 0.95, relative element
+All 389 in-scope fixtures meet the fidelity target (text overlap >= 0.95, relative element
 placement >= 0.90) when measured with the reference metrics mode, and every fixture renders. 11 fixtures are documented
 accepted differences (embedded-diagram `scale`, handwritten mode and residual layout deltas); none of
 them is a missing feature or a crash. Supported today: sequence, class (with object and description

@@ -14,6 +14,7 @@ svg/id/state_03.puml                             # state composite 8 px narrow, 
 svg/id/state_05.puml                             # same state geometry family
 nonreg/group2783/nested_styled_composite.puml    # same state geometry family
 svg/interactive/SVG0005_Svek.puml                # description ports
+svg/interactive/SVG0006_Svek.puml                # the reference comes from Smetana, which draws no `>` direction marker; the jar does
 # Zero-space reference mode: the Vega references were rendered with SVG_DETERMINISTIC
 # (`StringBounderFromWidthTable`), where U+0020 and U+00A0 have zero advance. The port gives spaces the
 # bundled face's advance so words stay apart in a browser, so every space-bearing label is wider by

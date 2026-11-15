@@ -40,13 +40,15 @@ fn diagnostic_levels(messages: &[&str]) -> Vec<log::Level> {
         .collect()
 }
 
-use crate::abel::{Entity, LeafType, Link};
+use crate::abel::{Entity, LeafType, Link, LinkArrow};
 use crate::cucadiagram::CucaDiagram;
 use crate::json::JsonValue;
 use crate::klimt::color::colors::ColorType;
 use crate::klimt::color::HColor;
 use crate::klimt::dotpath::{Cubic, DotPath, Point, RectangleArea};
-use crate::klimt::drawing::ugraphic::{find_limits, UGraphic, UStroke, UTranslate};
+use crate::klimt::drawing::ugraphic::{
+    find_limits, UGraphic, UPolygon, UShape, UStroke, UTranslate,
+};
 use crate::klimt::font::{Dimension, StringBounder};
 use crate::klimt::geom::{HorizontalAlignment, MinMax, VerticalAlignment};
 use crate::klimt::shape::{with_margin, EmptyBlock, HorizontalBlock, TextBlock, VerticalBlock};
@@ -60,7 +62,7 @@ use crate::svek::edge::{role_block, skin_style_name};
 use crate::svek::extremity::{extremity_factory_complete, middle_factory};
 use crate::svek::image_note::{EntityImageNote, OpalePath};
 use crate::svek::node::SvekNode;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 /// Space the label of an edge takes in the layout, as an HTML table of that size (`createHackInit...`).
@@ -82,6 +84,8 @@ struct EdgeTexts {
     head_label: Option<Rc<dyn TextBlock>>,
     tail_role: Option<Rc<dyn TextBlock>>,
     head_role: Option<Rc<dyn TextBlock>>,
+    /// Direction of the drawn path in radians, read when drawing the `<`/`>` marker beside the label.
+    arrow_angle: Rc<Cell<f64>>,
 }
 
 struct LaidEdge {
@@ -166,7 +170,12 @@ fn arrow_style_font(
         .font_configuration(None)
 }
 
-fn label_block(link: &Link, skin: &SkinParam, sb: &dyn StringBounder) -> Option<Rc<dyn TextBlock>> {
+fn label_block(
+    link: &Link,
+    skin: &SkinParam,
+    sb: &dyn StringBounder,
+    arrow_angle: &Rc<Cell<f64>>,
+) -> Option<Rc<dyn TextBlock>> {
     let font = arrow_style_font(skin, Some(link));
     let mut label_only: Option<Rc<dyn TextBlock>> = None;
     let label = link.label();
@@ -211,6 +220,22 @@ fn label_block(link: &Link, skin: &SkinParam, sb: &dyn StringBounder) -> Option<
             });
         }
         label_only = Some(with_margin(block, Margins::same(1.0)));
+    }
+    let link_arrow = link.link_arrow();
+    if link_arrow != LinkArrow::NoneOrSeveral {
+        let arrow: Rc<dyn TextBlock> = Rc::new(TextBlockArrow {
+            size: font.font().size2d(),
+            angle: arrow_angle.clone(),
+            backward: link_arrow == LinkArrow::Backward,
+            color: font.color().clone(),
+        });
+        label_only = Some(match label_only {
+            None => arrow,
+            Some(b) => Rc::new(HorizontalBlock {
+                blocks: vec![arrow, b],
+                alignment: VerticalAlignment::Center,
+            }),
+        });
     }
     let lo = |lo: Option<Rc<dyn TextBlock>>| -> Rc<dyn TextBlock> {
         lo.unwrap_or_else(|| {
@@ -276,8 +301,10 @@ fn edge_texts(link: &Link, skin: &SkinParam, sb: &dyn StringBounder) -> EdgeText
     let role = |r: Option<String>| r.map(|r| marged(role_block(&r, &font, skin), sb));
     let (q1, q2) = (quant(link.quantifier1()), quant(link.quantifier2()));
     let (r1, r2) = (role(link.role1()), role(link.role2()));
+    let arrow_angle = Rc::new(Cell::new(0.0));
     EdgeTexts {
-        label: label_block(link, skin, sb),
+        label: label_block(link, skin, sb, &arrow_angle),
+        arrow_angle,
         tail_label: q1.clone().or_else(|| r1.clone()),
         head_label: q2.clone().or_else(|| r2.clone()),
         tail_role: if q1.is_some() { r1 } else { None },
@@ -985,6 +1012,9 @@ impl Drawing {
             };
             dot_path =
                 dot_path.simulate_compound(area_of(&link.entity2()), area_of(&link.entity1()));
+            edge.texts
+                .arrow_angle
+                .set(arrow_direction(&dot_path, link.is_autolink()));
             let q = queries::ARROW
                 .add(skin_style_name(skin))
                 .with_stereotype_obj(link.stereotype().as_ref());
@@ -1301,6 +1331,49 @@ fn state_group_image(
     };
     let padded = Rc::new(PaddedEntityImage::new(stacked, 0.0, 0.0, right, bottom));
     Rc::new(InnerStateAutonom::new(group, padded, cuca, skin))
+}
+
+/// Direction of a path in radians (`SvekEdge.getArrowDirectionInRadianInternal`).
+fn arrow_direction(path: &DotPath, autolink: bool) -> f64 {
+    if autolink {
+        return path.start_angle();
+    }
+    let (start, end) = (path.start_point(), path.end_point());
+    (end.0 - start.0).atan2(end.1 - start.1)
+}
+
+/// The small triangle showing the direction of a link written `: label >` (`TextBlockArrow2`).
+struct TextBlockArrow {
+    size: f64,
+    angle: Rc<Cell<f64>>,
+    backward: bool,
+    color: HColor,
+}
+
+impl TextBlock for TextBlockArrow {
+    fn calculate_dimension(&self, _sb: &dyn StringBounder) -> Dimension {
+        Dimension::new(self.size, self.size)
+    }
+
+    fn draw(&self, ug: &UGraphic) {
+        let tri_size = (self.size * 0.80).trunc();
+        let ug = ug
+            .apply_color(self.color.clone())
+            .apply_back_color(self.color.clone())
+            .apply_translate(UTranslate::new(tri_size / 2.0, self.size / 2.0));
+        let angle = self.angle.get()
+            + if self.backward {
+                std::f64::consts::PI
+            } else {
+                0.0
+            };
+        let beta = std::f64::consts::PI * 4.0 / 5.0;
+        let mut triangle = UPolygon::default();
+        for a in [angle, angle + beta, angle - beta, angle] {
+            triangle.add_point(tri_size / 2.0 * a.sin(), tri_size / 2.0 * a.cos());
+        }
+        ug.draw(UShape::Polygon(triangle));
+    }
 }
 
 #[cfg(test)]
