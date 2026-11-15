@@ -1,6 +1,6 @@
 {
   "name": "plantuml-rs",
-  "version": "0.5.5",
+  "version": "0.5.6",
   "description": "PlantUML renderer in WebAssembly: deterministic SVG from text, no Java, no Graphviz, no network",
   "license": "MIT",
   "repository": {
