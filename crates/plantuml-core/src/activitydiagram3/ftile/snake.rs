@@ -623,9 +623,8 @@ impl WormMutation {
 
     pub fn mute(&self, original: &Worm) -> Worm {
         let mut r = original.clone_empty();
-        for i in 0..original.size() {
+        for (i, t) in self.translations.iter().enumerate().take(original.size()) {
             let p = original.point(i);
-            let t = self.translations[i];
             r.add_point(p.0 + t.dx, p.1 + t.dy);
         }
         r
