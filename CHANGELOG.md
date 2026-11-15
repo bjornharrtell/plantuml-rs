@@ -5,6 +5,10 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 ## [Unreleased]
 
+### Changed
+
+- Dependencies: `graphviz-pure` 1.2.0, `zip` 9, `md-5` 0.11, and the latest compatible versions of the rest (`wasm-bindgen` 0.2.130; CI pins its CLI to match).
+
 ## [0.5.4] - 2026-11-04
 
 ### Changed

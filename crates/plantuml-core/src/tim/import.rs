@@ -22,7 +22,7 @@ impl ImportedArchive {
             if entry.is_dir() {
                 continue;
             }
-            let name = normalize(entry.name())?;
+            let name = normalize(&entry.name().ok()?)?;
             let mut content = Vec::new();
             entry.read_to_end(&mut content).ok()?;
             files.insert(name, String::from_utf8_lossy(&content).into_owned());

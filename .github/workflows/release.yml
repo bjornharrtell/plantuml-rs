@@ -104,7 +104,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@v2
         with:
-          tool: wasm-bindgen-cli@0.2.129
+          tool: wasm-bindgen-cli@0.2.130
       # trusted publishing needs npm >= 11.5.1, which ships with Node 24
       - uses: actions/setup-node@v4
         with:

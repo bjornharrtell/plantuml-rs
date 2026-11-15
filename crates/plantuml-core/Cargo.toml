@@ -13,9 +13,9 @@ categories = ["visualization", "rendering", "wasm"]
 
 [dependencies]
 fancy-regex = "0.20.0"
-graphviz-pure = "=1.1.0"
-md-5 = "0.10.6"
+graphviz-pure = "=1.2.0"
+md-5 = "0.11"
 log.workspace = true
 regex = { version = "1", default-features = false, features = ["std", "unicode-perl", "unicode-case", "unicode-gencat", "perf"] }
-zip = { version = "2", default-features = false, features = ["deflate"] }
+zip = { version = "9", default-features = false, features = ["deflate"] }
 
