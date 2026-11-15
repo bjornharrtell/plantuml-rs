@@ -5,9 +5,15 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 ## [Unreleased]
 
+## [0.5.5] - 2026-11-15
+
 ### Changed
 
 - Dependencies: `graphviz-pure` 1.2.0, `zip` 9, `md-5` 0.11, and the latest compatible versions of the rest (`wasm-bindgen` 0.2.130; CI pins its CLI to match).
+
+### Fixed
+
+- Malformed input no longer panics or overflows the stack: runaway recursion in functions, procedures and `!includesub` is an error, and unbalanced YAML, teoz `par`/`delay` and an empty `switch` are tolerated.
 
 ## [0.5.4] - 2026-11-04
 
