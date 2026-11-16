@@ -5,6 +5,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 ## [Unreleased]
 
+## [0.5.7] - 2026-11-16
+
 ### Added
 
 - `skinparam groupInheritance N` groups the inheritance arrows of a parent that has at least N of them into one triangle.
