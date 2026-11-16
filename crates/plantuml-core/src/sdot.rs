@@ -61,6 +61,7 @@ use crate::svek::cluster_header::ClusterHeader;
 use crate::svek::edge::{role_block, skin_style_name};
 use crate::svek::extremity::{extremity_factory_complete, middle_factory};
 use crate::svek::image_note::{EntityImageNote, OpalePath};
+use crate::svek::neighborhood::{remove_irrelevant_sametail, EntityImageProtected, Neighborhood};
 use crate::svek::node::SvekNode;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
@@ -343,6 +344,8 @@ struct Collected {
     root_leaves: Vec<Entity>,
     groups: Vec<GroupNode>,
     nodes: Vec<(Entity, SvekNode)>,
+    /// Parents whose inheritance arrows are drawn as a group (`groupInheritance`), by entity uid.
+    neighborhoods: std::collections::HashMap<String, Neighborhood>,
 }
 
 /// `printGroups`: a package with nothing inside has no cluster to lay out, so Java turns it into an
@@ -436,7 +439,13 @@ fn add_node(
             ent, cuca, skin, &c.bib,
         ))
     } else {
-        create_entity_image(ent, cuca, skin)
+        let image = create_entity_image(ent, cuca, skin);
+        match c.neighborhoods.remove(&ent.uid()) {
+            Some(neighborhood) if ent.leaf_type().is_some_and(LeafType::is_like_class) => {
+                Rc::new(EntityImageProtected::new(image, 20.0, neighborhood))
+            }
+            _ => image,
+        }
     };
     let node = SvekNode::new(
         ent.clone(),
@@ -616,6 +625,9 @@ fn build_dot(
                 }
             }
         }
+        if let Some(tail) = link.sametail() {
+            attrs.push_str(&format!(",sametail={tail}"));
+        }
         let (port1, port2) = {
             let d = link.get();
             (d.port1.clone(), d.port2.clone())
@@ -767,6 +779,7 @@ fn layout_from(
         root_leaves: Vec::new(),
         groups: Vec::new(),
         nodes: Vec::new(),
+        neighborhoods: remove_irrelevant_sametail(&links, skin.group_inheritance()),
     };
     c.groups = collect_groups(cuca, skin, sb, &root_entity, &root_cluster, nested, &mut c);
     for ent in root_entity.leafs() {
@@ -972,6 +985,13 @@ impl Drawing {
                 note.set_opale_path(self.opale_path(note.entity(), corner, max));
             }
             image.draw(&ug_node.apply_translate(UTranslate::new(corner.0, corner.1)));
+            if let Some(protected) = image.as_any().downcast_ref::<EntityImageProtected>() {
+                protected.draw_untranslated(
+                    &ug.apply_color(self.arrow_line_color()),
+                    corner,
+                    &|link| self.contacts(link, max),
+                );
+            }
         }
         for edge in &self.layout.edges {
             if edge.hidden || edge.link.is_invis() || edge.link.is_opale() {
@@ -979,6 +999,24 @@ impl Drawing {
             }
             self.draw_edge(ug, edge, max);
         }
+    }
+
+    /// Line color of the default arrow style (`SvekResult`: `borderColor`).
+    fn arrow_line_color(&self) -> HColor {
+        let skin = &self.layout.skin;
+        let q = queries::ARROW.add(skin_style_name(skin));
+        skin.style_builder()
+            .merged_style(&q)
+            .expect("arrow style")
+            .value(PName::LineColor)
+            .as_color()
+    }
+
+    /// Ends of the path of `link` where it meets its nodes (`getStartContactPoint`).
+    fn contacts(&self, link: &Link, max: f64) -> Option<(Point, Point)> {
+        let edge = self.layout.edges.iter().find(|e| e.link == *link)?;
+        let path = mirrored_path(edge.path.as_ref()?, max);
+        Some((path.start_point(), path.end_point()))
     }
 
     /// Ends of the link of a note, relative to the note (`SmetanaEdge.getStartPoint`).

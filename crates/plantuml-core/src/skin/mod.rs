@@ -219,6 +219,16 @@ impl SkinParam {
         }
     }
 
+    /// `skinparam groupInheritance N`: how many arrows to one parent are drawn as a group.
+    pub fn group_inheritance(&self) -> usize {
+        let value = self.as_int("groupinheritance", i32::MAX);
+        if value <= 1 {
+            usize::MAX
+        } else {
+            value as usize
+        }
+    }
+
     pub fn circled_character_radius(&self) -> f64 {
         let v = self.as_int("circledcharacterradius", -1);
         if v == -1 {

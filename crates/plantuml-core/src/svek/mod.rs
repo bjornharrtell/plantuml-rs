@@ -17,6 +17,7 @@ pub mod image_object;
 pub mod image_port;
 pub mod image_state;
 pub mod image_tips;
+pub mod neighborhood;
 pub mod node;
 pub mod note_link;
 pub(crate) mod ports;
