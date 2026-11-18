@@ -583,6 +583,11 @@ fn build_dot(
             crate::svek::types::pixel_to_inches(rs)
         ));
     }
+    match skin.get_value("linetype") {
+        Some(v) if v.eq_ignore_ascii_case("polyline") => out.push_str("splines=polyline;\n"),
+        Some(v) if v.eq_ignore_ascii_case("ortho") => out.push_str("splines=ortho;\n"),
+        _ => {}
+    }
     if skin.rankdir == Rankdir::LeftToRight {
         out.push_str("rankdir=LR;\n");
     }
@@ -1468,6 +1473,19 @@ impl TextBlock for TextBlockArrow {
 mod tests {
     use super::*;
     use log::Level::{Debug, Warn};
+
+    #[test]
+    fn linetype_ortho_changes_class_layout_and_ungroups_inheritance() {
+        let src = |extra: &str| {
+            format!("@startuml\n{extra}skinparam groupInheritance 2\nA <|-- B\nA <|-- C\n@enduml")
+        };
+        let plain = crate::render(&src("")).unwrap();
+        let ortho = crate::render(&src("skinparam linetype ortho\n")).unwrap();
+        let poly = crate::render(&src("skinparam linetype polyline\n")).unwrap();
+        assert_eq!(plain.matches("<polygon fill=\"none\"").count(), 1);
+        assert_eq!(ortho.matches("<polygon fill=\"none\"").count(), 2);
+        assert_ne!(plain, poly);
+    }
 
     #[test]
     fn fixed_table_warning_and_its_context_line_are_debug() {

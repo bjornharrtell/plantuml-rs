@@ -222,7 +222,11 @@ impl SkinParam {
     /// `skinparam groupInheritance N`: how many arrows to one parent are drawn as a group.
     pub fn group_inheritance(&self) -> usize {
         let value = self.as_int("groupinheritance", i32::MAX);
-        if value <= 1 {
+        // Orthogonal routing ignores `sametail`, so the grouped arrowhead would not meet its links.
+        let ortho = self
+            .get_value("linetype")
+            .is_some_and(|v| v.eq_ignore_ascii_case("ortho"));
+        if value <= 1 || ortho {
             usize::MAX
         } else {
             value as usize
