@@ -5,6 +5,13 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
 
 ## [Unreleased]
 
+### Added
+
+- `plantuml-core` feature `graphviz`, on by default, for the `graphviz-pure` (EPL-2.0) layout. With
+  `default-features = false` the crate has no EPL dependency: every diagram still parses, but the diagrams that need
+  Graphviz (class, object, description, state, Chen EER, legacy activity, JSON/YAML/HCL) are drawn empty and an
+  error is logged.
+
 ## [0.5.7] - 2026-11-16
 
 ### Added
