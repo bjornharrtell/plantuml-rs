@@ -7,7 +7,7 @@ mod idea;
 mod tetris;
 
 pub use box_block::BoxBlock;
-pub use idea::{node_style, IdeaShape, NodeInfo, WBS_QUERIES};
+pub use idea::{node_style, Branch, Idea, IdeaShape, NodeInfo, WBS_QUERIES};
 
 use crate::command::common::HasBase;
 use crate::command::{create_system, CommandDiagram, CommandExecutionResult, ErrorUml, UmlSource};
@@ -20,7 +20,6 @@ use crate::klimt::shape::TextBlock;
 use crate::skin::{Rankdir, SkinParam};
 use crate::stereo::Stereotype;
 use finger::FingerImpl;
-use idea::Branch;
 use std::rc::Rc;
 
 /// One tree of ideas, with the ideas going right and the ones going left (`MindMap`).
@@ -32,6 +31,16 @@ pub struct MindMap {
 }
 
 impl MindMap {
+    /// The ideas going right (or down), from the root at index 0.
+    pub fn regular(&self) -> &Branch {
+        &self.regular
+    }
+
+    /// The ideas going left (or up), from the same root.
+    pub fn reverse(&self) -> &Branch {
+        &self.reverse
+    }
+
     fn is_full(&self, level: i32) -> bool {
         level == 0 && self.regular.has_root()
     }
@@ -203,6 +212,11 @@ impl MindMapDiagram {
             default_direction: true,
             first: None,
         }
+    }
+
+    /// The parsed trees, one per root.
+    pub fn mindmaps(&self) -> &[MindMap] {
+        &self.mindmaps
     }
 
     /// `left side`, `right side`, `top to bottom direction`... set where ideas go by default.
