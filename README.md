@@ -61,4 +61,5 @@ caveats and what is left are in
 
 ## License
 
-MIT. Ported code derives from PlantUML under its MIT option; `graphviz-pure` is EPL-2.0.
+MIT. Ported code derives from PlantUML under its MIT option; `graphviz-pure` is EPL-2.0 and can be left out by
+turning off the default `graphviz` feature of `plantuml-core` (the diagrams it lays out are then drawn empty).

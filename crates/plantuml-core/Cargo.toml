@@ -11,11 +11,20 @@ documentation = "https://docs.rs/plantuml-core"
 keywords = ["plantuml", "uml", "svg", "diagram", "wasm"]
 categories = ["visualization", "rendering", "wasm"]
 
+[features]
+default = ["graphviz"]
+# Graphviz layout (`graphviz-pure`, EPL-2.0). Without it every diagram still parses, but class, object, description,
+# state, Chen EER, legacy activity and JSON/YAML/HCL diagrams are drawn empty.
+graphviz = ["dep:graphviz-pure"]
+
 [dependencies]
 fancy-regex = "0.20.0"
-graphviz-pure = "=1.2.0"
+graphviz-pure = { version = "=1.2.0", optional = true }
 md-5 = "0.11"
 log.workspace = true
 regex = { version = "1", default-features = false, features = ["std", "unicode-perl", "unicode-case", "unicode-gencat", "perf"] }
 zip = { version = "9", default-features = false, features = ["deflate"] }
 
+[[example]]
+name = "gvjson"
+required-features = ["graphviz"]
