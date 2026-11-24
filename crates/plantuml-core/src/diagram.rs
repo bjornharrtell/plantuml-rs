@@ -9,6 +9,7 @@ use crate::skin::SkinParam;
 use crate::style::Margins;
 use crate::style::SName;
 use crate::text::LineLocation;
+use std::any::Any;
 use std::rc::Rc;
 
 /// The kind of diagram (`DiagramType`).
@@ -369,7 +370,11 @@ impl DiagramBase {
 }
 
 /// A parsed diagram that can be drawn (`Diagram`, `UgDiagram`).
-pub trait Diagram {
+///
+/// [`AsAny`] gives back the concrete diagram, e.g. the
+/// [`ClassDiagram`](crate::classdiagram::ClassDiagram) behind a
+/// [`create_psystem`](crate::psystem::create_psystem) result, to read the parsed model.
+pub trait Diagram: AsAny {
     fn base(&self) -> &DiagramBase;
     fn base_mut(&mut self) -> &mut DiagramBase;
 
@@ -383,6 +388,22 @@ pub trait Diagram {
     /// Title shown above the drawing.
     fn title(&self) -> DisplayPositioned {
         self.base().title.clone()
+    }
+}
+
+/// Downcasting of a `dyn Diagram` to its concrete type.
+pub trait AsAny {
+    fn as_any(&self) -> &dyn Any;
+    fn into_any(self: Box<Self>) -> Box<dyn Any>;
+}
+
+impl<T: Diagram + 'static> AsAny for T {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self
     }
 }
 

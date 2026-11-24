@@ -11,6 +11,9 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html);
   `default-features = false` the crate has no EPL dependency: every diagram still parses, but the diagrams that need
   Graphviz (class, object, description, state, Chen EER, legacy activity, JSON/YAML/HCL) are drawn empty and an
   error is logged.
+- `as_any` and `into_any` on every `Diagram` (the new `AsAny` supertrait) downcast a parsed diagram, e.g. the result
+  of `psystem::create_psystem`, to `ClassDiagram`, `StateDiagram` and the others to read its model.
+  `MindMapDiagram::mindmaps` gives the idea trees.
 
 ## [0.5.7] - 2026-11-16
 
